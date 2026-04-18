@@ -1,0 +1,22 @@
+# OS / editor noise
+.DS_Store
+Thumbs.db
+
+# Obsidian local workspace state
+.obsidian/workspace.json
+
+# Community plugin installs and per-plugin local state
+.obsidian/plugins/**
+
+# Raw source library: keep the structure docs, not the source files
+raw/**
+!raw/
+!raw/README.md
+
+# Local data mirrors and samples from the remote warehouse
+catalog/samples/**
+
+# Generated evidence artifacts
+artifacts/**
+!artifacts/
+!artifacts/README.md

@@ -1,0 +1,419 @@
+{
+  "nodes": [
+    {
+      "id": "group-governance",
+      "type": "group",
+      "x": -2480,
+      "y": -1180,
+      "width": 1180,
+      "height": 420,
+      "label": "Operating contract",
+      "color": "2"
+    },
+    {
+      "id": "group-inputs",
+      "type": "group",
+      "x": -2480,
+      "y": -700,
+      "width": 1180,
+      "height": 1300,
+      "label": "Inputs and mirrors",
+      "color": "3"
+    },
+    {
+      "id": "group-wiki",
+      "type": "group",
+      "x": -1140,
+      "y": -1180,
+      "width": 2240,
+      "height": 1780,
+      "label": "Compiled knowledge base",
+      "color": "4"
+    },
+    {
+      "id": "group-ops",
+      "type": "group",
+      "x": -1140,
+      "y": 680,
+      "width": 2240,
+      "height": 520,
+      "label": "Obsidian operating surfaces",
+      "color": "6"
+    },
+    {
+      "id": "group-projects",
+      "type": "group",
+      "x": 1280,
+      "y": -620,
+      "width": 940,
+      "height": 620,
+      "label": "Active research",
+      "color": "1"
+    },
+    {
+      "id": "group-artifacts",
+      "type": "group",
+      "x": 1280,
+      "y": 80,
+      "width": 940,
+      "height": 520,
+      "label": "Evidence and outputs",
+      "color": "5"
+    },
+    {
+      "id": "readme",
+      "type": "file",
+      "x": -2380,
+      "y": -1080,
+      "width": 500,
+      "height": 240,
+      "file": "README.md"
+    },
+    {
+      "id": "agent",
+      "type": "file",
+      "x": -1820,
+      "y": -1080,
+      "width": 460,
+      "height": 240,
+      "file": "agent.md"
+    },
+    {
+      "id": "raw-readme",
+      "type": "file",
+      "x": -2380,
+      "y": -600,
+      "width": 500,
+      "height": 240,
+      "file": "raw/README.md"
+    },
+    {
+      "id": "catalog-readme",
+      "type": "file",
+      "x": -1820,
+      "y": -600,
+      "width": 460,
+      "height": 240,
+      "file": "catalog/README.md"
+    },
+    {
+      "id": "source-obsidian-cli",
+      "type": "file",
+      "x": -2380,
+      "y": -300,
+      "width": 500,
+      "height": 260,
+      "file": "wiki/sources/articles/Obsidian CLI README.md"
+    },
+    {
+      "id": "source-llm-workflow",
+      "type": "file",
+      "x": -1820,
+      "y": -300,
+      "width": 460,
+      "height": 260,
+      "file": "wiki/concepts/LLM Knowledge Base Workflow.md"
+    },
+    {
+      "id": "input-text",
+      "type": "text",
+      "x": -2380,
+      "y": 20,
+      "width": 1020,
+      "height": 500,
+      "text": "Input doctrine\\n\\n- `raw/` holds books, papers, and clipped source material\\n- `catalog/` mirrors remote dataset descriptions and samples\\n- source notes compile chapter-by-chapter or section-by-section ingest\\n- the vault never treats giant remote parquet as local truth\\n- evidence returns as bounded artifacts, then gets crystallized back into markdown"
+    },
+    {
+      "id": "wiki-index",
+      "type": "file",
+      "x": -1020,
+      "y": -1060,
+      "width": 520,
+      "height": 240,
+      "file": "wiki/index.md"
+    },
+    {
+      "id": "reading-map",
+      "type": "file",
+      "x": -420,
+      "y": -1060,
+      "width": 520,
+      "height": 240,
+      "file": "wiki/maps/reading_map.md"
+    },
+    {
+      "id": "wiki-log",
+      "type": "file",
+      "x": 180,
+      "y": -1060,
+      "width": 500,
+      "height": 240,
+      "file": "wiki/log.md"
+    },
+    {
+      "id": "dataset-daily-stock",
+      "type": "file",
+      "x": -1020,
+      "y": -680,
+      "width": 520,
+      "height": 280,
+      "file": "wiki/datasets/daily_stock.md"
+    },
+    {
+      "id": "identifier-permno",
+      "type": "file",
+      "x": -420,
+      "y": -680,
+      "width": 520,
+      "height": 280,
+      "file": "wiki/identifiers/permno.md"
+    },
+    {
+      "id": "method-forecasting",
+      "type": "file",
+      "x": 180,
+      "y": -680,
+      "width": 500,
+      "height": 280,
+      "file": "wiki/methods/Time-Series Forecasting.md"
+    },
+    {
+      "id": "method-kalman",
+      "type": "file",
+      "x": 740,
+      "y": -680,
+      "width": 300,
+      "height": 280,
+      "file": "wiki/methods/Kalman Filtering.md"
+    },
+    {
+      "id": "strategy-portfolio",
+      "type": "file",
+      "x": -1020,
+      "y": -300,
+      "width": 520,
+      "height": 280,
+      "file": "wiki/strategies/Portfolio Construction.md"
+    },
+    {
+      "id": "concept-derivatives",
+      "type": "file",
+      "x": -420,
+      "y": -300,
+      "width": 520,
+      "height": 280,
+      "file": "wiki/concepts/Derivatives Markets.md"
+    },
+    {
+      "id": "concept-overfitting",
+      "type": "file",
+      "x": 180,
+      "y": -300,
+      "width": 500,
+      "height": 280,
+      "file": "wiki/concepts/Backtest Overfitting.md"
+    },
+    {
+      "id": "concept-llm",
+      "type": "file",
+      "x": 740,
+      "y": -300,
+      "width": 300,
+      "height": 280,
+      "file": "wiki/concepts/LLM Knowledge Base Workflow.md"
+    },
+    {
+      "id": "wiki-text",
+      "type": "text",
+      "x": -1020,
+      "y": 60,
+      "width": 2060,
+      "height": 460,
+      "text": "Wiki doctrine\\n\\n- `wiki/` is the durable layer\\n- source notes feed concept, method, dataset, metric, and strategy notes\\n- identifiers anchor joins and lineage\\n- maps route reading and navigation\\n- markdown is the source of truth; Bases and Canvas summarize it\\n- update notes only after reading, understanding, reflecting, and then writing"
+    },
+    {
+      "id": "ops-text",
+      "type": "text",
+      "x": -1020,
+      "y": 780,
+      "width": 980,
+      "height": 300,
+      "text": "Obsidian doctrine\\n\\nLinks -> primary structure\\nBases -> operational dashboards\\nTags -> secondary facets\\nCanvas -> spatial orientation\\nBacklinks/orphans -> lint signals"
+    },
+    {
+      "id": "ops-cli",
+      "type": "text",
+      "x": 40,
+      "y": 780,
+      "width": 1000,
+      "height": 300,
+      "text": "Codex environment note\\n\\n- MCP is the default for note-local maintenance\\n- shell-side `obsidian` CLI needs unsandboxed execution in this setup\\n- use CLI for app-native actions like tabs, commands, Bases, backlink audits, and opening canvas views"
+    },
+    {
+      "id": "project-readme",
+      "type": "file",
+      "x": 1380,
+      "y": -520,
+      "width": 420,
+      "height": 240,
+      "file": "projects/README.md"
+    },
+    {
+      "id": "project-text",
+      "type": "text",
+      "x": 1820,
+      "y": -520,
+      "width": 300,
+      "height": 240,
+      "text": "Project loop\\n\\nquestion -> plan -> replication -> decision -> crystallize"
+    },
+    {
+      "id": "artifacts-readme",
+      "type": "file",
+      "x": 1380,
+      "y": 180,
+      "width": 420,
+      "height": 220,
+      "file": "artifacts/README.md"
+    },
+    {
+      "id": "artifacts-text",
+      "type": "text",
+      "x": 1820,
+      "y": 180,
+      "width": 300,
+      "height": 220,
+      "text": "Evidence loop\\n\\nsmall tables\\ncharts\\ndiagnostics\\nbacktest summaries\\njob lineage"
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-readme-agent",
+      "fromNode": "readme",
+      "toNode": "agent",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "operating contract"
+    },
+    {
+      "id": "e-agent-index",
+      "fromNode": "agent",
+      "toNode": "wiki-index",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "maintains"
+    },
+    {
+      "id": "e-raw-source",
+      "fromNode": "raw-readme",
+      "toNode": "source-llm-workflow",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "ingest"
+    },
+    {
+      "id": "e-catalog-dataset",
+      "fromNode": "catalog-readme",
+      "toNode": "dataset-daily-stock",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "mirror"
+    },
+    {
+      "id": "e-source-reading",
+      "fromNode": "source-llm-workflow",
+      "toNode": "reading-map",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "organize"
+    },
+    {
+      "id": "e-source-index",
+      "fromNode": "source-obsidian-cli",
+      "toNode": "wiki-index",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "tooling source"
+    },
+    {
+      "id": "e-index-log",
+      "fromNode": "wiki-index",
+      "toNode": "wiki-log",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "maintenance trail"
+    },
+    {
+      "id": "e-dataset-identifier",
+      "fromNode": "dataset-daily-stock",
+      "toNode": "identifier-permno",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "join key"
+    },
+    {
+      "id": "e-dataset-method",
+      "fromNode": "dataset-daily-stock",
+      "toNode": "method-forecasting",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "research input"
+    },
+    {
+      "id": "e-kalman-forecasting",
+      "fromNode": "method-kalman",
+      "toNode": "method-forecasting",
+      "fromSide": "left",
+      "toSide": "right",
+      "label": "state-space"
+    },
+    {
+      "id": "e-forecasting-strategy",
+      "fromNode": "method-forecasting",
+      "toNode": "strategy-portfolio",
+      "fromSide": "left",
+      "toSide": "right",
+      "label": "supports"
+    },
+    {
+      "id": "e-overfitting-projects",
+      "fromNode": "concept-overfitting",
+      "toNode": "project-readme",
+      "fromSide": "right",
+      "toSide": "left",
+      "label": "validation discipline"
+    },
+    {
+      "id": "e-project-artifacts",
+      "fromNode": "project-readme",
+      "toNode": "artifacts-readme",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "label": "produce evidence"
+    },
+    {
+      "id": "e-artifacts-index",
+      "fromNode": "artifacts-readme",
+      "toNode": "wiki-index",
+      "fromSide": "left",
+      "toSide": "right",
+      "label": "crystallize back"
+    },
+    {
+      "id": "e-ops-index",
+      "fromNode": "ops-text",
+      "toNode": "wiki-index",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "label": "surface"
+    },
+    {
+      "id": "e-cli-ops",
+      "fromNode": "ops-cli",
+      "toNode": "source-obsidian-cli",
+      "fromSide": "top",
+      "toSide": "bottom",
+      "label": "tooling model"
+    }
+  ]
+}
