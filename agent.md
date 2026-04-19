@@ -196,19 +196,6 @@ Bad usage:
 - encoding note titles or entity identity only as tags
 - creating dozens of one-off tags that never become useful query facets
 
-### Canvas
-
-Treat canvas files as spatial orientation layers, not as the source of truth.
-
-Rules:
-
-- keep durable canvas files under `wiki/maps/`
-- use canvases to expose structure, flow, and reading paths across the vault
-- prefer file nodes that point to durable notes over large text dumps duplicated inside the canvas
-- use groups to separate layers such as `raw/`, `catalog/`, `wiki/`, `projects/`, and `artifacts/`
-- keep the authoritative content in markdown notes; the canvas should help navigation and reflection, not replace note maintenance
-- when the vault architecture changes materially, update both the markdown maps and the relevant canvas files
-
 ## Folder doctrine
 
 ### `raw/`
