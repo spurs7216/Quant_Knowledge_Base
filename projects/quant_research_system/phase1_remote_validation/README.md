@@ -29,6 +29,7 @@ This phase does not optimize for smallness. It builds the first robust foundatio
 - [preflight_checklist.md](preflight_checklist.md): local checks before a job is sent to remote compute.
 - [task_001_daily_stock_short_reversal.md](task_001_daily_stock_short_reversal.md): first concrete validation task.
 - [task_001_manifest.yaml](task_001_manifest.yaml): concrete draft manifest for the first task.
+- [task_001_decision.md](task_001_decision.md): decision from the first full remote-validation run.
 - [manual_remote_steps.md](manual_remote_steps.md): commands the human should run on the remote Ubuntu machine.
 
 Executable scaffold:

@@ -1,7 +1,7 @@
 ---
 title: Task 001 Daily Stock Short-Horizon Reversal
 type: project
-status: draft
+status: completed
 updated: 2026-04-23
 tags:
   - project
@@ -205,6 +205,10 @@ This task can produce three acceptable decisions:
 - `reject`: baseline is not useful or the implementation is not trustworthy
 
 The decision is not based on Sharpe alone. Implementation trust and evidence quality matter more in Task 001.
+
+Final decision from the first full remote-validation run: `revise`.
+
+See [task_001_decision.md](task_001_decision.md).
 
 ## Expected Artifact Bundle
 
