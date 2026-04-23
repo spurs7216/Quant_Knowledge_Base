@@ -16,7 +16,12 @@ tags:
 
 IBKR should evaluate execution-facing implementation skill, not alpha discovery.
 
-The agent must first show that an idea survives historical validation. Only then should it enter IBKR paper-trading or execution checks.
+The agent's implementation skill should be tested at two levels:
+
+- early no-send translation: can the agent turn a strategy rule into target positions, contract-resolution requests, order intents, and static risk checks?
+- later paper execution: can the agent manage account state, order submission, cancellation, fills, and reconciliation in a paper account?
+
+The first level should be examined early because it catches non-implementable research logic. The second level should wait until a strategy survives historical validation and safety gates.
 
 ## Why IBKR improves the implementation layer
 
@@ -59,6 +64,36 @@ Use four stages:
    Submit orders only to a paper account under strict limits.
 4. `live_trade`
    Out of scope unless the human explicitly approves a separate live-trading protocol.
+
+## Early strategy-to-order smoke test
+
+This belongs near Phase 2B, before large candidate search.
+
+Purpose:
+
+- check whether a strategy specification has enough detail to become broker-facing logic
+- expose missing assumptions about target sizing, rebalance timing, instruments, shorting, order type, and risk limits
+- produce reviewable artifacts without connecting to an order-submission endpoint
+
+Required no-send outputs:
+
+- target portfolio or target-delta table
+- contract-resolution request table
+- order-intent JSON with explicit `paper_account_required` and no-send semantics such as `transmit=false`
+- static risk-check report
+- implementation caveat report
+
+Failure gates:
+
+- missing account mode
+- missing notional and quantity caps
+- ambiguous contract fields
+- no cancel or flattening plan
+- use of live-order submission
+- credentials written to the vault
+- strategy requires instruments or shorting assumptions not supported by the declared account constraints
+
+This smoke test does not prove alpha and does not prove paper-execution competence. It only proves that the research logic is specific enough to be translated into broker-facing artifacts.
 
 ## Execution evaluator cascade
 

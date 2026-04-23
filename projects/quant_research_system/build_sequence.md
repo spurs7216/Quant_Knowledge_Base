@@ -30,6 +30,15 @@ Build in phases because staged construction controls risk and reveals bad assump
 
 Search without good evaluation accelerates overfitting, so evaluator quality and artifact provenance remain first-class design requirements.
 
+Execution realism should be tested earlier than full paper trading.
+
+There are two different questions:
+
+- Can the agent turn a strategy rule into safe broker-facing target positions, contract-resolution requests, order intents, and risk checks?
+- Should the strategy actually be submitted to an IBKR paper account?
+
+The first question should be examined early in no-send mode because it catches non-implementable research logic before large-scale search compounds it. The second question stays later because even paper order lifecycle work needs stronger safety, reconciliation, and account-control infrastructure.
+
 ## Phase 0. Freeze design assumptions
 
 Outputs:
@@ -87,7 +96,7 @@ Remote machines and remote agents produce evidence and recommendations. They do 
 
 Goal:
 
-Make rejection discipline explicit.
+Make rejection discipline explicit before search.
 
 Foundation scope:
 
@@ -95,11 +104,43 @@ Foundation scope:
 - create evaluator checklist
 - score false accepts
 - store decisions and failure reasons
+- include implementation-feasibility flags when a strategy is obviously not tradable, not borrowable, not contract-resolvable, or not orderable under the intended broker constraints
 
 Exit criteria:
 
 - agent can correctly reject at least some weak ideas
 - false accepts are visible in scorecard
+- rejected ideas include both statistical failures and implementation-feasibility failures when applicable
+
+## Phase 2B. Strategy-to-IBKR translation smoke test
+
+Goal:
+
+Test whether the agent can translate a strategy specification into broker-safe implementation artifacts without sending orders.
+
+Foundation scope:
+
+- take one validated-or-revised strategy spec, initially Task 001 or a deliberately toy target book
+- express the intended target portfolio and rebalance logic
+- map symbols or identifiers into explicit IBKR contract-resolution requests
+- generate order-intent objects with `transmit=false` or equivalent no-send semantics
+- run static risk checks: account mode, notional cap, order size, short-sale caveats, cancel path, no credentials
+- save a compact implementation-readiness report
+
+Phase package:
+
+- [execution_translation_smoke_test.md](execution_translation_smoke_test.md)
+
+Non-goal:
+
+- do not submit paper orders in Phase 2B
+- do not treat successful order-intent generation as alpha evidence
+
+Exit criteria:
+
+- one strategy-to-order translation task passes static safety checks
+- failure modes are visible when contract, borrow, sizing, or rebalance assumptions are underspecified
+- generated artifacts can be reviewed without connecting to a live or paper order-submission endpoint
 
 ## Phase 3. Candidate registry
 
@@ -143,7 +184,7 @@ Exit criteria:
 
 Goal:
 
-Test execution implementation without order risk.
+Test brokerage integration without order risk, building on the earlier Phase 2B strategy-to-order smoke test.
 
 Foundation scope:
 
@@ -198,9 +239,10 @@ Exit criteria:
 
 ## Immediate next decision
 
-The next concrete choice is how to begin Phase 2 falsification work:
+The next concrete choice is how to begin Phase 2 falsification work while adding an early execution-readiness smoke test:
 
 - recommended: create the first 5 null / weak-signal tasks for `remote_validation`
-- alternative: start the IBKR read-only implementation checks in parallel only if they do not distract from evaluator quality
+- also recommended: create one no-send strategy-to-IBKR translation task using Task 001 or a toy target book
+- defer: actual IBKR paper order submission until the later paper-trading layer
 
-Independent judgment: start Phase 2 falsification tasks next. The remote-validation foundation now exists, and the next risk is not infrastructure availability; it is false acceptance of weak ideas.
+Independent judgment: start Phase 2 falsification tasks next, but add Phase 2B immediately after or in parallel. The remote-validation foundation now exists, and the next risk is not only false acceptance of weak ideas; it is also accepting research logic that cannot be turned into safe broker-facing implementation.

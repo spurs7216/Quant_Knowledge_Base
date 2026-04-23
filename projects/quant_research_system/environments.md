@@ -104,6 +104,47 @@ Test whether the agent can reject weak or non-identifiable ideas.
 - false accepts are penalized more than false rejects
 - memo distinguishes evidence from speculation
 
+## Environment 2B. `implementation_translation_smoke`
+
+### Purpose
+
+Test whether a strategy rule can be translated into broker-facing artifacts before full IBKR paper trading exists.
+
+This environment is earlier and cheaper than `implementation_execution`. It is no-send by design.
+
+### Candidate artifacts
+
+- target portfolio table
+- target-delta or rebalance instruction table
+- contract-resolution request table
+- order-intent JSON
+- static risk-check report
+- implementation caveat report
+
+### Evaluator cascade
+
+1. strategy rule completeness check
+2. target-portfolio schema check
+3. contract field completeness check
+4. no-send order-intent validation
+5. static risk checks
+6. implementation caveat scoring
+
+### Pass gates
+
+- no live-order submission
+- no credentials in the vault
+- explicit account mode and paper-only assumption
+- explicit notional and quantity caps
+- explicit order type and time-in-force
+- ambiguous contracts rejected
+- shorting and borrow assumptions identified
+- cancel or flattening plan stated
+
+### Role in build order
+
+Run this after Phase 1 and alongside Phase 2 falsification. It should catch implementation-impossible ideas before candidate search scales them.
+
 ## Environment 3. `implementation_execution`
 
 ### Purpose
@@ -201,8 +242,9 @@ Build in this order:
 
 1. `remote_validation`
 2. `research_falsification`
-3. `implementation_execution` read-only and dry-run
-4. `foundation_mastery` hidden shadow suite
-5. `prospective_paper`
+3. `implementation_translation_smoke` no-send order-intent checks
+4. `implementation_execution` read-only and dry-run
+5. `foundation_mastery` hidden shadow suite
+6. `prospective_paper`
 
 This order prioritizes false-positive control and real data access before brokerage-facing automation.

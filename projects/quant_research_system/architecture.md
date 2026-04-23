@@ -148,7 +148,8 @@ Purpose:
 Rules:
 
 - no live orders without explicit human approval
-- paper-trading comes after historical validation gates
+- no-send strategy-to-order translation can be tested early as an implementation-feasibility smoke test
+- paper-trading order submission comes after historical validation gates
 - execution checks must not be confused with alpha validity
 
 ## Control loop
@@ -162,7 +163,8 @@ The intended loop is:
 5. submit remote validation job if needed
 6. sync compact artifacts back
 7. score and decide: reject, revise, promote, or paper-test
-8. update project notes and crystallize durable lessons only after evidence
+8. for strategy artifacts, run no-send execution-readiness checks before large search or paper-test promotion
+9. update project notes and crystallize durable lessons only after evidence
 
 ## AlphaEvolve translation
 
