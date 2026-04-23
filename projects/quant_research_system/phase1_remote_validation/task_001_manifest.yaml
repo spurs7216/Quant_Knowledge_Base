@@ -1,0 +1,188 @@
+schema_version: 0.1
+job_id: "20260423_task001_daily_stock_short_reversal"
+created: "2026-04-23"
+owner: "human+codex"
+environment: "remote_validation"
+status: "draft"
+
+objective: >
+  Run the first end-to-end remote validation job on the full daily_stock warehouse file
+  using an auditable short-horizon reversal baseline. The primary goal is to validate the
+  remote workflow, artifact bundle, and decision discipline, not to claim a new alpha.
+
+candidate_artifact:
+  type: "strategy_script"
+  name: "daily_stock_short_horizon_reversal_baseline"
+  description: >
+    Daily long-short equity strategy. Signal is negative trailing five-day market-adjusted
+    return using DlyRetx minus vwretd, lagged so no same-day or future return enters the
+    signal. Long top decile and short bottom decile by signal among eligible names.
+  source_files:
+    - "research/remote_validation/task001_daily_stock_short_reversal.py"
+  editable_regions:
+    - "signal_definition"
+    - "universe_filter"
+    - "portfolio_construction"
+
+sync:
+  channel: "github"
+  remote_os: "ubuntu"
+  artifact_import_policy: "manual_review"
+
+vault_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+research_code_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+remote_environment:
+  manager: "<conda_or_micromamba_recommended>"
+  environment_file: "<fill_after_remote_repo_layout_is_known>"
+  python_version: "<fill_before_remote_run>"
+  gpu_required: false
+  notes: >
+    Task 001 should not need GPU. Use the remote Ubuntu machine because it holds the full
+    daily_stock warehouse file.
+
+datasets:
+  - logical_name: "daily_stock"
+    remote_path: "/home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv"
+    catalog_relative_path: "data/daily_stock/gago9dveytpx6922.csv"
+    catalog_sample: "catalog/samples/daily_stock/gago9dveytpx6922.csv"
+    row_count_expected: 49651441
+    required_columns:
+      - "PERMNO"
+      - "DlyCalDt"
+      - "DlyRet"
+      - "DlyRetx"
+      - "DlyPrc"
+      - "DlyVol"
+      - "PrimaryExch"
+      - "SecurityType"
+      - "ShareType"
+      - "TradingStatusFlg"
+      - "vwretd"
+      - "sprtrn"
+
+universe:
+  description: >
+    Common-share daily equity universe with active trading status, positive volume,
+    price above 5 dollars, non-missing returns, and enough prior observations to form
+    the five-day lagged reversal signal.
+  identifier: "PERMNO"
+  date_column: "DlyCalDt"
+  filters:
+    - "SecurityType == 'EQTY'"
+    - "ShareType == 'NS'"
+    - "TradingStatusFlg == 'A'"
+    - "abs(DlyPrc) > 5"
+    - "DlyVol > 0"
+    - "DlyRetx is not missing"
+    - "vwretd is not missing"
+    - "at least 60 prior valid DlyRetx observations per PERMNO before ranking"
+
+date_range:
+  full: ["2000-01-03", "2025-11-28"]
+  train: ["2000-01-03", "2012-12-31"]
+  validation: ["2013-01-01", "2018-12-31"]
+  test: ["2019-01-01", "2025-11-28"]
+  hidden_test: false
+
+signal:
+  definition: >
+    r_excess_i_t = DlyRetx_i_t - vwretd_t. Signal at decision date t is
+    s_i_t = -sum_{k=1}^{5} r_excess_i_{t-k}. No same-day or future return may enter
+    signal construction.
+  formation_lag_days: 1
+  lookback_days: 5
+  rebalance_frequency: "daily"
+  holding_period_days: 1
+  return_timing: >
+    Compute signal after the close of date t using returns through t-1 to t-5, form
+    positions for the next trading day, and earn DlyRetx on date t+1. If implementation
+    indexes positions differently, the run must prove no same-day return enters the signal.
+
+portfolio:
+  construction: "long_short_decile"
+  weighting: "equal"
+  gross_exposure: 1.0
+  net_exposure: 0.0
+  max_position_weight: null
+
+cost_model:
+  commission_bps: 0.5
+  slippage_bps: 2.0
+  borrow_bps_annual: 0.0
+  turnover_cost_applied: true
+  sensitivity_total_cost_bps: [0.0, 2.5, 5.0, 10.0]
+
+benchmark:
+  primary: "market_adjusted"
+  reference_columns:
+    - "vwretd"
+    - "sprtrn"
+  null_models:
+    - "zero_return"
+    - "market_return_vwretd"
+    - "random_rank_with_same_universe_and_turnover"
+
+evaluation:
+  primary_metrics:
+    - "annualized_return"
+    - "annualized_volatility"
+    - "sharpe"
+    - "max_drawdown"
+    - "turnover"
+    - "hit_rate"
+    - "beta_to_vwretd"
+    - "mean_daily_n_long"
+    - "mean_daily_n_short"
+  robustness_checks:
+    - "subperiod_split"
+    - "cost_sensitivity"
+    - "liquidity_bucket"
+    - "primary_exchange_split"
+    - "random_rank_null"
+  failure_gates:
+    - "manifest_complete"
+    - "no_future_data_in_signal"
+    - "explicit_return_timing"
+    - "nonempty_universe_each_month"
+    - "finite_portfolio_returns"
+    - "turnover_cost_applied"
+    - "artifact_bundle_complete"
+    - "code_snapshots_recorded"
+
+resource_request:
+  cpu_cores: 8
+  memory_gb: 32
+  gpu: "none"
+  expected_wall_time: "<fill_after_remote_benchmark>"
+
+expected_outputs:
+  artifact_bundle_root: "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal/"
+  files:
+    - "run_manifest.yaml"
+    - "metrics.json"
+    - "scorecard.csv"
+    - "diagnostics.csv"
+    - "failure_report.md"
+    - "review.md"
+    - "subperiod_metrics.csv"
+    - "cost_sensitivity.csv"
+    - "universe_counts_by_month.csv"
+
+manual_review:
+  required: true
+  reviewer: "human"
+  approval_required_before_artifact_import: true
+
+notes: >
+  This manifest is intentionally still draft because the remote research repository path,
+  branch, commit, and environment file are not yet known. Fill those fields before running.

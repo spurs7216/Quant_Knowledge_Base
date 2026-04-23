@@ -19,6 +19,10 @@ Current source areas include:
 
 These are domain-oriented shelves inside the vault's source library.
 
+Shelf notes:
+
+- `math_statistics/README.md` tracks the ordered source inventory and active ingest status for the math/statistics shelf, including books, bridge tutorials, and compact references rather than only formal books.
+
 ## What this folder is for
 
 Use `raw/` for:

@@ -2,75 +2,110 @@
 title: Convex Optimization Methods
 type: method
 status: seed
-updated: 2026-04-18
+updated: 2026-04-22
 tags:
   - method
   - optimization
   - convex-optimization
   - numerical-methods
-domain: quant-finance
+domain: mathematics
 sources:
   - "[[Convex Optimization]]"
+  - "[[Convex Optimization - Ch 04 Convex Optimization Problems]]"
+  - "[[Convex Optimization - Ch 05 Duality]]"
+  - "[[Convex Optimization - Ch 09 Unconstrained Minimization]]"
+  - "[[Convex Optimization - Ch 11 Interior-Point Methods]]"
   - "[[Portfolio Optimization]]"
-  - "[[Machine Learning for Asset Managers]]"
   - "[[Financial Machine Learning Workflow]]"
 ---
 # Convex Optimization Methods
 
 ## Summary
 
-Convex optimization methods solve problems whose feasible set and objective structure make global optima tractable. In quant research they matter because many portfolio, regularization, risk-budgeting, and estimation problems become defensible only after they are posed as explicit convex programs with clear constraints and penalties.
+Convex optimization methods solve programs whose geometry supports global optimality, explicit certificates, and reliable algorithms.
 
-## What It Does
+In quant research they matter because many portfolio, regularization, estimation, and risk-control tasks only become auditable after they are written as explicit convex programs.
 
-Convex optimization lets the researcher:
+## Canonical program
 
-- write estimation and portfolio problems in a mathematically auditable form
-- guarantee global rather than local optimality under the stated model
-- handle penalties, constraints, and dual interpretations coherently
-- connect statistical estimation with optimization geometry
-- separate a bad research idea from a badly posed optimization problem
+The core modeling form is
+$$\begin{aligned}
+\min_x \quad & f_0(x) \\
+\text{subject to} \quad & f_i(x)\le 0,\quad i=1,\dots,m \\
+& Ax=b.
+\end{aligned}$$
 
-## Source Synthesis
+When the $f_i$ are convex and the equalities are affine, local optimality becomes global and the problem admits dual certificates.
 
-- [[Convex Optimization]] provides the mathematical foundation: convex sets, functions, duality, fitting, estimation, and interior-point algorithms.
-- [[Portfolio Optimization]] shows why portfolio construction is often an optimization-design problem rather than a formula-selection problem.
-- [[Machine Learning for Asset Managers]] connects convex-style regularization and denoising choices to practical portfolio workflows.
-- [[Financial Machine Learning Workflow]] reinforces that optimization objectives must line up with the trading or research goal.
+## Core workflow
+
+1. Identify the decision variable and what is actually being chosen.
+2. Write the objective in economic or statistical language before translating it into algebra.
+3. Encode the real constraints: exposure, leverage, turnover, smoothness, robustness, or feasibility limits.
+4. Verify the formulation is genuinely convex, not only approximately so.
+5. Choose the solver regime that matches scale and structure: first-order, Newton-type, or interior-point.
+6. Use dual or residual information to diagnose whether the answer is meaningful and which constraints are active.
+7. Stress the solution under perturbed inputs instead of treating solver output as truth.
+
+## Main logic
+
+### 1. Convexity is a modeling asset
+
+When objective and feasible set are convex, local differential information supports global claims.
+
+### 2. Duality is part of the method
+
+Dual bounds, complementary slackness, and KKT conditions explain stopping rules, sensitivity, and binding constraints. The generic certificate form is
+$$f_0(x)-g(\lambda,\nu),$$
+for a primal-feasible $x$ and dual-feasible $(\lambda,\nu)$.
+
+### 3. Regularization and robustness are optimization design choices
+
+Penalties and uncertainty sets define what kind of solution the model is allowed to prefer:
+$$\min_x \; \norm{Ax-b}_2^2 + \lambda \norm{x}_2^2,\qquad
+\min_x \; \norm{Ax-b}_2^2 + \lambda \norm{Dx}_2^2.$$
+
+### 4. Solver choice follows structure
+
+Poorly conditioned smooth problems, cone-constrained problems, and high-accuracy barrier problems should not all be attacked with the same algorithm.
+
+## Problem families this note should anchor
+
+- least-squares and quadratic fitting
+- constrained portfolio allocation
+- regularized estimation and sparse surrogates
+- robust approximation under input perturbation
+- cone and semidefinite reformulations
+
+## Source synthesis
+
+- [[Convex Optimization]] provides the mathematical spine: problem class, duality, regularization, and solver structure.
+- [[Portfolio Optimization]] shows why allocation is usually an optimization-design problem before it is a finance problem.
+- [[Financial Machine Learning Workflow]] reinforces that the optimizer must serve the research objective, not replace it.
 
 ## Assumptions
 
 Convex methods require:
 
-- a problem formulation that is genuinely convex, not only approximately so
+- a formulation that is genuinely convex
 - constraints that represent real portfolio, leverage, turnover, or exposure limits
-- an objective whose economic meaning is clear
-- data inputs and covariance estimates that are stable enough to support optimization
-
-## Workflow
-
-1. Define the decision variable explicitly.
-2. Write the objective in economic rather than purely algebraic language.
-3. Encode constraints that reflect real limits, not cosmetic ones.
-4. Verify convexity of both the feasible set and objective.
-5. Solve the problem with a method appropriate to scale and structure.
-6. Interpret dual quantities and constraint activity where useful.
-7. Stress the solution under perturbed inputs, costs, and estimation error.
+- an objective with clear economic or statistical meaning
+- data inputs stable enough to support optimization
 
 ## Diagnostics
 
 - sensitivity to input covariance or forecast perturbations
-- concentration of weights or dual pressure on a few constraints
+- concentration of weights or multiplier pressure on a few constraints
+- primal residual, dual residual, or duality-gap evidence that the stated program was actually solved
 - stability of the solution under nearby samples
 - turnover and transaction-cost implications of the optimum
-- whether the optimizer is solving the intended problem or exploiting an input artifact
 
 ## Failure Modes
 
-- labeling a problem "convex" when nonconvex features still dominate
+- labeling a problem "convex" when nonconvex structure still dominates
 - optimizing unstable inputs such as raw expected returns without robustification
-- writing constraints that look realistic but are economically hollow
-- confusing mathematical tractability with economic relevance
+- writing mathematically neat but economically hollow constraints
+- confusing tractability with relevance
 - relying on the optimizer to rescue a weak signal model
 
 ## Quant Use Cases
@@ -83,6 +118,10 @@ Convex methods require:
 
 ## Related Notes
 
+- [[Convex Duality and KKT Conditions]]
+- [[Regularization and Robust Approximation]]
+- [[Interior-Point Methods]]
+- [[Gradient Descent and Preconditioning]]
 - [[Portfolio Construction]]
 - [[Financial Machine Learning Workflow]]
 - [[Convex Optimization]]
@@ -91,6 +130,9 @@ Convex methods require:
 ## Sources
 
 - [[Convex Optimization]]
+- [[Convex Optimization - Ch 04 Convex Optimization Problems]]
+- [[Convex Optimization - Ch 05 Duality]]
+- [[Convex Optimization - Ch 09 Unconstrained Minimization]]
+- [[Convex Optimization - Ch 11 Interior-Point Methods]]
 - [[Portfolio Optimization]]
-- [[Machine Learning for Asset Managers]]
 - [[Financial Machine Learning Workflow]]

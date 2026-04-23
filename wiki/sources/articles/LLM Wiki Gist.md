@@ -42,7 +42,7 @@ This is an idea file meant to be copied into an LLM session and adapted. It is n
 
 ## Why It Matters Here
 
-This vault's `agent.md`, `AGENTS.md`, `wiki/index.md`, and `wiki/log.md` are direct descendants of the pattern in this gist. The repo differs mainly in one domain-specific respect: the quant workflow needs a separate evidence layer for numeric claims, so `catalog/` and `artifacts/` matter alongside the wiki.
+This vault's `AGENTS.md`, `wiki/index.md`, and `wiki/log.md` are direct descendants of the pattern in this gist. The repo differs mainly in one domain-specific respect: the quant workflow needs a separate evidence layer for numeric claims, so `catalog/` and `artifacts/` matter alongside the wiki.
 
 ## Reflection
 

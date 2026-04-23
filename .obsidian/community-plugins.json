@@ -8,5 +8,7 @@
   "obsidian-tasks-plugin",
   "templater-obsidian",
   "obsidian42-brat",
-  "obsidian-llm"
+  "obsidian-llm",
+  "obsidian-latex",
+  "copilot"
 ]

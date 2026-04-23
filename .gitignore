@@ -20,3 +20,10 @@ catalog/samples/**
 artifacts/**
 !artifacts/
 !artifacts/README.md
+
+# Local scratch outputs
+tmp/**
+
+# Python local execution artifacts
+__pycache__/
+*.py[cod]

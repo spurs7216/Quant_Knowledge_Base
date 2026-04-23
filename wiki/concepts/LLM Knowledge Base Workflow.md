@@ -1,17 +1,18 @@
 ---
 title: LLM Knowledge Base Workflow
 type: system
-status: seeded
-updated: 2026-04-18
+status: active
+updated: 2026-04-22
 tags:
   - system
   - llm
   - obsidian
   - workflow
-source_count: 5
+source_count: 6
 sources:
   - "[[raw/LLM Knowledge Bases/Thread by @karpathy.md]]"
   - "[[raw/LLM Knowledge Bases/llm-wiki.md]]"
+  - "[[raw/LLM Knowledge Bases/LLM Wiki v2 — extending Karpathy's LLM Wiki pattern with lessons from building agentmemory.md]]"
   - "[[raw/LLM Knowledge Bases/LLM Knowledge Base Definition, Components, and Enterprise Use.md]]"
   - "[[raw/LLM Knowledge Bases/st3v3nmwobsidian-spaced-repetition Fight the forgetting curve by reviewing flashcards & entire notes on Obsidian.md]]"
   - "[[raw/Obsidian/Obsidian_README.md]]"
@@ -20,102 +21,153 @@ sources:
 
 ## Summary
 
-The core workflow is:
+The vault follows Karpathy's basic pattern, but now with a clearer lifecycle doctrine:
 
 1. collect immutable sources in `raw/`
-2. let the LLM compile and maintain linked notes in `wiki/`
-3. use a schema file to govern ingest, query, lint, and crystallization behavior
-4. browse and review everything in Obsidian
-5. file useful outputs back into the vault so knowledge compounds
+2. keep active uncertain synthesis in `projects/`
+3. compile durable semantic and procedural notes into `wiki/`
+4. support numerical or operational claims with `catalog/` and `artifacts/`
+5. use Obsidian as the frontend and QMD or exact search as retrieval tools
+6. treat schema and governance as first-class parts of the system
 
-## Core Layers
+## Core layers
 
-### Raw Sources
+### Source memory
 
-Original papers, books, clipped articles, images, and data descriptions. They are read, not rewritten.
+`raw/` stores the original books, papers, clipped guides, images, and source captures.
 
-### Compiled Wiki
+### Working or episodic memory
 
-Persistent markdown notes that summarize, connect, and refine what the source layer contains.
+`projects/` stores live research threads, session digests, temporary synthesis, and uncertain conclusions that are not yet ready to become durable memory.
 
-### Schema
+### Semantic and procedural memory
 
-An operating file such as `agent.md` or `AGENTS.md` that tells the LLM how to organize the wiki and how to behave when ingesting, answering, or linting.
+`wiki/` stores the durable concepts, methods, maps, and source digests that should remain useful across sessions.
 
-## Core Operations
+### Evidence and observability memory
+
+`catalog/` and `artifacts/` store mirrored data understanding, diagnostics, charts, query outputs, and other bounded evidence that supports quantitative claims.
+
+## Core operations
 
 ### Ingest
 
-Read a source, extract reusable concepts, update related pages, and log the change.
-
-### Ingest Depth Rule
-
-For this vault, ingest depth is part of quality control:
-
-- books and textbooks should be processed chapter by chapter
-- long markdown essays, guides, and thread captures should be processed section by section
-- the agent should read, understand, reflect, and only then update the wiki
-- shallow whole-source summaries are not enough for core quant materials
+Read the source, classify it, build honest coverage, deepen what matters, promote the reusable layer, and update the control notes.
 
 ### Query
 
-Answer from the compiled wiki first, then drill into supporting notes or raw sources as needed.
+Answer from the compiled layer first, then escalate only when the cheaper support is insufficient:
+
+- known path or exact phrase -> direct read or exact search
+- note-local reading or edits -> Obsidian
+- broad or fuzzy discovery -> QMD
+- source verification or ingest -> `raw/` and PDF tooling
 
 ### Lint
 
-Search for contradictions, stale claims, missing links, unsupported assertions, and new candidate pages.
+Look for contradictions, stale notes, unsupported claims, broken links, missing promotion targets, and notes whose declared depth no longer matches their content.
 
 ### Crystallize
 
-Turn useful outputs or project findings into durable pages instead of letting them disappear into chat history.
+Treat useful project outcomes and high-value query outputs as candidate sources for the durable layer instead of letting them disappear into chat history.
 
-## Obsidian's Role
+## What v2 adds that we should adopt
 
-Obsidian is the local frontend, not the intelligence layer. In this workflow it is useful for:
+### 1. Lifecycle discipline
 
-- browsing raw files and compiled notes side by side
-- following backlinks and graph structure
-- rendering Dataview tables
-- managing templates and task lists
-- optionally using plugins such as spaced repetition for deliberate study
+The v2 guide is right that not all knowledge should be treated as equally mature. For this vault, the right implementation is folder-level and workflow-level, not per-fact pseudo-math.
 
-## Enterprise Contrast
+That means:
 
-Karpathy's workflow assumes a curated, small-to-medium personal wiki. The Atlan guide adds the enterprise warning: once data is large, multi-owner, and access-controlled, governance and metadata quality become as important as retrieval. That matters here because this vault has a remote warehouse behind the local notes.
+- fresh observations stay in `projects/`
+- stable reusable syntheses move to `wiki/`
+- measured support stays tied to `catalog/` or `artifacts/`
 
-## Implications for This Vault
+### 2. Explicit supersession
 
-This quant vault extends the basic pattern in three domain-specific ways:
+Karpathy's original pattern says to note contradictions. The v2 guide improves this by pushing for explicit replacement logic.
 
-- `catalog/` mirrors dataset descriptions and small samples from the remote Linux warehouse
-- `artifacts/` stores bounded evidence for numerical claims
-- quantitative conclusions must keep conceptual synthesis separate from measured results
-- important raw resources should leave behind chapter-level or section-level source notes rather than only top-level summaries
+For this vault, that means:
 
-## Related Notes
+- use `last_verified`, `verification_status`, `supersedes`, and `superseded_by` when freshness or contradiction matters
+- do not quietly rewrite older notes so they still look current by omission
+
+### 3. Light graph structure
+
+The v2 guide is right that pages plus generic links leave structure on the table.
+
+For this vault, the right upgrade is not a separate graph database. It is:
+
+- stable note types
+- explicit source links
+- optional typed relation fields such as `depends_on`, `used_by`, and `contradicts` when the relation is load-bearing
+- clearer relation prose inside notes
+
+### 4. Trigger-based maintenance
+
+We do not need full event infrastructure yet, but the system should behave as if certain events imply maintenance work:
+
+- new source -> shelf and ingest review
+- contradiction -> supersession review
+- durable project result -> crystallization
+- periodic maintenance -> lint and stale review
+
+### 5. Redaction and governance
+
+The v2 guide is right that knowledge-base systems need a secret-filtering doctrine. This matters even in a personal vault because clipped sources, interview prep, and operational notes can carry sensitive data.
+
+## What v2 suggests that we should not adopt directly
+
+### Numeric confidence scores on facts
+
+I do not think this vault should assign fake decimal confidence values like `0.85` to ordinary markdown claims. That creates false precision and maintenance overhead without improving inspectability.
+
+The better substitute is:
+
+- explicit provenance
+- explicit verification state
+- explicit caveats
+- explicit contradiction and supersession links
+
+### Forgetting inside `wiki/`
+
+The v2 guide's retention curve makes sense for memory engines, but this vault is an inspectable research archive. Durable knowledge should not silently fade because it was not recently accessed.
+
+The better rule here is:
+
+- archive or deprioritize scratch material
+- verify or supersede durable notes
+- do not simulate forgetting in the durable layer
+
+### Full event-driven automation
+
+Useful long term, but premature now. The current system benefits more from better written trigger rules than from a half-built automation layer.
+
+## Implications for this vault
+
+The whole system is now better described as:
+
+- Karpathy's compiled-wiki core
+- Atlan's governance warning about freshness and provenance
+- the v2 guide's lifecycle and supersession logic
+- quant-specific separation between conceptual truth and numerical truth
+
+That combination is stronger than any one source alone.
+
+## Related notes
 
 - [[Karpathy LLM Knowledge Bases Thread]]
 - [[LLM Wiki Gist]]
+- [[LLM Wiki v2 Guide]]
 - [[Atlan LLM Knowledge Base Guide]]
 - [[Obsidian Spaced Repetition Plugin]]
 - [[Obsidian CLI README]]
-- [[Panel Data]]
 
 ## Sources
 
 - [[raw/LLM Knowledge Bases/Thread by @karpathy.md]]
 - [[raw/LLM Knowledge Bases/llm-wiki.md]]
+- [[raw/LLM Knowledge Bases/LLM Wiki v2 — extending Karpathy's LLM Wiki pattern with lessons from building agentmemory.md]]
 - [[raw/LLM Knowledge Bases/LLM Knowledge Base Definition, Components, and Enterprise Use.md]]
 - [[raw/LLM Knowledge Bases/st3v3nmwobsidian-spaced-repetition Fight the forgetting curve by reviewing flashcards & entire notes on Obsidian.md]]
-
-## Links, Bases, and Tags
-
-For this vault, three Obsidian capabilities matter more than most plugin or UI details:
-
-- `Links` are the primary knowledge structure. Durable notes should connect through wikilinks so the graph, backlinks, and source-to-synthesis path stay legible.
-- `Bases` are the primary operational view layer. They should summarize notes that already have stable frontmatter, not replace markdown as the source of truth.
-- `Tags` are secondary facets. They are useful for filtering and maintenance views, but they should not replace links, folders, or note titles.
-
-## CLI and MCP Implication
-
-When the Obsidian automation surface is available, note-local operations should prefer it over generic filesystem treatment. That is especially useful for searching, backlink-oriented linting, note appends, periodic-note workflows, and future Base-driven maintenance views.
+- [[raw/Obsidian/Obsidian_README.md]]

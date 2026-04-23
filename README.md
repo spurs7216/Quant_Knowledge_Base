@@ -9,14 +9,15 @@ In this vault:
 - `wiki/` is the compiled knowledge base
 - `projects/` is the active working area for research and synthesis
 - `artifacts/` is the evidence layer for outputs from data work, diagnostics, charts, and reports
-- `agent.md` is the schema that tells the agent how to maintain the vault
+- `AGENTS.md` is the schema that tells the agent how to maintain the vault
 - `.obsidian/` is the vault frontend and plugin configuration
 
 Inside `wiki/`, the knowledge base is now organized into:
 
 - root control notes: `index.md`, `log.md`, `glossary.md`, `inbox.md`
 - `maps/` for domain entry points and reading order
-- `sources/books/`, `sources/papers/`, and `sources/articles/` for source-tied notes
+- `sources/books/` for book overview notes plus `sources/books/<Book Title>/` for chapter digests of deeply ingested books
+- `sources/papers/` and `sources/articles/` for source-tied notes that do not need a book-style chapter shelf
 - `concepts/` for durable conceptual synthesis
 - `methods/` for workflows and procedures
 - `metrics/` for evaluation quantities and research measures
@@ -35,6 +36,17 @@ The vault follows the same basic pattern:
 6. Browse, search, link, and review everything in Obsidian
 
 This is not a local warehouse clone. The heavy data still lives on the remote Linux server. The vault is the local memory and control layer.
+
+## Memory lifecycle
+
+The vault now treats its layers as a memory lifecycle, not only a folder tree:
+
+- `raw/` stores source memory
+- `projects/` stores working or episodic memory while a thread is still live
+- `wiki/` stores semantic and procedural memory that should compound over time
+- `catalog/` and `artifacts/` store evidence and observability memory for numerical or operational claims
+
+This matters because not every observation deserves durable promotion, and durable notes should not be silently "forgotten" when they age. They should be verified, superseded, or archived honestly.
 
 ## Git policy
 
@@ -121,6 +133,12 @@ Installed community plugins include:
 - Obsidian Local REST API
 - Table Editor
 
+Math authoring rule:
+
+- Extended MathJax is installed through `obsidian-latex`
+- shared macros now live in `preamble.sty` at the vault root
+- mathematically important notes should use MathJax equations instead of code-style pseudo-math
+
 That means the vault is already ready to serve as:
 
 - the browser for the knowledge graph
@@ -136,7 +154,7 @@ In this Codex environment there are two Obsidian execution paths:
 - Obsidian MCP works well for note-local reads, appends, searches, and vault maintenance
 - shell-side `obsidian` CLI commands that need the running desktop app must be executed unsandboxed, because the sandboxed shell runs under a different Windows identity than the interactive Obsidian session
 
-Use MCP by default for note maintenance. Use the shell CLI intentionally when the task needs desktop-native commands such as tab control, command execution, Bases, backlink audits, or opening canvas views.
+Use the lowest-cost tool that preserves the needed context. Direct reads or exact search are cheaper when the target is already known, Obsidian MCP is the default for note-local maintenance, QMD is for broad discovery, and the shell CLI should be used intentionally when the task needs desktop-native commands such as tab control, command execution, Bases, backlink audits, or opening canvas views.
 
 ## Operating principle
 
@@ -146,7 +164,7 @@ The agent reads sources, compiles notes, maintains links, finds contradictions, 
 
 The goal is to make knowledge compound instead of disappear into chat history.
 
-Start with [agent.md](agent.md), then read:
+Start with [AGENTS.md](AGENTS.md), then read:
 
 - [raw/README.md](raw/README.md)
 - [catalog/README.md](catalog/README.md)

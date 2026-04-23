@@ -1,23 +1,40 @@
 ---
 title:
 type: source
-status: seed
-updated: 2026-04-18
+status: chapter_ingested
+updated: 2026-04-20
 tags: []
+source_type: book
+source_class: overview_source
+read_scope: full_source
+extraction_basis:
+technical_depth: mixed
+ingest_stage:
+source_count: 1
 sources: []
 ---
 # {{title}}
 
-## Summary
+## Citation / metadata
 
-## Section-by-Section or Chapter-by-Chapter Ingest
+## Why this book matters
 
-## Key Claims
+## Reading logic from the source
 
-## Methods and Data
+## Stage map
+
+## Chapter shelf
+
+## Core objects and modeling vocabulary
+
+## Main themes
+
+## Promoted durable notes
+
+## Next promotion targets
 
 ## Caveats
 
-## Related Notes
+## Related notes
 
 ## Sources

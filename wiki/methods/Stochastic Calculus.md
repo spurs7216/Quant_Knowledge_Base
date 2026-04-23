@@ -2,7 +2,7 @@
 title: Stochastic Calculus
 type: method
 status: seed
-updated: 2026-04-18
+updated: 2026-04-22
 tags:
   - method
   - stochastic-calculus
@@ -19,75 +19,90 @@ sources:
 
 ## Summary
 
-Stochastic calculus is the continuous-time mathematical framework for modeling random paths, dynamic trading strategies, and derivative valuation under uncertainty. In quant finance it is the language behind diffusion models, risk-neutral pricing, hedging, term-structure models, and many state-dynamic portfolio problems.
+Stochastic calculus is the continuous-time mathematical framework for modeling noisy state dynamics, dynamic trading strategies, and contingent-claim values. In quant finance it is the common language behind diffusion models, martingale pricing, American exercise, term-structure models, and jump extensions.
 
-## What It Does
+## Core equations
 
-Stochastic calculus gives the researcher a way to:
+Brownian quadratic variation is
+$$[W,W](t)=t.$$
 
-- model continuously evolving random systems
-- define integration against Brownian motion and related processes
-- derive dynamic equations for prices, states, and self-financing portfolios
-- move between physical and risk-neutral measures
-- connect probabilistic models with PDE-based pricing and control views
+An Ito process has the form
+$$dX(t)=\theta(t)\,dt+\Gamma(t)\,dW(t).$$
 
-## Source Synthesis
+The Ito-Doeblin rule gives
+$$df(t,X(t))=f_t\,dt+f_x\,dX(t)+\frac{1}{2}f_{xx}\,dX(t)\,dX(t).$$
 
-- [[Stochastic Calculus for Finance II]] is the clearest direct route from probability and Brownian motion into pricing, PDEs, and term-structure models.
-- [[Arbitrage Theory in Continuous Time]] broadens the framework into completeness, numeraire changes, optimal control, incomplete markets, and equilibrium.
-- [[Hull Options Futures and Other Derivatives]] supplies intuition and market interpretation for the models.
-- [[Monte Carlo Methods in Financial Engineering]] shows how continuous-time models become numerical estimators rather than only formal derivations.
+Risk-neutral valuation writes a traded claim as
+$$V(t)=\frac{1}{D(t)}\widetilde{\mathbb{E}}\bracket{D(T)V(T)\given\mathcal{F}(t)}.$$
 
-## Assumptions
+With jumps, the calculus becomes
+$$f(X(t))=f(X(0))+\int_0^t f'(X(s))\,dX^c(s)+\frac{1}{2}\int_0^t f''(X(s))\,d[X^c,X^c](s)+\sum_{0<s\le t}\bracket{f(X(s))-f(X(s-))}.$$
 
-Any stochastic-calculus application needs clarity on:
+## What this method does
 
-- the filtration, or information flow, being modeled
-- the path properties assumed for the state process
-- whether dynamics are diffusive, jump-driven, or mixed
-- whether the goal is descriptive modeling, pricing, hedging, or control
-- whether the measure and numeraire choice matches the problem
+Stochastic calculus lets the researcher:
+
+- specify continuous-time state laws under uncertainty
+- transform those laws with the correct chain and product rules
+- express traded-price dynamics in self-financing form
+- switch measures and numeraires cleanly
+- move between expectation, martingale, and PDE representations
+- extend diffusion logic to jump models when continuity fails
+
+## Source synthesis
+
+- [[Stochastic Calculus for Finance II]] is the main bridge from filtration, Brownian motion, and Ito rules into risk-neutral pricing, American exercise, numeraire change, term-structure models, and jump processes.
+- [[Arbitrage Theory in Continuous Time]] broadens the framework into general semimartingale asset-pricing structure, incompleteness, and deeper continuous-time finance theory.
+- [[Hull Options Futures and Other Derivatives]] provides the market intuition and contract context that theorems alone do not supply.
+- [[Monte Carlo Methods in Financial Engineering]] turns the continuous-time theory into usable numerical estimators and simulation schemes.
+
+## Main branches
+
+- [[Brownian Motion and Quadratic Variation]]
+- [[Ito Calculus and Stochastic Differential Equations]]
+- [[Risk-Neutral Pricing and Fundamental Theorems of Asset Pricing]]
+- [[American Options and Optimal Stopping]]
+- [[Change of Numeraire and Forward Measures]]
+- [[Term-Structure Models]]
+- [[Jump Processes and Compensators]]
 
 ## Workflow
 
-1. Define the state variables and the information filtration.
-2. Specify the continuous-time dynamics, including drift, diffusion, and jump terms if needed.
-3. Decide whether the objective is pricing, hedging, risk measurement, or control.
-4. Choose the relevant measure and numeraire framework.
-5. Derive the dynamic equations for the claim, portfolio, or value function.
-6. Translate the continuous-time result into a numerical method when closed forms are unavailable.
-7. Check whether the model assumptions survive market microstructure, discrete trading, and calibration reality.
+1. Specify the filtration and state variables.
+2. Decide whether the dynamics are diffusion, jump, or mixed.
+3. Write the continuous-time law in differential form.
+4. Choose the actual or pricing measure and the relevant numeraire.
+5. Use Ito or jump calculus to derive the value, hedge, or state transformation.
+6. Translate the result into a numerical method when no closed form exists.
+7. Check whether the continuous-time assumptions survive discrete trading, costs, and calibration constraints.
 
-## Diagnostics
+## Failure modes
 
-- confirm that the chosen dynamics match the economic object being modeled
-- inspect whether hedging or pricing conclusions are measure-consistent
-- compare diffusion-only conclusions against jump or incomplete-market alternatives
-- test numerical implementations for discretization sensitivity
-- inspect whether calibration is stable or only cosmetically accurate
+- using continuous-time elegance to hide weak economic assumptions
+- confusing the pricing measure with the forecasting measure
+- assuming replication or completeness in markets that are effectively incomplete
+- applying diffusion-only formulas to jump or discretely monitored problems
+- ignoring implementation frictions and calibration instability
 
-## Failure Modes
-
-- using continuous-time elegance to hide weak market assumptions
-- confusing risk-neutral dynamics with real-world forecasting dynamics
-- assuming replication where markets are effectively incomplete
-- treating the PDE and martingale views as competing rather than complementary
-- ignoring discrete trading, costs, and liquidity when drawing hedge conclusions
-
-## Quant Use Cases
+## Quant use cases
 
 - derivative pricing and Greeks
-- dynamic hedging and replication
-- term-structure and rates modeling
-- optimal execution or control problems
-- jump-diffusion and incomplete-market valuation
+- dynamic hedging
+- fixed-income and term-structure modeling
+- filtering and state-space control in continuous time
+- jump-risk modeling and event-driven valuation
 
-## Related Notes
+## Related notes
 
 - [[Derivatives Markets]]
-- [[Monte Carlo Methods]]
+- [[Martingales]]
+- [[Diffusion Processes]]
+- [[Brownian Motion and Quadratic Variation]]
+- [[Ito Calculus and Stochastic Differential Equations]]
+- [[Risk-Neutral Pricing and Fundamental Theorems of Asset Pricing]]
 - [[Arbitrage Theory in Continuous Time]]
 - [[Math Map]]
+- [[Finance Map]]
 
 ## Sources
 

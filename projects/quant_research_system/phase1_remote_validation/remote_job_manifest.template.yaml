@@ -1,0 +1,152 @@
+schema_version: 0.1
+job_id: "<YYYYMMDD_short_slug>"
+created: "<YYYY-MM-DD>"
+owner: "human+codex"
+environment: "remote_validation"
+status: "draft"
+
+objective: >
+  State the research or validation objective in one paragraph.
+
+candidate_artifact:
+  type: "<factor_definition|strategy_script|forecast_model|portfolio_rule|search_heuristic>"
+  name: "<candidate_name>"
+  description: >
+    Describe the candidate artifact clearly enough that it can be reimplemented.
+  source_files:
+    - "<relative/path/in/research/repo.py>"
+  editable_regions:
+    - "<optional named region or function>"
+
+sync:
+  channel: "github"
+  remote_os: "ubuntu"
+  artifact_import_policy: "manual_review"
+
+vault_snapshot:
+  repo: "<vault_repo_url_or_name>"
+  branch: "<branch>"
+  commit: "<commit_sha>"
+  dirty: "<true|false>"
+
+research_code_snapshot:
+  repo: "<remote_research_repo_url_or_name>"
+  branch: "<branch>"
+  commit: "<commit_sha>"
+  dirty: "<true|false>"
+
+remote_environment:
+  manager: "<conda|micromamba|uv|docker|requirements_txt|unknown>"
+  environment_file: "<environment.yml|requirements.txt|Dockerfile|other>"
+  python_version: "<version>"
+  gpu_required: "<true|false>"
+  notes: >
+    Record CUDA, PyTorch, RAPIDS, or other relevant runtime assumptions if needed.
+
+datasets:
+  - logical_name: "daily_stock"
+    remote_path: "/home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv"
+    catalog_relative_path: "data/daily_stock/gago9dveytpx6922.csv"
+    catalog_sample: "catalog/samples/daily_stock/gago9dveytpx6922.csv"
+    row_count_expected: 49651441
+    required_columns:
+      - "PERMNO"
+      - "DlyCalDt"
+      - "DlyRet"
+      - "DlyRetx"
+      - "DlyPrc"
+      - "DlyVol"
+      - "PrimaryExch"
+      - "SecurityType"
+      - "ShareType"
+      - "TradingStatusFlg"
+
+universe:
+  description: >
+    State eligibility rules, identifier grain, liquidity filters, and any exclusions.
+  identifier: "PERMNO"
+  date_column: "DlyCalDt"
+  filters:
+    - "<filter>"
+
+date_range:
+  full: ["<YYYY-MM-DD>", "<YYYY-MM-DD>"]
+  train: ["<YYYY-MM-DD>", "<YYYY-MM-DD>"]
+  validation: ["<YYYY-MM-DD>", "<YYYY-MM-DD>"]
+  test: ["<YYYY-MM-DD>", "<YYYY-MM-DD>"]
+  hidden_test: "<true|false>"
+
+signal:
+  definition: >
+    Define the signal using only information available at or before decision time.
+  formation_lag_days: 1
+  rebalance_frequency: "<daily|weekly|monthly>"
+  holding_period_days: "<int>"
+  return_timing: >
+    State whether positions formed from signal date t earn return t+1, or whether
+    the signal is formed before return t. This must be explicit.
+
+portfolio:
+  construction: "<long_short_decile|rank_weighted|long_only|other>"
+  weighting: "<equal|value|inverse_vol|rank|other>"
+  gross_exposure: "<float>"
+  net_exposure: "<float>"
+  max_position_weight: "<float_or_null>"
+
+cost_model:
+  commission_bps: "<float>"
+  slippage_bps: "<float>"
+  borrow_bps_annual: "<float_or_null>"
+  turnover_cost_applied: "<true|false>"
+
+benchmark:
+  primary: "<market|sector_neutral|zero|other>"
+  reference_columns:
+    - "vwretd"
+    - "sprtrn"
+  null_models:
+    - "<null_model>"
+
+evaluation:
+  primary_metrics:
+    - "annualized_return"
+    - "annualized_volatility"
+    - "sharpe"
+    - "max_drawdown"
+    - "turnover"
+    - "hit_rate"
+  robustness_checks:
+    - "subperiod_split"
+    - "cost_sensitivity"
+    - "liquidity_bucket"
+    - "exchange_split"
+  failure_gates:
+    - "manifest_complete"
+    - "no_future_data_in_signal"
+    - "nonempty_universe_each_month"
+    - "finite_returns"
+    - "artifact_bundle_complete"
+
+resource_request:
+  cpu_cores: "<int>"
+  memory_gb: "<int>"
+  gpu: "<none|optional|required>"
+  expected_wall_time: "<duration>"
+
+expected_outputs:
+  artifact_bundle_root: "artifacts/remote_runs/<YYYYMMDD_short_job_id>/"
+  files:
+    - "run_manifest.yaml"
+    - "metrics.json"
+    - "scorecard.csv"
+    - "diagnostics.csv"
+    - "failure_report.md"
+    - "review.md"
+
+manual_review:
+  required: true
+  reviewer: "human"
+  approval_required_before_artifact_import: true
+
+notes: >
+  Record unresolved assumptions and remote-run instructions here.

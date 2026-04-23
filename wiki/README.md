@@ -43,6 +43,12 @@ Because this is an Obsidian vault, notes here should be:
 - explicit about sources
 - useful in graph view and backlinks
 
+For mathematical notes:
+
+- write equations with MathJax delimiters, not backticks
+- use the shared root `preamble.sty` macros when they help notation stay stable across notes
+- keep load-bearing formulas explicit instead of paraphrasing them away
+
 Recommended note properties when helpful:
 
 - `type`
@@ -99,15 +105,29 @@ Obsidian is the main way to inspect this folder:
 
 The better the agent maintains this folder, the more useful Obsidian becomes as the vault frontend.
 
+Query and discovery rule:
+
+- use direct reads or exact search when the target note, filename, heading, or phrase is already known
+- use Obsidian for note-local browsing, backlink work, and edits
+- use QMD for broad or fuzzy discovery across the compiled wiki when the target note is not yet known
+- use `raw/` sources or PDFs only when ingest or source verification requires it
+- do not treat retrieval quality as a substitute for verification; open the actual notes before making durable claims or edits
+
 ## Navigation notes
 
 The main control notes in this folder are:
 
-- `index.md` for the durable map of important notes
+- `index.md` for the curated durable map of important notes
 - `log.md` for chronological maintenance history
 - `glossary.md` for recurring terms
 - `maps/reading_map.md` for major domain coverage and reading order
 - `inbox.md` for candidate sources and note targets
+
+Role split:
+
+- `index.md` is a human-facing gateway, not the primary search engine for the agent at large scale
+- `log.md` is the audit trail of changes, not a second navigation tree
+- broad discovery should move to exact search or QMD once the target note is not already obvious
 
 ## Current folder map
 
@@ -115,12 +135,28 @@ The main control notes in this folder are:
 - `maps/` for domain entry points such as reading, math, statistics, ML, finance, microstructure, signal-processing maps, and `.canvas` overviews
 - `datasets/` for durable dataset pages
 - `identifiers/` for keys, join semantics, and identifier caveats
-- `sources/books/`, `sources/papers/`, and `sources/articles/` for source notes
+- `sources/books/` for stable book overview notes and `sources/books/<Book Title>/` for chapter digests of deeply ingested books
+- `sources/papers/` and `sources/articles/` for source notes that do not need a book-style chapter shelf
 - `concepts/` for models, markets, risks, systems, and other cross-source conceptual syntheses
 - `methods/` for statistics, econometrics, validation, and technical workflows
 - `metrics/` for evaluation and research measures
 - `strategies/` for alpha, portfolio, and execution theses
 - `_templates/` for lightweight note templates
+
+Storage rule for large books:
+
+- keep the canonical book note at `sources/books/<Book Title>.md`
+- store chapter or theorem-level digests under `sources/books/<Book Title>/`
+- use predictable source-linked chapter titles so search, backlinks, and Bases remain stable
+- for `overview_source` book notes with `read_scope: full_source`, keep the parent note thin and use this fixed section order: Citation / metadata, Why this book matters, Reading logic from the source, Stage map, Chapter shelf, Core objects and modeling vocabulary, Main themes, Promoted durable notes, Next promotion targets, Caveats, Related notes, Sources
+- do not turn the parent overview into a second chapter-by-chapter digest; deep technical content belongs in the child shelf and the promoted durable notes
+
+Ingest rule for long sources:
+
+- first do a full scan pass chapter by chapter or section by section so the vault has honest coverage of the whole source
+- then deepen only the load-bearing chapters or sections, rather than forcing uniform depth everywhere, and rescan the non-selected parts for any local theorem, idea, or caveat that still deserves partial deepening
+- then promote the strongest reusable material from the source shelf into durable notes under `concepts/`, `methods/`, `metrics/`, or `strategies/`
+- if one chapter is mostly routine but contains one critical idea, theorem, or caveat, deepen that part explicitly without rewriting the whole chapter at maximal depth
 
 Create durable notes here. Keep active or uncertain work in `projects/` until it is ready to crystallize.
 
