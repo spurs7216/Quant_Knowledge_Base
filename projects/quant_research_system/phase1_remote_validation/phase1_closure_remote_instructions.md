@@ -1,5 +1,5 @@
 ---
-title: Phase 1 Closure Remote Instructions
+title: Phase 1 Closure Remote Evidence Instructions
 type: project
 status: active
 updated: 2026-04-23
@@ -10,13 +10,15 @@ tags:
   - closure-run
   - ubuntu
 ---
-# Phase 1 Closure Remote Instructions
+# Phase 1 Closure Remote Evidence Instructions
 
 ## Purpose
 
-These instructions are for the remote Ubuntu agent that will rerun Task 001 to determine whether Phase 1 can be closed.
+These instructions are for the remote Ubuntu agent that will rerun Task 001 and submit evidence for local Phase 1 closure review.
 
 The goal is not to improve the strategy. The goal is to produce a clean, reproducible remote-validation run whose artifacts can be trusted as evidence that the `remote_validation` pipeline works.
+
+The remote agent does not decide whether a phase is closed. The remote agent reports evidence, failures, warnings, artifact locations, and a non-binding recommendation. The local agent and human reviewer make the final phase-close decision after inspecting the returned evidence.
 
 ## Hard Rules
 
@@ -27,6 +29,7 @@ The goal is not to improve the strategy. The goal is to produce a clean, reprodu
 - Do not patch code and then run before committing the patch.
 - If code changes are required, commit them first, push if needed, pull the clean commit, and only then rerun.
 - Prefer a fresh clone over trying to clean a previously dirty working tree.
+- Do not mark a phase as finally closed. Use `remote_recommendation`, not `decision`, for phase status.
 
 ## Required Data Path
 
@@ -42,9 +45,9 @@ The runner should be invoked with:
 --data-root /home/b08303004/Desktop/WRDS/data
 ```
 
-## Closure Criteria
+## Closure Evidence Criteria
 
-The run can be used to close Phase 1 only if all conditions hold:
+The run is eligible for local Phase 1 closure review only if all conditions hold:
 
 - `git status --short` is empty immediately before the run.
 - `run_manifest.yaml` records a real Git commit, not `unknown`.
@@ -53,10 +56,10 @@ The run can be used to close Phase 1 only if all conditions hold:
 - The artifact bundle contains all required files.
 - `metrics.json` status is `completed` or `completed_with_warnings`, not `failed_gates`.
 - `diagnostics.csv` has no `status == fail` rows.
-- A tracked closure decision note is committed and pushed to GitHub.
+- A tracked closure evidence note is committed and pushed to GitHub.
 - The compact artifact bundle is packaged outside Git and made available for local import.
 
-Warnings do not automatically block Phase 1 closure if they are explicitly recorded and the decision note explains why they are acceptable for a workflow-foundation phase.
+Warnings do not automatically block local Phase 1 closure review if they are explicitly recorded. The remote evidence note should explain the warnings and give a recommendation; the local agent and human reviewer decide whether the warnings are acceptable for a workflow-foundation phase.
 
 ## Recommended Fresh Clone
 
@@ -263,7 +266,7 @@ print("validation_checks_passed")
 PY
 ```
 
-If this validation fails, package the failed artifact bundle anyway, but mark the closure decision as `not_closed` and explain why.
+If this validation fails, package the failed artifact bundle anyway, but set `remote_recommendation: recommend_not_close` and explain why.
 
 ## Package The Artifact Bundle Outside Git
 
@@ -282,19 +285,19 @@ cat "$RETURN_DIR/${RUN_ID}_${CLEAN_COMMIT_SHORT}_artifacts.tar.gz.sha256"
 
 Do not commit the archive. Transfer it to the local machine by the available non-Git channel, for example `scp`, shared drive, or manual file download.
 
-## Create The Tracked Closure Decision Note
+## Create The Tracked Closure Evidence Note
 
 Create:
 
 ```text
-projects/quant_research_system/phase1_remote_validation/task_001_closure_decision.md
+projects/quant_research_system/phase1_remote_validation/task_001_closure_evidence.md
 ```
 
 Use this structure and fill it with exact values from the artifact files:
 
 ```markdown
 ---
-title: Task 001 Phase 1 Closure Decision
+title: Task 001 Phase 1 Closure Evidence
 type: project
 status: completed
 updated: 2026-04-23
@@ -303,13 +306,14 @@ tags:
   - phase1
   - remote-validation
   - closure-run
+  - remote-evidence
 sources:
   - "../../../artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/run_manifest.yaml"
   - "../../../artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/metrics.json"
   - "../../../artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/diagnostics.csv"
   - "../../../artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/failure_report.md"
 ---
-# Task 001 Phase 1 Closure Decision
+# Task 001 Phase 1 Closure Evidence
 
 ## Run Identity
 
@@ -333,9 +337,11 @@ sources:
 
 ## Closure Assessment
 
-Decision: `<phase1_closed / not_closed>`
+Remote recommendation: `<recommend_close / recommend_not_close>`
 
-Explain whether Phase 1 can close. The answer should be based on workflow trust, not whether the baseline is a good alpha.
+Local phase decision: `<reserved_for_local_or_human_review>`
+
+Explain whether the remote evidence supports local Phase 1 closure. This is a recommendation, not the final phase decision. The recommendation should be based on workflow trust, not whether the baseline is a good alpha.
 
 ## Strategy Result
 
@@ -352,12 +358,12 @@ Record train, validation, and test headline metrics:
 List follow-up items that belong to Phase 2 or later. These should not block Phase 1 unless they undermine the workflow evidence.
 ```
 
-The closure note must distinguish two questions:
+The evidence note must distinguish two questions:
 
-- Can Phase 1 close as an engineering and evidence-pipeline milestone?
+- Does the remote evidence support local Phase 1 closure as an engineering and evidence-pipeline milestone?
 - Is the short-horizon reversal baseline promotable as alpha?
 
-The likely acceptable outcome is: Phase 1 closes, but the strategy remains `revise` or `not_promoted`.
+The likely acceptable remote recommendation is: `recommend_close`, but the strategy remains `revise` or `not_promoted`.
 
 ## Commit And Push Only Tracked Notes
 
@@ -371,13 +377,13 @@ git status --short
 Expected:
 
 - `artifacts/remote_runs/...` appears as ignored with `!!`.
-- Only the closure decision note, or other intentionally edited project notes, appear as tracked changes.
+- Only the closure evidence note, or other intentionally edited project notes, appear as tracked changes.
 
 Commit only tracked project notes:
 
 ```bash
-git add projects/quant_research_system/phase1_remote_validation/task_001_closure_decision.md
-git commit -m "Record phase1 clean closure validation"
+git add projects/quant_research_system/phase1_remote_validation/task_001_closure_evidence.md
+git commit -m "Record phase1 clean closure evidence"
 git push origin main
 ```
 
@@ -394,7 +400,7 @@ Report these exact items:
 - `metrics.json` status
 - failed diagnostics count
 - warning diagnostics count
-- Phase 1 closure decision
+- remote Phase 1 closure recommendation
 - whether the strategy itself remains `revise`, `reject`, or `promotable`
 
 Do not paste secrets or credentials in the final message.

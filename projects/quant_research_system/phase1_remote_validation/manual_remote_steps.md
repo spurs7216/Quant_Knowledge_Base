@@ -15,9 +15,11 @@ tags:
 
 These are the manual steps to run Task 001 on the remote Ubuntu machine.
 
-For the clean reproducibility rerun that decides whether Phase 1 can close, use
+For the clean reproducibility rerun that produces Phase 1 closure evidence, use
 [phase1_closure_remote_instructions.md](phase1_closure_remote_instructions.md)
 instead of this first-run guide.
+
+Remote runs produce evidence and recommendations only. Final phase closure is a local or human-reviewed decision.
 
 The remote data fact provided by the human:
 

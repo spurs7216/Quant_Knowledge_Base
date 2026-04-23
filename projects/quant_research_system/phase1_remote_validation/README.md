@@ -30,8 +30,9 @@ This phase does not optimize for smallness. It builds the first robust foundatio
 - [task_001_daily_stock_short_reversal.md](task_001_daily_stock_short_reversal.md): first concrete validation task.
 - [task_001_manifest.yaml](task_001_manifest.yaml): concrete draft manifest for the first task.
 - [task_001_decision.md](task_001_decision.md): decision from the first full remote-validation run.
+- [task_001_closure_decision.md](task_001_closure_decision.md): remote closure evidence pulled from the clean rerun plus local review status.
 - [manual_remote_steps.md](manual_remote_steps.md): commands the human should run on the remote Ubuntu machine.
-- [phase1_closure_remote_instructions.md](phase1_closure_remote_instructions.md): stricter clean-run instructions for closing Phase 1.
+- [phase1_closure_remote_instructions.md](phase1_closure_remote_instructions.md): stricter clean-run instructions for producing closure evidence.
 
 Executable scaffold:
 
@@ -45,9 +46,12 @@ Phase 1 is complete when:
 - the task manifest is filled with exact git snapshots
 - the remote Ubuntu machine can pull the relevant GitHub commit
 - the remote run executes against the full warehouse data
-- a compact artifact bundle is manually reviewed
-- approved artifacts are copied into `artifacts/remote_runs/`
-- a project decision records `proceed`, `revise`, or `reject`
+- a compact artifact bundle is manually reviewed locally, or a human explicitly waives local artifact import
+- approved artifacts are copied into `artifacts/remote_runs/`, unless waived
+- a local or human-reviewed project note records `proceed`, `revise`, or `reject`
+- a local or human-reviewed project note records the final phase-close decision
+
+Remote agents may provide evidence and recommendations, but they must not be treated as final authority for phase closure.
 
 ## Relationship To System Design
 

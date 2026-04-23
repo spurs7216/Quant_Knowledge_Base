@@ -75,8 +75,11 @@ Exit criteria:
 
 - manifest exists
 - remote run completes
-- artifact bundle syncs back
+- artifact bundle syncs back, or local artifact import is explicitly waived by the human
 - local project note records proceed / revise / reject
+- local or human-reviewed project note records the final phase-close decision
+
+Remote machines and remote agents produce evidence and recommendations. They do not have final authority to close phases.
 
 ## Phase 2. Research falsification tasks
 

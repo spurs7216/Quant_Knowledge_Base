@@ -29,6 +29,7 @@ Local vault responsibilities:
 - write job manifest
 - review compact artifacts
 - update project decisions
+- decide final phase closure after reviewing evidence
 - promote durable lessons only after verification
 
 ## Remote responsibilities
@@ -41,6 +42,9 @@ Remote machine responsibilities:
 - run GPU jobs
 - produce compact artifact bundles
 - preserve reproducibility metadata
+- report non-binding recommendations when asked
+
+Remote agents must not make final phase-close decisions. They can recommend `close`, `revise`, or `do not close`, but the local control-plane review decides final phase status.
 
 ## Dataset references
 
@@ -200,8 +204,9 @@ Only copy data locally when:
 6. monitor status
 7. sync artifact bundle
 8. inspect artifacts locally
-9. record decision in `projects/`
-10. crystallize stable lessons into `wiki/` only if reusable
+9. record project decision in `projects/`
+10. record final phase-close decision locally or with explicit human review
+11. crystallize stable lessons into `wiki/` only if reusable
 
 ## Security rules
 
