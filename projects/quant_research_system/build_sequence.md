@@ -52,6 +52,8 @@ Exit criteria:
 
 ## Phase 1. Remote validation foundation
 
+Status: `closed` on 2026-04-23.
+
 Goal:
 
 Run one end-to-end remote validation job from local manifest to synced artifact bundle.
@@ -196,9 +198,9 @@ Exit criteria:
 
 ## Immediate next decision
 
-The next concrete choice is which foundation environment to build first:
+The next concrete choice is how to begin Phase 2 falsification work:
 
-- recommended: `remote_validation`
-- alternative: `implementation_execution` read-only IBKR checks
+- recommended: create the first 5 null / weak-signal tasks for `remote_validation`
+- alternative: start the IBKR read-only implementation checks in parallel only if they do not distract from evaluator quality
 
-Independent judgment: build `remote_validation` first. It is the highest-leverage path because it connects the vault, real data, evaluators, and artifacts while avoiding premature trading API risk.
+Independent judgment: start Phase 2 falsification tasks next. The remote-validation foundation now exists, and the next risk is not infrastructure availability; it is false acceptance of weak ideas.

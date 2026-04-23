@@ -1,7 +1,7 @@
 ---
 title: Phase 1 Remote Validation
 type: project
-status: active
+status: completed
 updated: 2026-04-23
 tags:
   - project
@@ -21,6 +21,12 @@ This phase does not optimize for smallness. It builds the first robust foundatio
 - a compact artifact bundle schema
 - a local preflight checklist
 - one auditable baseline task on `daily_stock`
+
+## Closure Status
+
+Phase 1 is closed as of 2026-04-23.
+
+The closure is an engineering and evidence-pipeline milestone only. It means the remote-validation path can run from a clean Git snapshot on the remote warehouse file and return a compact, locally reviewed artifact bundle. It does not promote the Task 001 short-horizon reversal baseline as alpha.
 
 ## Files
 

@@ -1,7 +1,7 @@
 ---
 title: Task 001 Phase 1 Closure Review
 type: project
-status: review_pending
+status: completed
 updated: 2026-04-23
 tags:
   - project
@@ -41,15 +41,28 @@ sources:
 
 Remote assessment: `phase1_closed`
 
-Local review status: `closure_ready_pending_artifact_import`
+Local review status: `phase1_closed`
+
+Final local decision: `phase1_closed`
 
 The remote evidence is strong: the clean run started from a fresh clone, recorded the exact Git commit, recorded `dirty: false` for both snapshots, ran against the full daily-stock warehouse file, reported the required compact artifact bundle, and had no failed diagnostics.
 
-Local review should not treat the remote machine's phase-close statement as final. The local vault still does not contain the artifact bundle under `artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/`, because generated artifacts are intentionally ignored by Git. Phase 1 should be marked closed only after the artifact archive is imported and reviewed locally, or after the human explicitly waives local artifact import for this closure decision.
+Local review imported and validated the artifact bundle under `artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/`. The archive hash matched the recorded SHA256 value, all required files were present and nonempty, schema-level checks passed, clean Git snapshots were recorded, and diagnostics contained zero failed rows.
 
 The two warning diagnostics are accepted for Phase 1 because they are explicitly reported and handled: duplicate `PERMNO` by `DlyCalDt` rows are counted before and after filters, then first rows are kept before signal construction. That policy is sufficient for workflow validation, but it should be improved before production research use.
 
-The short-horizon reversal baseline itself remains `revise` and is not promoted as alpha. If Phase 1 is closed after local artifact review, that closure means the remote-validation pipeline works; it does not mean the strategy is ready for durable promotion.
+The short-horizon reversal baseline itself remains `revise` and is not promoted as alpha. Phase 1 closure means the remote-validation pipeline works; it does not mean the strategy is ready for durable promotion.
+
+## Local Artifact Review
+
+- archive present locally: `yes`
+- archive SHA256 verified: `yes`
+- extracted artifact path: `artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/`
+- required files present and nonempty: `yes`
+- clean code snapshots: `yes`
+- failed diagnostics count: `0`
+- warning diagnostics count: `2`
+- local artifact review file updated: `artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/review.md`
 
 ## Strategy Result
 
@@ -68,4 +81,3 @@ All metrics below use the baseline `2.5` bps total trading-cost assumption.
 - Add borrow-cost and higher-slippage scenarios before interpreting short-side economics.
 - Test sector, size, and liquidity controls.
 - Keep the baseline marked `revise` until it survives stronger validation.
-- Import and locally review the compact artifact archive, or explicitly record a human waiver of local artifact import, before marking Phase 1 closed.
