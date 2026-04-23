@@ -31,6 +31,7 @@ This phase does not optimize for smallness. It builds the first robust foundatio
 - [task_001_manifest.yaml](task_001_manifest.yaml): concrete draft manifest for the first task.
 - [task_001_decision.md](task_001_decision.md): decision from the first full remote-validation run.
 - [manual_remote_steps.md](manual_remote_steps.md): commands the human should run on the remote Ubuntu machine.
+- [phase1_closure_remote_instructions.md](phase1_closure_remote_instructions.md): stricter clean-run instructions for closing Phase 1.
 
 Executable scaffold:
 

@@ -27,3 +27,6 @@ tmp/**
 # Python local execution artifacts
 __pycache__/
 *.py[cod]
+.venv/
+venv/
+.pytest_cache/

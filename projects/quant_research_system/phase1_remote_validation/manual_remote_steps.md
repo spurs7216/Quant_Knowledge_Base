@@ -15,6 +15,10 @@ tags:
 
 These are the manual steps to run Task 001 on the remote Ubuntu machine.
 
+For the clean reproducibility rerun that decides whether Phase 1 can close, use
+[phase1_closure_remote_instructions.md](phase1_closure_remote_instructions.md)
+instead of this first-run guide.
+
 The remote data fact provided by the human:
 
 ```text
