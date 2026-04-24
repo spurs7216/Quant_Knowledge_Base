@@ -64,6 +64,18 @@ Weak foundations contaminate later econometrics, machine learning, finance, and 
 
 Use links, Bases, tags, canvases, and MCP / CLI operations to maintain the vault well, but keep markdown notes and provenance as the underlying source of truth.
 
+### 7. GitHub push discipline
+
+Do not push to GitHub after every local change.
+
+Push only when:
+
+- the user explicitly asks for a push
+- the update must be communicated to the remote machine
+- a remote-machine workflow requires GitHub synchronization
+
+Local edits and commits may remain local until one of those conditions holds.
+
 ## Vault Map
 
 - `raw/`: source library

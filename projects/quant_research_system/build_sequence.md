@@ -2,7 +2,7 @@
 title: Quant Research System Build Sequence
 type: project
 status: active
-updated: 2026-04-23
+updated: 2026-04-24
 tags:
   - project
   - roadmap
@@ -38,6 +38,10 @@ There are two different questions:
 - Should the strategy actually be submitted to an IBKR paper account?
 
 The first question should be examined early in no-send mode because it catches non-implementable research logic before large-scale search compounds it. The second question stays later because even paper order lifecycle work needs stronger safety, reconciliation, and account-control infrastructure.
+
+IBKR/TWS access is currently local-only. Remote machines can run historical falsification and validation jobs, but they must not be assigned broker-facing TWS, account, position, contract lookup, paper order, or live order tasks.
+
+Multi-agent structure is not a separate early phase by itself. It is an orchestration pattern that should be introduced only where it lowers error rate or coordination cost. See [Quant Research System Multi-Agent Orchestration](multi_agent_orchestration.md).
 
 ## Phase 0. Freeze design assumptions
 
@@ -94,6 +98,8 @@ Remote machines and remote agents produce evidence and recommendations. They do 
 
 ## Phase 2. Research falsification tasks
 
+Status: `active` as of 2026-04-23.
+
 Goal:
 
 Make rejection discipline explicit before search.
@@ -111,6 +117,14 @@ Exit criteria:
 - agent can correctly reject at least some weak ideas
 - false accepts are visible in scorecard
 - rejected ideas include both statistical failures and implementation-feasibility failures when applicable
+
+Phase package:
+
+- [phase2_research_falsification/README.md](phase2_research_falsification/README.md)
+- [phase2_research_falsification/task_bank_v0.md](phase2_research_falsification/task_bank_v0.md)
+- [phase2_research_falsification/evaluator_checklist.md](phase2_research_falsification/evaluator_checklist.md)
+- [phase2_research_falsification/task_001_daily_stock_falsification_suite.md](phase2_research_falsification/task_001_daily_stock_falsification_suite.md)
+- [phase2_research_falsification/task_001_manifest.yaml](phase2_research_falsification/task_001_manifest.yaml)
 
 ## Phase 2B. Strategy-to-IBKR translation smoke test
 
@@ -133,6 +147,7 @@ Phase package:
 
 Non-goal:
 
+- do not run this through the remote Linux/GPU machine as if it had TWS access
 - do not submit paper orders in Phase 2B
 - do not treat successful order-intent generation as alpha evidence
 
@@ -184,11 +199,11 @@ Exit criteria:
 
 Goal:
 
-Test brokerage integration without order risk, building on the earlier Phase 2B strategy-to-order smoke test.
+Test local brokerage integration without order risk, building on the earlier Phase 2B strategy-to-order smoke test.
 
 Foundation scope:
 
-- read-only account and position checks
+- local read-only account and position checks
 - market-data request checks
 - contract-resolution tasks
 - dry-run order construction
@@ -203,7 +218,7 @@ Exit criteria:
 
 Goal:
 
-Test paper execution lifecycle.
+Test local paper execution lifecycle.
 
 Foundation scope:
 
@@ -239,10 +254,12 @@ Exit criteria:
 
 ## Immediate next decision
 
-The next concrete choice is how to begin Phase 2 falsification work while adding an early execution-readiness smoke test:
+Phase 2 has started with a visible calibration task bank and daily-stock falsification suite.
 
-- recommended: create the first 5 null / weak-signal tasks for `remote_validation`
+The next concrete choice is whether to sync the Phase 2 scaffold to the remote machine for the first falsification run, while keeping the early execution-readiness smoke test queued:
+
+- recommended: run [phase2_research_falsification/task_001_manifest.yaml](phase2_research_falsification/task_001_manifest.yaml) on the remote machine after a clean commit and explicit sync
 - also recommended: create one no-send strategy-to-IBKR translation task using Task 001 or a toy target book
 - defer: actual IBKR paper order submission until the later paper-trading layer
 
-Independent judgment: start Phase 2 falsification tasks next, but add Phase 2B immediately after or in parallel. The remote-validation foundation now exists, and the next risk is not only false acceptance of weak ideas; it is also accepting research logic that cannot be turned into safe broker-facing implementation.
+Independent judgment: run Phase 2 Task 001 before building the candidate registry. The remote-validation foundation exists; the next risk is false acceptance of weak ideas and implementation-impossible logic. Phase 2B should follow immediately after the first falsification run or run in parallel if remote synchronization is already happening.

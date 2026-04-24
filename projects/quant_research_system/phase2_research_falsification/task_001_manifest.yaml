@@ -1,0 +1,151 @@
+schema_version: 0.1
+job_id: "20260423_phase2_daily_stock_falsification_suite"
+created: "2026-04-23"
+owner: "human+codex"
+environment: "research_falsification"
+status: "draft"
+
+objective: >
+  Run the first visible Phase 2 falsification suite on the full daily_stock warehouse
+  file. The goal is to calibrate false-positive rejection, not to discover alpha.
+
+task_bank:
+  version: "phase2_falsification_v0"
+  tasks:
+    - "FAL-001_random_rank_daily_stock_null"
+    - "FAL-002_same_day_return_leakage_trap"
+    - "FAL-003_future_survivorship_universe_trap"
+    - "FAL-004_static_identifier_artifact"
+    - "FAL-005_microcap_shorting_implementation_trap"
+
+candidate_artifact:
+  type: "falsification_suite_script"
+  name: "phase2_daily_stock_falsification_suite"
+  description: >
+    Executable visible calibration suite for Phase 2. It creates task-level evidence
+    for random null, leakage, survivorship, identifier-artifact, and implementation
+    infeasibility traps.
+  source_files:
+    - "research/research_falsification/phase2_daily_stock_falsification_suite.py"
+
+sync:
+  channel: "github"
+  remote_os: "ubuntu"
+  artifact_import_policy: "manual_review"
+
+vault_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+research_code_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+remote_environment:
+  manager: "<conda_or_micromamba_recommended>"
+  environment_file: "research/remote_validation/requirements.txt"
+  python_version: "<fill_before_remote_run>"
+  gpu_required: false
+  notes: >
+    This run is CPU and memory bound. GPU is not required. This remote run must not
+    use IBKR, TWS, account state, broker credentials, contract lookup, market data
+    through IBKR, or order submission.
+
+datasets:
+  - logical_name: "daily_stock"
+    remote_path: "/home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv"
+    catalog_relative_path: "data/daily_stock/gago9dveytpx6922.csv"
+    catalog_sample: "catalog/samples/daily_stock/gago9dveytpx6922.csv"
+    row_count_expected: 49651441
+    required_columns:
+      - "PERMNO"
+      - "Ticker"
+      - "DlyCalDt"
+      - "DlyRet"
+      - "DlyRetx"
+      - "DlyPrc"
+      - "DlyVol"
+      - "SecurityEndDt"
+      - "SecurityActiveFlg"
+      - "PrimaryExch"
+      - "SecurityType"
+      - "ShareType"
+      - "TradingStatusFlg"
+      - "vwretd"
+      - "sprtrn"
+
+universe:
+  identifier: "PERMNO"
+  date_column: "DlyCalDt"
+  baseline_filters:
+    - "SecurityType == 'EQTY'"
+    - "ShareType == 'NS'"
+    - "TradingStatusFlg == 'A'"
+    - "DlyRetx is not missing"
+    - "vwretd is not missing"
+  notes: >
+    Individual falsification tasks may intentionally violate a valid universe or timing
+    rule. Those violations should be reported as failures, not repaired silently.
+
+date_range:
+  full: ["2000-01-03", "2025-11-28"]
+  train: ["2000-01-03", "2012-12-31"]
+  validation: ["2013-01-01", "2018-12-31"]
+  test: ["2019-01-01", "2025-11-28"]
+  hidden_test: false
+
+cost_model:
+  total_cost_bps: 2.5
+  turnover_cost_applied: true
+  notes: >
+    Cost realism is part of the falsification task. Microcap shorting task should fail
+    implementation feasibility even if generic turnover costs are applied.
+
+evaluation:
+  primary_outputs:
+    - "false_accept_count_placeholder"
+    - "null_discipline_score_placeholder"
+    - "task_level_expected_decisions"
+  failure_gates:
+    - "manifest_complete"
+    - "no_raw_data_copied"
+    - "no_ibkr_or_broker_dependency"
+    - "task_scorecard_complete"
+    - "hard_gate_failures_visible"
+    - "implementation_feasibility_reported"
+
+resource_request:
+  cpu_cores: 8
+  memory_gb: 32
+  gpu: "none"
+  expected_wall_time: "<fill_after_remote_run>"
+
+expected_outputs:
+  artifact_bundle_root: "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/"
+  files:
+    - "run_manifest.yaml"
+    - "metrics.json"
+    - "task_scorecard.csv"
+    - "diagnostics.csv"
+    - "failure_report.md"
+    - "review.md"
+    - "random_rank_seed_metrics.csv"
+    - "random_rank_detailed_metrics.csv"
+    - "identifier_artifact_metrics.csv"
+    - "leakage_trap_metrics.csv"
+    - "implementation_feasibility.csv"
+
+manual_review:
+  required: true
+  reviewer: "human"
+  approval_required_before_artifact_import: true
+
+notes: >
+  Fill git snapshot fields after the Phase 2 files are committed and before asking the
+  remote machine to run this task. Do not let the remote runner decide Phase 2 closure.
+  The remote machine does not have IBKR/TWS access; broker-facing checks belong to local
+  Phase 2B or later local execution environments.

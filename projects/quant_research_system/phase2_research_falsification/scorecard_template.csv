@@ -1,0 +1,6 @@
+task_id,task_name,task_bank_version,expected_decision,agent_decision,decision_correct,false_accept,statistical_gate,leakage_gate,implementation_gate,primary_failure_reason,evidence_path,reviewer_notes
+FAL-001,Random-rank daily-stock null,phase2_falsification_v0,reject,,,,,,,,,
+FAL-002,Same-day return leakage trap,phase2_falsification_v0,reject,,,,,,,,,
+FAL-003,Future survivorship universe trap,phase2_falsification_v0,reject,,,,,,,,,
+FAL-004,Static identifier artifact,phase2_falsification_v0,reject,,,,,,,,,
+FAL-005,Microcap shorting implementation trap,phase2_falsification_v0,reject_or_revise,,,,,,,,,

@@ -16,6 +16,8 @@ tags:
 
 The local machine is the control plane. The remote Linux/GPU machine is the data and compute plane.
 
+IBKR TWS access is local-only. The remote Linux/GPU machine does not have broker connectivity and should not be treated as an execution host.
+
 The local vault should know what exists, what was run, and what evidence came back. It should not mirror heavy warehouse files.
 
 This workflow is not optimized for minimal machinery. It is optimized for reproducible research across two machines. If GitHub synchronization, manifests, artifact bundles, and manual review add complexity, that complexity is justified because it makes the system more robust, reusable, and learnable.
@@ -31,6 +33,7 @@ Local vault responsibilities:
 - update project decisions
 - decide final phase closure after reviewing evidence
 - promote durable lessons only after verification
+- run IBKR/TWS read-only, dry-run, no-send translation, and paper-account tasks locally when those tasks are approved
 
 ## Remote responsibilities
 
@@ -45,6 +48,8 @@ Remote machine responsibilities:
 - report non-binding recommendations when asked
 
 Remote agents must not make final phase-close decisions. They can recommend `close`, `revise`, or `do not close`, but the local control-plane review decides final phase status.
+
+Remote agents must not attempt to access IBKR, TWS, IB Gateway, account state, position state, broker contract lookup, market-data subscriptions through IBKR, paper orders, live orders, or broker credentials. They may report implementation-feasibility proxies from warehouse data, such as turnover, liquidity, short-side concentration, and missing borrow data.
 
 ## Dataset references
 
@@ -211,6 +216,7 @@ Only copy data locally when:
 ## Security rules
 
 - do not store SSH keys, passwords, tokens, or broker credentials in the vault
+- do not place broker credentials, TWS settings, or account-specific execution config on the remote machine
 - redact paths or hostnames if they reveal sensitive infrastructure
 - avoid copying proprietary raw data into tracked files
 - artifacts should be compact and reviewable
@@ -226,6 +232,8 @@ Only copy data locally when:
 ### GitHub workflow
 
 Use GitHub as the synchronization and code-version channel, not as the heavy-data channel.
+
+GitHub is not the default destination after every local edit. Push only when the user asks for a push, when the remote Ubuntu machine needs to pull the update, or when a workflow explicitly requires GitHub synchronization. Otherwise, keep local edits local until a synchronization point is reached.
 
 Recommended flow:
 

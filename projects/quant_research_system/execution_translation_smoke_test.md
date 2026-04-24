@@ -18,6 +18,8 @@ Test whether the agent can translate research logic into broker-facing implement
 
 This should happen early, before large candidate search. The goal is to catch strategy definitions that look valid in a backtest but are too vague, unsafe, or structurally impossible to express through IBKR.
 
+Current infrastructure fact: IBKR TWS access exists only on the local machine. This smoke test is therefore a local-control-plane task, not a remote warehouse/GPU task.
+
 ## Boundary
 
 Allowed:
@@ -27,10 +29,11 @@ Allowed:
 - create contract-resolution request tables
 - create no-send order-intent JSON
 - run static risk checks
-- use read-only IBKR metadata if available
+- use local read-only IBKR metadata if available
 
 Forbidden:
 
+- require IBKR/TWS access on the remote machine
 - submit paper orders
 - submit live orders
 - store credentials
@@ -65,6 +68,8 @@ Required files:
 - `risk_check_report.md`
 - `implementation_caveats.md`
 
+If the task uses only static target-book and order-intent generation, it can be done without connecting to IBKR. If it uses account state, positions, contract metadata, or market-data requests from IBKR, it must run locally.
+
 ## Required Checks
 
 The task fails if:
@@ -78,6 +83,7 @@ The task fails if:
 - contract fields are ambiguous
 - shorting assumptions are not stated
 - no cancel or flattening plan exists
+- the task assumes the remote machine has TWS access
 - any credential appears in an output file
 - an order-submission endpoint is called
 

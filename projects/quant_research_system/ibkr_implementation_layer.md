@@ -16,6 +16,8 @@ tags:
 
 IBKR should evaluate execution-facing implementation skill, not alpha discovery.
 
+Current infrastructure fact: IBKR TWS access exists only on the local machine. The remote Linux/GPU machine is for data and compute work, not broker-facing tasks.
+
 The agent's implementation skill should be tested at two levels:
 
 - early no-send translation: can the agent turn a strategy rule into target positions, contract-resolution requests, order intents, and static risk checks?
@@ -47,10 +49,12 @@ The current IBKR MCP surface is read-only:
 
 That is enough for read-only checks, but not enough for a full execution benchmark.
 
-A full implementation layer needs a separate harness around one of:
+A full implementation layer needs a local harness around one of:
 
 - TWS API / IB Gateway
 - IBKR Client Portal Web API
+
+Do not assign IBKR/TWS tasks to the remote machine. Remote jobs can produce historical feasibility evidence, such as turnover, liquidity, short-side concentration, and candidate target books, but local tooling must handle account state, positions, contract metadata, order construction against broker constraints, dry-runs, and paper order lifecycle checks.
 
 ## Safety hierarchy
 
@@ -65,6 +69,8 @@ Use four stages:
 4. `live_trade`
    Out of scope unless the human explicitly approves a separate live-trading protocol.
 
+All four stages are local-only under the current setup. Remote compute may support them with data artifacts, but it is not an IBKR execution host.
+
 ## Early strategy-to-order smoke test
 
 This belongs near Phase 2B, before large candidate search.
@@ -74,6 +80,7 @@ Purpose:
 - check whether a strategy specification has enough detail to become broker-facing logic
 - expose missing assumptions about target sizing, rebalance timing, instruments, shorting, order type, and risk limits
 - produce reviewable artifacts without connecting to an order-submission endpoint
+- run locally if any IBKR/TWS metadata, account state, or position state is needed
 
 Required no-send outputs:
 
@@ -85,6 +92,7 @@ Required no-send outputs:
 
 Failure gates:
 
+- attempting to use the remote machine for IBKR/TWS access under the current setup
 - missing account mode
 - missing notional and quantity caps
 - ambiguous contract fields

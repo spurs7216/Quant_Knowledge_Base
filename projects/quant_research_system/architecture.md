@@ -2,7 +2,7 @@
 title: Quant Research System Architecture
 type: project
 status: active
-updated: 2026-04-23
+updated: 2026-04-24
 tags:
   - project
   - architecture
@@ -13,9 +13,11 @@ tags:
 
 ## Operating model
 
-The local vault is the memory and control layer. The remote machine is the heavy data and compute layer. IBKR is the execution realism layer.
+The local vault is the memory and control layer. The remote machine is the heavy data and compute layer. IBKR/TWS is the local execution realism layer.
 
 Do not collapse these into one tool. Each layer has a different trust role.
+
+Current machine boundary: IBKR TWS access exists only on the local machine, not on the remote Linux/GPU machine. Remote jobs must not require broker connectivity, TWS, IB Gateway, account access, position access, paper order submission, or broker credentials.
 
 This architecture is not trying to be minimal. It is trying to be durable. Complexity is acceptable when it buys reliability, reuse, auditability, execution safety, or learning value. Complexity is unacceptable when it hides assumptions or makes results harder to reproduce.
 
@@ -81,6 +83,7 @@ Rules:
 - remote jobs must write compact evidence outputs
 - only small artifacts and metadata come back to the vault
 - heavy datasets stay remote
+- remote jobs do not call IBKR, TWS, IB Gateway, or broker APIs
 
 ## Plane 4. Evaluation plane
 
@@ -134,9 +137,9 @@ Rules:
 
 Lives around:
 
-- IBKR paper account
-- TWS API or Client Portal Web API harness
-- read-only IBKR MCP where available
+- local IBKR paper account
+- local TWS API or Client Portal Web API harness
+- local read-only IBKR MCP where available
 
 Purpose:
 
@@ -147,10 +150,12 @@ Purpose:
 
 Rules:
 
+- IBKR/TWS tasks are local-only unless a future remote broker environment is explicitly built and approved
 - no live orders without explicit human approval
 - no-send strategy-to-order translation can be tested early as an implementation-feasibility smoke test
 - paper-trading order submission comes after historical validation gates
 - execution checks must not be confused with alpha validity
+- remote compute may produce feasibility inputs, such as estimated turnover, liquidity, short-side concentration, and candidate target books, but local IBKR checks decide broker-facing readiness
 
 ## Control loop
 
@@ -183,3 +188,7 @@ AlphaEvolve component mapping:
 ## Design priority
 
 Build the evaluator and remote artifact contract before building large search loops. Without a reliable evaluator, search only accelerates overfitting.
+
+## Related Notes
+
+- [Quant Research System Multi-Agent Orchestration](multi_agent_orchestration.md)

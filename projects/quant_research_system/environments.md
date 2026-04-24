@@ -27,6 +27,8 @@ Every research environment should define:
 
 An environment is not just a folder. It is a bounded game whose scoring rules are known before the candidate is generated.
 
+Current execution-location rule: IBKR TWS access is local-only. Remote environments may evaluate historical data, null models, statistical robustness, and implementation-feasibility proxies, but they must not require TWS, IB Gateway, account state, position state, broker credentials, contract lookup, or order submission.
+
 ## Environment 1. `remote_validation`
 
 ### Purpose
@@ -112,6 +114,8 @@ Test whether a strategy rule can be translated into broker-facing artifacts befo
 
 This environment is earlier and cheaper than `implementation_execution`. It is no-send by design.
 
+This environment is local-control-plane work. It may be run without connecting to IBKR if it only generates reviewable artifacts. If it uses IBKR metadata or account context, it must run on the local machine where TWS access exists, not on the remote warehouse/GPU machine.
+
 ### Candidate artifacts
 
 - target portfolio table
@@ -151,6 +155,8 @@ Run this after Phase 1 and alongside Phase 2 falsification. It should catch impl
 
 Test deployable implementation mechanics, especially IBKR paper-trading workflow.
 
+This environment is local-only under the current infrastructure because only the local machine has IBKR TWS access.
+
 ### Candidate artifacts
 
 - contract-resolution script
@@ -180,7 +186,9 @@ Test deployable implementation mechanics, especially IBKR paper-trading workflow
 
 ### Current limitation
 
-The currently exposed IBKR MCP tools are read-only: historical data, fundamentals, account summary, and positions. A true execution environment requires a separate TWS API or Client Portal API harness for order placement.
+The currently exposed IBKR MCP tools are read-only: historical data, fundamentals, account summary, and positions. They are available only from the local machine's IBKR/TWS setup. A true execution environment requires a local TWS API, IB Gateway, or Client Portal API harness for order placement.
+
+The remote Ubuntu data/GPU machine must not be used for IBKR execution tasks unless a separate broker environment is deliberately installed, isolated, and approved later.
 
 ## Environment 4. `foundation_mastery`
 
@@ -242,8 +250,8 @@ Build in this order:
 
 1. `remote_validation`
 2. `research_falsification`
-3. `implementation_translation_smoke` no-send order-intent checks
-4. `implementation_execution` read-only and dry-run
+3. `implementation_translation_smoke` local no-send order-intent checks
+4. `implementation_execution` local read-only and dry-run
 5. `foundation_mastery` hidden shadow suite
 6. `prospective_paper`
 
