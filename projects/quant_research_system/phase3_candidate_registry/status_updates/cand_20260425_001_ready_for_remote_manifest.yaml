@@ -1,0 +1,18 @@
+schema_version: 0.1
+candidate_id: "CAND-20260425-001"
+expected_current_status: "active"
+new_status: "active"
+evaluator_result: "ready_for_remote_manifest_construction"
+local_decision: "pending"
+score_summary: "control_plane_ready; duplicate_policy_revision_scope_fixed; awaiting_remote_validation_manifest"
+evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_003_evaluation_intake.md"
+notes: "Scope fixed for next remote-validation handoff: isolate duplicate PERMNO-date handling while keeping the Phase 1 reversal signal family unchanged."
+event:
+  event_id: "EVT-20260425-002"
+  event_date: "2026-04-25"
+  event_type: "candidate_control_plane_review"
+  from_status: "active"
+  to_status: "active"
+  actor_role: "research_supervisor"
+  evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_003_evaluation_intake.md"
+  summary: "Candidate remains active; control-plane review fixed its first evaluation target and made it ready for remote-validation manifest construction."

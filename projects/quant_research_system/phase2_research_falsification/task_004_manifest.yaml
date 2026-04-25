@@ -1,0 +1,75 @@
+schema_version: 0.1
+job_id: "20260424_phase2_operator_controlled_scored_pass"
+created: "2026-04-24"
+owner: "human+codex"
+environment: "research_falsification"
+mode: "local_scored_pass_operator_controlled"
+status: "draft"
+
+objective: >
+  Score one more Phase 2 falsification bank under stronger operator handoff logging,
+  less answer-shaped packet wording, and partly fresher cases drawn from Phase 1
+  robustness artifacts.
+
+task_bank:
+  version: "phase2_falsification_v3_operator_controlled"
+  tasks:
+    - "CASE-ONYX"
+    - "CASE-PRISM"
+    - "CASE-QUARTZ"
+    - "CASE-RIDGE"
+    - "CASE-SABLE"
+    - "CASE-TORCH"
+    - "CASE-UMBRA"
+
+candidate_artifact:
+  type: "agent_decision_packet_plus_local_score"
+  packet_file: "projects/quant_research_system/phase2_research_falsification/task_004_agent_packet.md"
+  response_template: "projects/quant_research_system/phase2_research_falsification/task_004_response_template.csv"
+  answer_key: "projects/quant_research_system/phase2_research_falsification/task_004_answer_key.csv"
+  scoring_script: "research/research_falsification/score_phase2_falsification_responses.py"
+  run_prep_script: "research/research_falsification/prepare_phase2_scored_run.py"
+
+protocol:
+  answering_agent_protocol: "projects/quant_research_system/phase2_research_falsification/answering_agent_protocol.md"
+  local_operator_protocol: "projects/quant_research_system/phase2_research_falsification/local_operator_scoring_protocol.md"
+  independence_attestation_template: "projects/quant_research_system/phase2_research_falsification/independence_attestation_template.md"
+  operator_log_required: true
+
+evidence_inputs:
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/review.md"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/metrics.json"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/run_manifest.yaml"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/cost_sensitivity.csv"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/subperiod_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/metrics.json"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/failure_report.md"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/random_rank_seed_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/leakage_trap_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/implementation_feasibility.csv"
+
+scoring:
+  strict_metric: "canonical expected decision match"
+  tolerant_metric: "decision belongs to acceptable_decisions set"
+  false_accept_rule: >
+    Count as false accept if the agent chooses proceed for a task whose acceptable
+    decisions do not include proceed.
+  required_outputs:
+    - "responses.csv"
+    - "operator_handoff_record.md"
+    - "independence_attestation.md"
+    - "scored_scorecard.csv"
+    - "metrics.json"
+    - "score_report.md"
+
+artifact_policy:
+  import_to_git: false
+  recommended_output_root: "artifacts/phase2_scored_falsification/<YYYYMMDD>_<run_id>/"
+  manual_review_required: true
+
+notes: >
+  The answering agent should receive only a run-local packet, run-local responses.csv,
+  and the evidence files cited by the packet. The operator should preserve the exact
+  handoff prompt and answering-agent session label in the run-local operator log.

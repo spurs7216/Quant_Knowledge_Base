@@ -2,7 +2,7 @@
 title: Quant Research System Build Sequence
 type: project
 status: active
-updated: 2026-04-24
+updated: 2026-04-25
 tags:
   - project
   - roadmap
@@ -98,7 +98,7 @@ Remote machines and remote agents produce evidence and recommendations. They do 
 
 ## Phase 2. Research falsification tasks
 
-Status: `active` as of 2026-04-23.
+Status: `closed` on 2026-04-24 after Task 004 local review.
 
 Goal:
 
@@ -117,16 +117,28 @@ Exit criteria:
 - agent can correctly reject at least some weak ideas
 - false accepts are visible in scorecard
 - rejected ideas include both statistical failures and implementation-feasibility failures when applicable
+- a scored run records an independence-control trail
+- the scored bank is not only a plainly visible set of canonical answers
+- the scored bank includes at least one serious `proceed` task
 
 Phase package:
 
 - [phase2_research_falsification/README.md](phase2_research_falsification/README.md)
 - [phase2_research_falsification/task_bank_v0.md](phase2_research_falsification/task_bank_v0.md)
+- [phase2_research_falsification/task_bank_v1_scored.md](phase2_research_falsification/task_bank_v1_scored.md)
+- [phase2_research_falsification/task_bank_v2_requirements.md](phase2_research_falsification/task_bank_v2_requirements.md)
 - [phase2_research_falsification/evaluator_checklist.md](phase2_research_falsification/evaluator_checklist.md)
 - [phase2_research_falsification/task_001_daily_stock_falsification_suite.md](phase2_research_falsification/task_001_daily_stock_falsification_suite.md)
 - [phase2_research_falsification/task_001_manifest.yaml](phase2_research_falsification/task_001_manifest.yaml)
+- [phase2_research_falsification/task_002_scored_falsification_pass.md](phase2_research_falsification/task_002_scored_falsification_pass.md)
+- [phase2_research_falsification/task_003_hardened_scored_falsification_pass.md](phase2_research_falsification/task_003_hardened_scored_falsification_pass.md)
+- [phase2_research_falsification/task_004_operator_controlled_scored_pass.md](phase2_research_falsification/task_004_operator_controlled_scored_pass.md)
+- [phase2_research_falsification/answering_agent_protocol.md](phase2_research_falsification/answering_agent_protocol.md)
+- [phase2_research_falsification/local_operator_scoring_protocol.md](phase2_research_falsification/local_operator_scoring_protocol.md)
 
 ## Phase 2B. Strategy-to-IBKR translation smoke test
+
+Status: `closed` on 2026-04-24 after Task 001 local review.
 
 Goal:
 
@@ -144,6 +156,9 @@ Foundation scope:
 Phase package:
 
 - [execution_translation_smoke_test.md](execution_translation_smoke_test.md)
+- [phase2b_implementation_translation/README.md](phase2b_implementation_translation/README.md)
+- [phase2b_implementation_translation/task_001_representative_book_translation.md](phase2b_implementation_translation/task_001_representative_book_translation.md)
+- [phase2b_implementation_translation/task_001_local_review.md](phase2b_implementation_translation/task_001_local_review.md)
 
 Non-goal:
 
@@ -159,6 +174,8 @@ Exit criteria:
 
 ## Phase 3. Candidate registry
 
+Status: `active` as of 2026-04-25. Task 001 seeded the registry from Phase 1 and Phase 2B artifacts; Task 002 added manifest-driven candidate registration; Task 003 added status-update and event intake; Task 004 created an executable remote-validation handoff; Task 005 prepared the remote execution packet.
+
 Goal:
 
 Track candidate lineage.
@@ -170,12 +187,31 @@ Foundation scope:
 - artifact type
 - patch or code path
 - evaluator result
-- status: rejected, active, promoted, paper-test
+- status: rejected, active, promoted, paper-test, superseded
+
+Phase package:
+
+- [phase3_candidate_registry/README.md](phase3_candidate_registry/README.md)
+- [phase3_candidate_registry/candidate_registry_schema.md](phase3_candidate_registry/candidate_registry_schema.md)
+- [phase3_candidate_registry/candidate_registry.csv](phase3_candidate_registry/candidate_registry.csv)
+- [phase3_candidate_registry/candidate_event_log.csv](phase3_candidate_registry/candidate_event_log.csv)
+- [phase3_candidate_registry/candidate_manifest.template.yaml](phase3_candidate_registry/candidate_manifest.template.yaml)
+- [phase3_candidate_registry/candidate_status_update.template.yaml](phase3_candidate_registry/candidate_status_update.template.yaml)
+- [phase3_candidate_registry/task_001_seed_registry.md](phase3_candidate_registry/task_001_seed_registry.md)
+- [phase3_candidate_registry/task_002_manifest_registration.md](phase3_candidate_registry/task_002_manifest_registration.md)
+- [phase3_candidate_registry/task_003_evaluation_intake.md](phase3_candidate_registry/task_003_evaluation_intake.md)
+- [phase3_candidate_registry/task_004_remote_validation_handoff.md](phase3_candidate_registry/task_004_remote_validation_handoff.md)
+- [phase3_candidate_registry/task_005_remote_execution_packet.md](phase3_candidate_registry/task_005_remote_execution_packet.md)
 
 Exit criteria:
 
 - candidate history is inspectable
 - repeated experiments do not disappear into chat history
+- a new candidate can be added from a manifest without changing the schema
+- an existing candidate can receive review or evaluator updates through a status-update manifest
+- one registered candidate can be handed to remote validation with an executable script and draft job manifest
+- a remote execution packet and artifact-intake checklist exist before the run is claimed
+- registry validation passes before Phase 4 search creates child candidates
 
 ## Phase 4. Search loop
 
@@ -252,14 +288,28 @@ Exit criteria:
 - no mid-run rule changes
 - forward evidence is recorded honestly
 
-## Immediate next decision
+## Current next decision
 
-Phase 2 has started with a visible calibration task bank and daily-stock falsification suite.
+Phase 2B is closed within its scoped objective, and Phase 3 has started.
 
-The next concrete choice is whether to sync the Phase 2 scaffold to the remote machine for the first falsification run, while keeping the early execution-readiness smoke test queued:
+What is established:
 
-- recommended: run [phase2_research_falsification/task_001_manifest.yaml](phase2_research_falsification/task_001_manifest.yaml) on the remote machine after a clean commit and explicit sync
-- also recommended: create one no-send strategy-to-IBKR translation task using Task 001 or a toy target book
-- defer: actual IBKR paper order submission until the later paper-trading layer
+- the remote falsification scaffold works end to end on the full `daily_stock` file
+- explicit agent-side falsification decisions can be scored against a separate answer key
+- later scored runs include `reject`, `revise`, and `proceed`
+- the operator-controlled run preserved the main anti-leak boundary and recorded the exact handoff prompt
+- the current evaluator stack shows zero false accepts in the hardened and operator-controlled passes
+- one revised strategy can now be translated into explicit no-send broker-facing artifacts with paper-only safety locks
 
-Independent judgment: run Phase 2 Task 001 before building the candidate registry. The remote-validation foundation exists; the next risk is false acceptance of weak ideas and implementation-impossible logic. Phase 2B should follow immediately after the first falsification run or run in parallel if remote synchronization is already happening.
+Why the system should still not jump directly to search:
+
+- the benchmark bank is still small and internal
+- candidate registry should come before search so candidate lineage does not disappear into chat history
+- later IBKR read-only and dry-run stages still need live local broker metadata and order-construction verification
+
+The next concrete choice is:
+
+- recommended next: commit and sync the exact Phase 3 packet for `CAND-20260425-002` when the remote machine is ready, then run the remote job and ingest returned evidence through the status-update path
+- defer: search loop and paper-order submission until candidate lineage and later IBKR stages exist
+
+Independent judgment: Phase 2 falsification and Phase 2B translation are strong enough to leave cleanly. Phase 3 should close only after a registered candidate can be handed to remote validation and the result can be ingested back into the registry without provenance loss.

@@ -1,8 +1,8 @@
 ---
 title: Strategy-to-IBKR Translation Smoke Test
 type: project
-status: active
-updated: 2026-04-23
+status: completed
+updated: 2026-04-24
 tags:
   - project
   - phase2b
@@ -19,6 +19,8 @@ Test whether the agent can translate research logic into broker-facing implement
 This should happen early, before large candidate search. The goal is to catch strategy definitions that look valid in a backtest but are too vague, unsafe, or structurally impossible to express through IBKR.
 
 Current infrastructure fact: IBKR TWS access exists only on the local machine. This smoke test is therefore a local-control-plane task, not a remote warehouse/GPU task.
+
+Current status: first local no-send translation task completed on `2026-04-24` and recorded in [Phase 2B Implementation Translation](phase2b_implementation_translation/README.md).
 
 ## Boundary
 
@@ -105,6 +107,7 @@ Full paper trading remains a later phase after stronger validation, risk control
 
 ## Related Notes
 
+- [Phase 2B Implementation Translation](phase2b_implementation_translation/README.md)
 - [IBKR Implementation Layer](ibkr_implementation_layer.md)
 - [Quant Research System Build Sequence](build_sequence.md)
 - [Quant Research System Environments](environments.md)

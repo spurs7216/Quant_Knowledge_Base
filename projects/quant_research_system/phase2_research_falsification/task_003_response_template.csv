@@ -1,0 +1,7 @@
+task_id,task_name,agent_decision,decision_summary,memo_path,evidence_path,reviewer_notes
+CASE-ATLAS,Workflow trust under complete artifact evidence,,,,,
+CASE-BIRCH,Decile book with no ex ante mechanism,,,,,
+CASE-CINDER,Exceptional performance with causal-order violation,,,,,
+CASE-DRIFT,Historical universe built from future-status fields,,,,,
+CASE-EMBER,Opaque bucket signal with one attractive split,,,,,
+CASE-FORGE,Short-book idea blocked by implementation missingness,,,,,

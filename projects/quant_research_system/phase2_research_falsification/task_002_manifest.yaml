@@ -1,0 +1,62 @@
+schema_version: 0.1
+job_id: "20260424_phase2_scored_falsification_pass"
+created: "2026-04-24"
+owner: "human+codex"
+environment: "research_falsification"
+mode: "local_scored_pass"
+status: "draft"
+
+objective: >
+  Score independent agent decisions on a second-pass Phase 2 falsification bank using
+  already reviewed Phase 1 and Phase 2 evidence. This task is local scoring work, not a
+  new remote warehouse run.
+
+task_bank:
+  version: "phase2_falsification_v1_scored"
+  tasks:
+    - "SFT-001_daily_stock_short_reversal_baseline"
+    - "SFT-002_random_rank_null"
+    - "SFT-003_same_day_return_leakage_trap"
+    - "SFT-004_future_survivorship_universe_trap"
+    - "SFT-005_static_identifier_artifact"
+    - "SFT-006_microcap_shorting_implementation_trap"
+
+candidate_artifact:
+  type: "agent_decision_packet_plus_local_score"
+  packet_file: "projects/quant_research_system/phase2_research_falsification/task_002_agent_packet.md"
+  response_template: "projects/quant_research_system/phase2_research_falsification/task_002_response_template.csv"
+  answer_key: "projects/quant_research_system/phase2_research_falsification/task_002_answer_key.csv"
+  scoring_script: "research/research_falsification/score_phase2_falsification_responses.py"
+
+evidence_inputs:
+  - "projects/quant_research_system/phase1_remote_validation/task_001_closure_decision.md"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/metrics.json"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/metrics.json"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/failure_report.md"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/random_rank_seed_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/identifier_artifact_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/leakage_trap_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/implementation_feasibility.csv"
+
+scoring:
+  strict_metric: "canonical expected decision match"
+  tolerant_metric: "decision belongs to acceptable_decisions set"
+  false_accept_rule: >
+    Count as false accept if the agent chooses proceed for a task whose acceptable
+    decisions do not include proceed.
+  required_outputs:
+    - "responses.csv"
+    - "scored_scorecard.csv"
+    - "metrics.json"
+    - "score_report.md"
+
+artifact_policy:
+  import_to_git: false
+  recommended_output_root: "artifacts/phase2_scored_falsification/<YYYYMMDD>_<run_id>/"
+  manual_review_required: true
+
+notes: >
+  The answering agent should not read the answer key. Use a fresh session, separate
+  agent, or manual packet handoff if independence matters.

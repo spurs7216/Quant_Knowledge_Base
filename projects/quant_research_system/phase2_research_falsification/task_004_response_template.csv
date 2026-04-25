@@ -1,0 +1,8 @@
+task_id,task_name,agent_decision,decision_summary,memo_path,evidence_path,reviewer_notes
+CASE-ONYX,Remote artifact bundle for screening workflow,,,,,
+CASE-PRISM,Daily long-short candidate under base friction assumptions,,,,,
+CASE-QUARTZ,Deployment claim under higher friction assumption,,,,,
+CASE-RIDGE,Test-path claim built from selected annual slices,,,,,
+CASE-SABLE,Ranked decile proposal without mechanism note,,,,,
+CASE-TORCH,Daily candidate with signal-timing ambiguity,,,,,
+CASE-UMBRA,Short-side candidate with missing market-access evidence,,,,,

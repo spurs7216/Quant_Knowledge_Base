@@ -1,0 +1,18 @@
+schema_version: 0.1
+candidate_id: "CAND-20260425-001"
+expected_current_status: "active"
+new_status: "superseded"
+evaluator_result: "superseded_by_executable_child"
+local_decision: "record-only"
+score_summary: "planning_candidate_superseded; executable_child=CAND-20260425-002"
+evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_004_remote_validation_handoff.md"
+notes: "Superseded by executable child CAND-20260425-002, which carries the concrete script and remote-validation manifest."
+event:
+  event_id: "EVT-20260425-004"
+  event_date: "2026-04-25"
+  event_type: "candidate_superseded_by_child"
+  from_status: "active"
+  to_status: "superseded"
+  actor_role: "research_supervisor"
+  evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_004_remote_validation_handoff.md"
+  summary: "Planning-level duplicate-policy candidate superseded by executable remote-validation child CAND-20260425-002."

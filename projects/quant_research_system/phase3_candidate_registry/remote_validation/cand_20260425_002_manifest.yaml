@@ -1,0 +1,222 @@
+schema_version: 0.1
+job_id: "20260425_cand_20260425_002_duplicate_policy_reversal"
+created: "2026-04-25"
+owner: "human+codex"
+environment: "remote_validation"
+status: "draft"
+
+candidate_lineage:
+  candidate_id: "CAND-20260425-002"
+  parent_id: "CAND-20260425-001"
+  root_candidate_id: "CAND-20260423-001"
+  registry_path: "projects/quant_research_system/phase3_candidate_registry/candidate_registry.csv"
+
+objective: >
+  Run the Phase 1 daily-stock short-horizon reversal strategy with only one intended
+  revision: deterministic raw PERMNO x DlyCalDt duplicate resolution before universe
+  filtering and signal formation. The goal is to test whether the data-quality policy
+  changes evidence quality or metrics while keeping signal and portfolio logic fixed.
+
+candidate_artifact:
+  type: "strategy_script"
+  name: "daily_stock_reversal_duplicate_policy_revision"
+  description: >
+    Child of the Phase 1 short-horizon reversal baseline. The signal remains the
+    negative trailing five-day market-adjusted return. The portfolio remains equal
+    weighted long-short deciles. Duplicate PERMNO-date rows are resolved before filters
+    by highest data-quality score, then highest absolute dollar volume, then earliest
+    original row order.
+  source_files:
+    - "research/remote_validation/task004_duplicate_policy_reversal.py"
+    - "research/remote_validation/task001_daily_stock_short_reversal.py"
+  editable_regions:
+    - "resolve_raw_permno_date_duplicates"
+    - "duplicate_policy_metadata"
+
+sync:
+  channel: "github"
+  remote_os: "ubuntu"
+  artifact_import_policy: "manual_review"
+
+vault_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+research_code_snapshot:
+  repo: "<fill_before_remote_run>"
+  branch: "<fill_before_remote_run>"
+  commit: "<fill_before_remote_run>"
+  dirty: "<fill_before_remote_run>"
+
+remote_environment:
+  manager: "<conda_or_micromamba_recommended>"
+  environment_file: "<fill_after_remote_repo_layout_is_known>"
+  python_version: "<fill_before_remote_run>"
+  gpu_required: false
+  notes: >
+    This job should run in the same environment as the Phase 1 closure run. It should
+    not need GPU. Run from the repository root so the script can import the Phase 1
+    baseline module.
+
+datasets:
+  - logical_name: "daily_stock"
+    remote_path: "/home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv"
+    catalog_relative_path: "data/daily_stock/gago9dveytpx6922.csv"
+    catalog_sample: "catalog/samples/daily_stock/gago9dveytpx6922.csv"
+    row_count_expected: 49651441
+    required_columns:
+      - "PERMNO"
+      - "DlyCalDt"
+      - "DlyRet"
+      - "DlyRetx"
+      - "DlyPrc"
+      - "DlyVol"
+      - "PrimaryExch"
+      - "SecurityType"
+      - "ShareType"
+      - "TradingStatusFlg"
+      - "vwretd"
+      - "sprtrn"
+
+duplicate_policy:
+  grain: ["PERMNO", "DlyCalDt"]
+  timing: "before_universe_filters_and_signal_formation"
+  policy: "highest_quality_score_then_highest_absolute_dollar_volume_then_earliest_original_row"
+  quality_fields:
+    - "DlyRet"
+    - "DlyRetx"
+    - "DlyPrc"
+    - "DlyVol"
+    - "vwretd"
+    - "sprtrn"
+    - "PrimaryExch"
+    - "SecurityType"
+    - "ShareType"
+    - "TradingStatusFlg"
+  failure_gate: "remaining raw duplicate PERMNO-date rows after policy must equal 0"
+
+universe:
+  description: >
+    Same as Phase 1 after duplicate policy: common-share daily equity universe with active
+    trading status, positive volume, price above 5 dollars, non-missing returns, and
+    enough prior observations to form the five-day lagged reversal signal.
+  identifier: "PERMNO"
+  date_column: "DlyCalDt"
+  filters:
+    - "SecurityType == 'EQTY'"
+    - "ShareType == 'NS'"
+    - "TradingStatusFlg == 'A'"
+    - "abs(DlyPrc) > 5"
+    - "DlyVol > 0"
+    - "DlyRetx is not missing"
+    - "vwretd is not missing"
+    - "at least 60 prior valid DlyRetx observations per PERMNO before ranking"
+
+date_range:
+  full: ["2000-01-03", "2025-11-28"]
+  train: ["2000-01-03", "2012-12-31"]
+  validation: ["2013-01-01", "2018-12-31"]
+  test: ["2019-01-01", "2025-11-28"]
+  hidden_test: false
+
+signal:
+  definition: >
+    r_excess_i_t = DlyRetx_i_t - vwretd_t. Signal at decision date t is
+    s_i_t = -sum_{k=1}^{5} r_excess_i_{t-k}. No same-day or future return may enter
+    signal construction.
+  formation_lag_days: 1
+  lookback_days: 5
+  rebalance_frequency: "daily"
+  holding_period_days: 1
+  return_timing: >
+    Compute signal after the close of date t using returns through t-1 to t-5, form
+    positions for the next trading day, and earn DlyRetx on date t+1.
+
+portfolio:
+  construction: "long_short_decile"
+  weighting: "equal"
+  gross_exposure: 1.0
+  net_exposure: 0.0
+  max_position_weight: null
+
+cost_model:
+  commission_bps: 0.5
+  slippage_bps: 2.0
+  borrow_bps_annual: 0.0
+  turnover_cost_applied: true
+  sensitivity_total_cost_bps: [0.0, 2.5, 5.0, 10.0]
+
+benchmark:
+  primary: "market_adjusted"
+  reference_columns:
+    - "vwretd"
+    - "sprtrn"
+  comparison_candidate: "CAND-20260423-001"
+  null_models:
+    - "zero_return"
+    - "market_return_vwretd"
+
+evaluation:
+  primary_metrics:
+    - "annualized_return"
+    - "annualized_volatility"
+    - "sharpe"
+    - "max_drawdown"
+    - "turnover"
+    - "hit_rate"
+    - "beta_to_vwretd"
+    - "mean_daily_n_long"
+    - "mean_daily_n_short"
+  robustness_checks:
+    - "subperiod_split"
+    - "cost_sensitivity"
+    - "liquidity_bucket"
+    - "primary_exchange_split"
+    - "duplicate_policy_diagnostics"
+  failure_gates:
+    - "manifest_complete"
+    - "no_future_data_in_signal"
+    - "explicit_return_timing"
+    - "remaining_raw_duplicate_permno_date_rows_after_policy_zero"
+    - "nonempty_universe_each_month"
+    - "finite_portfolio_returns"
+    - "turnover_cost_applied"
+    - "artifact_bundle_complete"
+    - "code_snapshots_recorded"
+
+resource_request:
+  cpu_cores: 8
+  memory_gb: 32
+  gpu: "none"
+  expected_wall_time: "<fill_after_remote_benchmark>"
+
+expected_outputs:
+  artifact_bundle_root: "artifacts/remote_runs/20260425_cand_20260425_002_duplicate_policy_reversal/"
+  files:
+    - "run_manifest.yaml"
+    - "metrics.json"
+    - "scorecard.csv"
+    - "diagnostics.csv"
+    - "failure_report.md"
+    - "review.md"
+    - "subperiod_metrics.csv"
+    - "cost_sensitivity.csv"
+    - "universe_counts_by_month.csv"
+
+remote_command: >
+  python research/remote_validation/task004_duplicate_policy_reversal.py
+  --data-root /home/b08303004/Desktop/WRDS/data
+  --output-dir artifacts/remote_runs/20260425_cand_20260425_002_duplicate_policy_reversal
+  --total-cost-bps 2.5
+
+manual_review:
+  required: true
+  reviewer: "human"
+  approval_required_before_artifact_import: true
+
+notes: >
+  Fill git snapshot and environment fields after committing and before remote execution.
+  This job must not be interpreted as search. It is a one-variable revision of the
+  Phase 1 baseline focused on duplicate-row policy.

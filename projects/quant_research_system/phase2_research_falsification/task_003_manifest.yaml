@@ -1,0 +1,71 @@
+schema_version: 0.1
+job_id: "20260424_phase2_hardened_scored_pass"
+created: "2026-04-24"
+owner: "human+codex"
+environment: "research_falsification"
+mode: "local_scored_pass_hardened"
+status: "draft"
+
+objective: >
+  Score a hardened Phase 2 falsification bank under stricter operator controls,
+  stronger answer-key separation, and mixed decision classes including one serious
+  proceed case.
+
+task_bank:
+  version: "phase2_falsification_v2_hardened"
+  tasks:
+    - "CASE-ATLAS"
+    - "CASE-BIRCH"
+    - "CASE-CINDER"
+    - "CASE-DRIFT"
+    - "CASE-EMBER"
+    - "CASE-FORGE"
+
+candidate_artifact:
+  type: "agent_decision_packet_plus_local_score"
+  packet_file: "projects/quant_research_system/phase2_research_falsification/task_003_agent_packet.md"
+  response_template: "projects/quant_research_system/phase2_research_falsification/task_003_response_template.csv"
+  answer_key: "projects/quant_research_system/phase2_research_falsification/task_003_answer_key.csv"
+  scoring_script: "research/research_falsification/score_phase2_falsification_responses.py"
+  run_prep_script: "research/research_falsification/prepare_phase2_scored_run.py"
+
+protocol:
+  answering_agent_protocol: "projects/quant_research_system/phase2_research_falsification/answering_agent_protocol.md"
+  local_operator_protocol: "projects/quant_research_system/phase2_research_falsification/local_operator_scoring_protocol.md"
+  independence_attestation_template: "projects/quant_research_system/phase2_research_falsification/independence_attestation_template.md"
+
+evidence_inputs:
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/review.md"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/metrics.json"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_task001_daily_stock_short_reversal_closure_clean/run_manifest.yaml"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/metrics.json"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/diagnostics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/failure_report.md"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/random_rank_seed_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/identifier_artifact_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/leakage_trap_metrics.csv"
+  - "artifacts/remote_runs/20260423_phase2_daily_stock_falsification_suite/implementation_feasibility.csv"
+
+scoring:
+  strict_metric: "canonical expected decision match"
+  tolerant_metric: "decision belongs to acceptable_decisions set"
+  false_accept_rule: >
+    Count as false accept if the agent chooses proceed for a task whose acceptable
+    decisions do not include proceed.
+  required_outputs:
+    - "responses.csv"
+    - "independence_attestation.md"
+    - "scored_scorecard.csv"
+    - "metrics.json"
+    - "score_report.md"
+
+artifact_policy:
+  import_to_git: false
+  recommended_output_root: "artifacts/phase2_scored_falsification/<YYYYMMDD>_<run_id>/"
+  manual_review_required: true
+
+notes: >
+  The answering agent should receive only a run-local packet and run-local responses.csv.
+  Do not expose the answer key or scoring script. The proceed case is about workflow trust,
+  not alpha promotion of the short-reversal baseline.

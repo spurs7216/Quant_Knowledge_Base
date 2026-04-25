@@ -1,0 +1,18 @@
+schema_version: 0.1
+candidate_id: "CAND-20260425-002"
+expected_current_status: "active"
+new_status: "active"
+evaluator_result: "remote_execution_packet_ready"
+local_decision: "pending"
+score_summary: "sync_packet_ready; remote_run_not_started; clean_commit_required_before_execution"
+evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_005_remote_execution_packet.md"
+notes: "Remote execution packet and artifact-intake checklist are ready. Candidate still needs clean commit, optional push, remote run, artifact return, and local review."
+event:
+  event_id: "EVT-20260425-005"
+  event_date: "2026-04-25"
+  event_type: "remote_execution_packet_ready"
+  from_status: "active"
+  to_status: "active"
+  actor_role: "research_supervisor"
+  evidence_path: "projects/quant_research_system/phase3_candidate_registry/task_005_remote_execution_packet.md"
+  summary: "Prepared exact remote execution and artifact intake packet for CAND-20260425-002; no remote run has been claimed."

@@ -1,0 +1,18 @@
+schema_version: 0.1
+candidate_id: ""
+expected_current_status: "active"
+new_status: "active"
+evaluator_result: ""
+local_decision: "pending"
+score_summary: ""
+evidence_path: ""
+notes: ""
+event:
+  event_id: ""
+  event_date: "YYYY-MM-DD"
+  event_type: "candidate_status_update"
+  from_status: "active"
+  to_status: "active"
+  actor_role: "research_supervisor"
+  evidence_path: ""
+  summary: ""

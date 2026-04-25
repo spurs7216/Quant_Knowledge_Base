@@ -1,0 +1,7 @@
+task_id,task_name,agent_decision,decision_summary,memo_path,evidence_path,reviewer_notes
+SFT-001,Daily-stock short reversal baseline,,,,,
+SFT-002,Random-rank null with realistic turnover cost,,,,,
+SFT-003,Same-day return leakage trap,,,,,
+SFT-004,Future survivorship universe trap,,,,,
+SFT-005,Static identifier artifact with positive validation split,,,,,
+SFT-006,Microcap shorting implementation trap,,,,,
