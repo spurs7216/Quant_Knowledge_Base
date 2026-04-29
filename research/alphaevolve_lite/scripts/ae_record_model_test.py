@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import re
-import shutil
 import sys
 import uuid
 from pathlib import Path
@@ -68,11 +67,48 @@ def parse_log(text: str) -> dict[str, Any]:
     }
 
 
+def redact_sensitive_log_text(text: str) -> str:
+    """Remove secrets from logs before storing compact artifacts."""
+
+    redacted = text
+    redacted = re.sub(
+        r"(Authorization:\s*Bearer\s+)([^\s\"']+)",
+        r"\1<redacted>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r"(--api-key\s+)([^\s\\]+)",
+        r"\1<redacted>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r'(["\']?api_key["\']?\s*[:=]\s*["\'])([^"\']+)(["\'])',
+        r"\1<redacted>\3",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r"(HF_TOKEN\s*=\s*)([^\s]+)",
+        r"\1<redacted>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    redacted = re.sub(
+        r"(AE_VLLM_API_KEY\s*=\s*)([^\s]+)",
+        r"\1<redacted>",
+        redacted,
+        flags=re.IGNORECASE,
+    )
+    return redacted
+
+
 def write_artifacts(out_dir: Path, record: dict[str, Any], raw_log_source: Path) -> Path:
     out_dir.mkdir(parents=True, exist_ok=True)
     copied_log = out_dir / "raw_terminal_log.txt"
-    if raw_log_source.resolve() != copied_log.resolve():
-        shutil.copyfile(raw_log_source, copied_log)
+    text = raw_log_source.read_text(encoding="utf-8", errors="replace")
+    copied_log.write_text(redact_sensitive_log_text(text), encoding="utf-8")
     record["result_log_path"] = str(copied_log)
     (out_dir / "model_test_record.json").write_text(
         json.dumps(record, indent=2, sort_keys=True, ensure_ascii=False) + "\n",

@@ -107,6 +107,8 @@ for chunk in pd.read_csv(path, usecols=existing_usecols, chunksize=1_000_000):
 
 The exact column names must be verified against the sample and EDA summaries before hardcoding.
 
+Before freezing the `daily_stock` contract, schema evidence must include not only column names and dtypes but also compact value diagnostics for universe-critical fields: date range, identifier fields, return fields, price, volume, dollar volume, market cap or shares outstanding, exchange, security type, share type, trading status, conditional type, US-incorporation flag, and industry fields. A bounded sample is enough for this contract preflight, but the report must be explicit about sample size and must not be mistaken for full-file coverage.
+
 ## Output Bundle
 
 Every remote validation must produce:

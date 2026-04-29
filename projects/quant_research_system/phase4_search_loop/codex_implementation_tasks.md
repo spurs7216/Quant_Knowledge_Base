@@ -23,6 +23,8 @@ This file gives Codex an explicit implementation sequence. Follow it in order. D
 
 The local Windows machine cannot run Qwen or other Phase 4 LLM inference. It is limited to editing, GitHub synchronization, and compact artifact review. All Qwen calls, AlphaEvolve-lite controller stages, program-database writes, static filters, toy evaluators, sample evaluators, and warehouse-backed evaluators run on the remote Linux/GPU/data server.
 
+When a remote task calls Qwen, the remote agent must first open a dedicated terminal or `tmux` pane, launch the required Qwen/vLLM server there, keep it running, and verify `/health` plus `/v1/models` from a separate terminal. A connection-refused Qwen client result is an operator-preflight failure until the server is confirmed running.
+
 ## Task A. Inspect Project Design
 
 Read in this order:

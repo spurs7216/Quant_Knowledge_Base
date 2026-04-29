@@ -3,6 +3,7 @@ You are implementing the next Phase 4 AlphaEvolve-lite milestone.
 Important context:
 - Local Windows machine is for editing, Git, and review only.
 - Remote Linux/GPU server is where all LLM calls, vLLM calls, data inspection, and evaluator runs happen.
+- When a remote task calls Qwen, first open a dedicated terminal or tmux pane, launch the required Qwen/vLLM server there, keep it running, and verify `/health` plus `/v1/models` from a separate terminal.
 - Do not run Qwen generation yet.
 - Do not run a full historical backtest yet.
 - Do not assume daily_stock field names until schema/EDA inspection has been run remotely.

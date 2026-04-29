@@ -69,6 +69,8 @@ Run only the model needed for the current stage.
 
 Default inner-loop mode uses only Qwen3.5-9B. The 27B and 35B models use both GPUs and should normally be launched only for scheduled review windows. Stop the 9B server before launching two-GPU models if GPU memory is constrained.
 
+Before any command that calls Qwen, the remote agent must open a dedicated terminal or `tmux` pane, launch the required vLLM server there, and keep that server process running while the client/controller runs in a separate terminal. A closed terminal means there is no Qwen server. If `/health` or `/v1/models` fails, do not call the LLM; start or restart the matching server first.
+
 Check GPU state first:
 
 ```bash

@@ -12,6 +12,10 @@ runtime:
     - git_commit
     - review_artifacts
   remote_required_actions:
+    - open_terminal_for_vllm_server
+    - launch_required_qwen_vllm_server_before_llm_calls
+    - keep_vllm_terminal_open_during_llm_calls
+    - verify_vllm_health_and_model_list_before_llm_calls
     - qwen_calls
     - data_inspection
     - evaluator_runs
@@ -30,6 +34,7 @@ runtime:
     - csv_warehouse_reads
   remote_machine_role:
     - serve_vllm_models
+    - keep_required_qwen_server_running_in_terminal_or_tmux
     - run_qwen_calls
     - run_alphaevolve_controller
     - read_remote_csv_warehouse
@@ -65,6 +70,19 @@ execution_location:
       - program_database_updates
       - evaluator_runs
       - csv_warehouse_reads
+
+qwen_server_preflight:
+  required_before_any_llm_call: true
+  terminal_policy: "Open a dedicated remote terminal or tmux pane and launch the required vLLM server there before running any Qwen client/controller command."
+  keep_server_process_foreground_or_tmux_attached: true
+  health_check_required: true
+  model_list_check_required: true
+  failed_health_check_action: "Do not call the LLM. Start or restart the matching Qwen/vLLM server, then rerun health and model-list checks."
+  fast_generator:
+    served_model_name: qwen35-9b-fast
+    port: 8001
+    health_url: http://127.0.0.1:8001/health
+    models_url: http://127.0.0.1:8001/v1/models
 
 stage_names:
   default: controller_static

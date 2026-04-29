@@ -2,7 +2,7 @@
 title: Phase 4 Model Stack and vLLM Results
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-04-30
 tags:
   - project
   - phase4
@@ -39,6 +39,10 @@ artifacts/phase4_alphaevolve/model_tests/
 ```
 
 Each model decision should link to `run_manifest.yaml`, `raw_terminal_log.txt`, `parsed_summary.json`, `model_endpoint.json`, `test_script_snapshot.py`, and `decision.md`. Current chat/session evidence must be formalized into that layout before these claims are treated as durable model evidence.
+
+The 2026-04-30 remote evidence bundle also contains a lightweight model-test database record under `artifacts/phase4_alphaevolve/model_evidence_live/`. It confirms that `qwen35-9b-fast` on port `8001` responded after the remote agent launched the vLLM server, and that the hard smoke completed with one parse pass, one compile pass, and one vector-smoke pass. The first probe in `artifacts/phase4_alphaevolve/model_evidence/` failed with connection refused because the vLLM server was not running; this is an operator-preflight failure, not model evidence against Qwen.
+
+Operational rule: before any LLM call, the remote agent must open a dedicated terminal or `tmux` pane, start the required Qwen/vLLM server, keep it running, and verify both `/health` and `/v1/models`.
 
 | Model | Role decision | Evidence artifact |
 | --- | --- | --- |
