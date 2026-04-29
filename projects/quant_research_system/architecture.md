@@ -2,7 +2,7 @@
 title: Quant Research System Architecture
 type: project
 status: active
-updated: 2026-04-24
+updated: 2026-04-29
 tags:
   - project
   - architecture
@@ -18,6 +18,8 @@ The local vault is the memory and control layer. The remote machine is the heavy
 Do not collapse these into one tool. Each layer has a different trust role.
 
 Current machine boundary: IBKR TWS access exists only on the local machine, not on the remote Linux/GPU machine. Remote jobs must not require broker connectivity, TWS, IB Gateway, account access, position access, paper order submission, or broker credentials.
+
+Current Phase 4 LLM boundary: the local Windows machine cannot run Qwen or other Phase 4 LLM inference because of memory constraints. All Qwen calls, AlphaEvolve-lite controller execution, static generated-code filters, toy/sample/full evaluator runs, and program-database updates must run on the remote Linux/GPU/data server. Local Windows remains the edit, Git sync, Obsidian, and compact-artifact review machine.
 
 This architecture is not trying to be minimal. It is trying to be durable. Complexity is acceptable when it buys reliability, reuse, auditability, execution safety, or learning value. Complexity is unacceptable when it hides assumptions or makes results harder to reproduce.
 
@@ -177,17 +179,21 @@ AlphaEvolve component mapping:
 
 | AlphaEvolve component | Quant system counterpart |
 | --- | --- |
-| Initial program | baseline factor, strategy, or research script |
-| EVOLVE block | editable candidate artifact region |
-| Prompt sampler | vault-aware context builder |
-| LLM ensemble | Codex plus optional smaller/faster proposal models later |
-| Evaluator pool | local checks, remote validation, paper-execution checks |
-| Program database | candidate registry with lineage and scores |
-| Multiple metrics | research score panel and evaluator cascade |
+| Initial program | executable seed strategy module |
+| EVOLVE block | bounded candidate artifact region marked in code |
+| SEARCH/REPLACE diff | generated code patch applied to the seed program |
+| Prompt sampler | vault-aware context builder using parent code, inspirations, wiki notes, catalog context, and evaluator results |
+| LLM ensemble | measured Qwen stack: Qwen3.5-9B generation/repair, Qwen3.5-27B-FP8 review, Qwen3.6-35B-A3B-FP8 scheduled deep review |
+| Evaluator pool | remote `controller_static`, `toy_eval`, `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, artifact review, later paper-execution checks |
+| Program database | SQLite search-facing store of programs, scores, descriptors, outputs, prompts, evaluations, validation exposure, and lineage |
+| Candidate registry | official research lineage and promotion state after review |
+| Multiple metrics | scalar score dictionary plus hard-gate diagnostics |
 
 ## Design priority
 
 Build the evaluator and remote artifact contract before building large search loops. Without a reliable evaluator, search only accelerates overfitting.
+
+After the AlphaEvolve source re-read and the Phase 4 v2 update, Phase 4 should not treat a one-time batch of variants as the search loop. The loop requires parent/inspiration sampling, code diffs, evaluator execution, program-database updates, validation-exposure accounting, and compact prompt-facing artifacts. The first production loop is daily-stock-only with a rolling point-in-time top-500 universe and locked chronological 70/15/15 split.
 
 ## Related Notes
 

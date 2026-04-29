@@ -2,12 +2,25 @@
 title: Wiki Log
 type: log
 status: active
-updated: 2026-04-23
+updated: 2026-04-29
 tags:
   - log
   - wiki
 ---
 # Wiki Log
+
+## 2026-04-29 | project update | phase4 active package
+
+- Adopted the clarified Phase 4 markdown packet into the active `phase4_search_loop` package.
+- The active plan now fixes the first production loop as daily-stock-only with a rolling point-in-time top-500 universe, chronological 70/15/15 split, Qwen-only patch/review stack, SQLite program database, JSONL audit log, prompt contracts, artifact-renderer contracts, remote CSV policy, and dataset-admission gates.
+- Added a Phase 4 readthrough note with old-plan comparison, adopted corrections, and unresolved ambiguities.
+- Applied the remote-Qwen clarification: local Windows is edit/Git/review only, while all Qwen calls, AlphaEvolve-lite controller stages, program-database updates, static filters, toy/sample/full evaluator runs, and CSV warehouse reads belong on the remote Linux/GPU/data server. The active stage name is now `controller_static`, with `local_static` only as a deprecated alias.
+
+## 2026-04-26 | source ingest | alphaevolve method correction
+
+- Added [[AlphaEvolve - A coding agent for scientific and algorithmic discovery]] from the raw PDF after a full-source scan and rendered checks of the workflow and ablation figures.
+- Corrected the Phase 4 project framing: Task 002 is now treated as a pre-evolution evaluator seed, not the AlphaEvolve loop itself.
+- Added the project translation note and local AlphaEvolve-lite scaffold so future Phase 4 work uses evolve blocks, SEARCH/REPLACE diffs, evaluator feedback, and a program database rather than only benchmark batches.
 
 ## 2026-04-23 | source reingest | kalman filter tutorial
 

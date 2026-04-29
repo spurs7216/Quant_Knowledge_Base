@@ -2,7 +2,7 @@
 title: Quant Research System Brief
 type: project
 status: active
-updated: 2026-04-23
+updated: 2026-04-29
 tags:
   - project
   - system-design
@@ -56,12 +56,17 @@ So the design standard is modular complexity:
 ## What we adopt from AlphaEvolve
 
 - candidate artifacts should be executable when possible
-- search should happen through patches, not only one-shot generation
-- the system should keep a candidate database with scores and failure reasons
-- evaluators should be multi-metric
+- search should happen through marked evolve blocks and patches, not only one-shot generation
+- the system should keep both a search-facing program database and an official candidate registry
+- evaluators should return scalar score dictionaries and hard-gate diagnostics
 - evaluation should use cascades: cheap filters first, expensive tests later
-- rich context from the knowledge base should be available, but not treated as a substitute for evaluation
+- rich context from the knowledge base and data catalog should be part of prompt sampling, but not treated as a substitute for evaluation
 - different problems need different abstraction levels: final strategy, constructor, or search heuristic
+- the first production search loop should be constrained to daily-stock data, a rolling point-in-time top-500 universe, a locked chronological 70/15/15 split, and a Qwen-only measured patch-generation stack
+- search memory should use a SQLite program database plus an append-only JSONL audit log, while the Phase 3 candidate registry remains the official reviewed lineage layer
+- all Qwen inference and AlphaEvolve-lite controller execution should run on the remote Linux/GPU/data server because local Windows cannot run the models
+
+Important correction: a benchmark batch is an evaluator artifact, not the AlphaEvolve loop. The loop begins only when generated code diffs create child programs, those programs are evaluated, and their results alter later parent/inspiration sampling.
 
 ## What we reject for now
 
@@ -70,6 +75,8 @@ So the design standard is modular complexity:
 - no single headline score as the system target
 - no unrestricted search over huge notebooks or entire codebases in the first phase
 - no treating Backtrader as the main implementation exam
+- no dataset-feature additions in the first production loop until daily-stock local and sample-evaluation behavior is stable
+- no test-set feedback in prompts before branch freeze
 
 ## System planes
 
@@ -90,7 +97,7 @@ The system has six planes:
 
 ## First system milestone
 
-The first milestone should be a working `remote_validation` environment:
+The first milestone was a working `remote_validation` environment:
 
 - candidate artifact: factor or strategy research script
 - data: remote warehouse, selected from local `catalog/`
@@ -98,7 +105,16 @@ The first milestone should be a working `remote_validation` environment:
 - output: compact artifact bundle synced back to `artifacts/`
 - decision: proceed, revise, or reject
 
-This is more important than running QuantCode-Bench first because it tests the real research loop.
+That milestone is now complete enough to support Phase 4.
+
+The current milestone is the Phase 4 v2 local-to-remote AlphaEvolve-lite loop:
+
+- seed strategy module with evolve blocks;
+- rolling top-500 universe and 70/15/15 split builders;
+- SQLite program database and JSONL audit log;
+- prompt cards and evaluator summaries;
+- Qwen3.5-9B patch generation and one repair attempt;
+- deterministic `controller_static` micro-filter on the remote server before `remote_sample_eval` or full validation.
 
 ## Sources
 

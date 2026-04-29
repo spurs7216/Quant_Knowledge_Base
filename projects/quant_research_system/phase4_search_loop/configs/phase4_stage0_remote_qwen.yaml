@@ -1,0 +1,449 @@
+# Phase 4 Stage 0 remote Qwen configuration.
+# Intended repo path:
+#   projects/quant_research_system/phase4_search_loop/configs/phase4_stage0_remote_qwen.yaml
+#
+# Do not commit secrets. Set HF_TOKEN in the remote environment.
+
+runtime:
+  execution_mode: remote_only_for_llm_and_data
+  execution_location: remote
+  local_windows_allowed_actions:
+    - edit_code
+    - git_commit
+    - review_artifacts
+  remote_required_actions:
+    - qwen_calls
+    - data_inspection
+    - evaluator_runs
+    - program_database_writes
+  local_machine_role:
+    - edit_code
+    - write_markdown_specs
+    - git_commit_push
+    - review_compact_artifacts
+  forbidden_local_machine_tasks:
+    - qwen_calls
+    - launch_qwen
+    - alphaevolve_controller
+    - program_database_updates
+    - evaluator_runs
+    - csv_warehouse_reads
+  remote_machine_role:
+    - serve_vllm_models
+    - run_qwen_calls
+    - run_alphaevolve_controller
+    - read_remote_csv_warehouse
+    - run_evaluator_cascade
+    - write_compact_artifacts
+  forbidden_remote_tasks:
+    - broker_connection
+    - ibkr_tws
+    - ib_gateway
+    - account_access
+    - position_access
+    - order_submission
+    - broker_credentials
+
+execution_location:
+  local_windows:
+    allowed:
+      - edit_files
+      - git_commit
+      - git_push
+      - artifact_review
+    forbidden:
+      - qwen_calls
+      - launch_qwen
+      - alphaevolve_controller
+      - program_database_updates
+      - remote_data_eval
+      - csv_warehouse_reads
+  remote_server:
+    required_for:
+      - qwen_calls
+      - alphaevolve_controller
+      - program_database_updates
+      - evaluator_runs
+      - csv_warehouse_reads
+
+stage_names:
+  default: controller_static
+  allowed:
+    - controller_static
+    - toy_eval
+    - sample_eval
+    - fast_historical_eval
+    - remote_validation
+    - review
+  active:
+    - controller_static
+    - toy_eval
+    - remote_sample_eval
+    - remote_stage0_eval
+    - remote_full_validation
+    - medium_review
+    - deep_review
+  deprecated_aliases:
+    local_static: controller_static
+
+model_stack:
+  fast_generator:
+    model_id: Qwen/Qwen3.5-9B
+    served_model_name: qwen35-9b-fast
+    base_url: http://127.0.0.1:8001/v1
+    api_key_env: AE_VLLM_API_KEY
+    role: primary_generation_and_repair
+  medium_reviewer:
+    model_id: Qwen/Qwen3.5-27B-FP8
+    served_model_name: qwen35-27b-fp8
+    base_url: http://127.0.0.1:8020/v1
+    api_key_env: AE_VLLM_API_KEY
+    role: optional_medium_review
+  deep_reviewer:
+    model_id: Qwen/Qwen3.6-35B-A3B-FP8
+    served_model_name: qwen36-35b-a3b-deep
+    base_url: http://127.0.0.1:8010/v1
+    api_key_env: AE_VLLM_API_KEY
+    role: scheduled_deep_review
+
+data_policy:
+  first_loop_scope: daily_stock_only
+  split_policy:
+    type: chronological
+    train_fraction: 0.70
+    validation_fraction: 0.15
+    test_fraction: 0.15
+    construction_order:
+      - clean_daily_stock_trading_dates
+      - build_chronological_splits
+      - compute_universe_membership_inside_each_split
+  universe_policy:
+    type: rolling_top_n_by_market_cap
+    n: 500
+    ranking_frequency: monthly
+    static_full_period_top_n_forbidden: true
+    implementation_status: pending_schema_inspection
+  missing_return_policy:
+    implementation_status: pending
+    rule: explicit_evaluator_logic_required_before_backtest
+
+storage:
+  sqlite_db_name: program_database.sqlite
+  audit_log_name: audit_log.jsonl
+  large_metric_format: parquet
+  analysis_engine: duckdb
+
+artifact_policy:
+  root: artifacts/phase4_alphaevolve
+  compact_outputs_only: true
+  heavy_csv_sync_to_local_forbidden: true
+
+dataset_unlock_policy:
+  executable_multi_dataset_generation_requires_human_approval: true
+  codex_may_write_unlock_review: true
+  codex_may_not_unlock_by_itself: true
+
+paths:
+  hf_home: /home/b08303004/Desktop/HF_models
+  transformers_cache: /home/b08303004/Desktop/HF_models/transformers
+  hf_hub_cache: /home/b08303004/Desktop/HF_models/hub
+  project_artifact_root: artifacts/phase4_alphaevolve
+  program_database_path: artifacts/phase4_alphaevolve/program_database.sqlite
+  audit_log_path: artifacts/phase4_alphaevolve/audit_log.jsonl
+
+model_evidence:
+  required_before_role_activation: true
+  artifact_root: artifacts/phase4_alphaevolve/model_tests
+
+data_schema_verification:
+  required_before_remote_sample_eval: true
+  daily_stock_schema_report: artifacts/phase4_alphaevolve/data_schema/daily_stock_schema_report.json
+  daily_stock_field_mapping: artifacts/phase4_alphaevolve/data_schema/daily_stock_field_mapping.yaml
+
+environment:
+  conda_env: ae-vllm
+  vllm_worker_multiproc_method: spawn
+  nccl_p2p_disable: "1"
+  nccl_debug: WARN
+  hf_token_env_var: HF_TOKEN
+  api_key_env_var: AE_VLLM_API_KEY
+  default_api_key_value: null
+
+model_endpoints:
+  qwen35_9b_fast:
+    role: [fast_generator, critic_repair]
+    model: Qwen/Qwen3.5-9B
+    served_name: qwen35-9b-fast
+    host: 127.0.0.1
+    port: 8001
+    base_url: http://127.0.0.1:8001/v1
+    api_key_env: AE_VLLM_API_KEY
+    default_api_key: null
+    cuda_visible_devices: "0"
+    tensor_parallel_size: 1
+    dtype: bfloat16
+    max_model_len: 16384
+    gpu_memory_utilization: 0.55
+    max_num_seqs: 2
+    enforce_eager: true
+    reasoning_parser: qwen3
+    language_model_only: true
+    use_for_inner_loop: true
+
+  qwen35_27b_fp8:
+    role: [medium_quality_reviewer]
+    model: Qwen/Qwen3.5-27B-FP8
+    served_name: qwen35-27b-fp8
+    host: 127.0.0.1
+    port: 8020
+    base_url: http://127.0.0.1:8020/v1
+    api_key_env: AE_VLLM_API_KEY
+    default_api_key: null
+    cuda_visible_devices: "0,1"
+    tensor_parallel_size: 2
+    max_model_len: 16384
+    gpu_memory_utilization: 0.40
+    max_num_seqs: 1
+    enforce_eager: true
+    reasoning_parser: qwen3
+    language_model_only: true
+    disable_custom_all_reduce: true
+    nccl_p2p_disable_required: true
+    use_for_inner_loop: false
+    schedule: every_30_children_or_manual
+
+  qwen36_35b_a3b_fp8:
+    role: [deep_generator, deep_reviewer]
+    model: Qwen/Qwen3.6-35B-A3B-FP8
+    served_name: qwen36-35b-a3b-deep
+    host: 127.0.0.1
+    port: 8010
+    base_url: http://127.0.0.1:8010/v1
+    api_key_env: AE_VLLM_API_KEY
+    default_api_key: null
+    cuda_visible_devices: "0,1"
+    tensor_parallel_size: 2
+    max_model_len: 16384
+    gpu_memory_utilization: 0.40
+    max_num_seqs: 1
+    enforce_eager: true
+    reasoning_parser: qwen3
+    language_model_only: true
+    disable_custom_all_reduce: true
+    nccl_p2p_disable_required: true
+    use_for_inner_loop: false
+    schedule: every_50_children_or_manual
+
+model_routing:
+  child_generation:
+    endpoint: qwen35_9b_fast
+    temperature_grid: [0.0, 0.2, 0.5]
+    top_p: 0.95
+    max_tokens: 1024
+    enable_thinking: false
+
+  patch_repair:
+    endpoint: qwen35_9b_fast
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 768
+    max_attempts: 1
+    enable_thinking: false
+
+  medium_review:
+    endpoint: qwen35_27b_fp8
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 2048
+    enable_thinking: false
+    output_type: mutation_surface_suggestions_or_evaluator_review
+
+  deep_review:
+    endpoint: qwen36_35b_a3b_fp8
+    temperature: 0.0
+    top_p: 1.0
+    max_tokens: 4096
+    enable_thinking: false
+    output_type: branch_summary_review_or_deep_mutation_surfaces
+
+alphaevolve_stage0:
+  data_stage: daily_stock_only
+  split_policy:
+    type: chronological_by_cleaned_trading_dates
+    train_fraction: 0.70
+    validation_fraction: 0.15
+    test_fraction: 0.15
+    test_locked: true
+    forbid_test_until_branch_freeze: true
+    construct_after_cleaning: true
+  universe_policy:
+    type: rolling_top_n_by_market_cap
+    n: 500
+    ranking_frequency: monthly
+    market_cap_definition: lagged_price_times_shares
+    forbid_static_full_period_top_n: true
+    membership_computed_within_split: true
+    market_cap_field_required_for_promotion: true
+    fallback_for_early_sample_eval: dollar_volume_top500
+    fallback_for_full_validation: fail_closed
+  allowed_data:
+    - daily_stock
+    - daily_market_index
+    - risk_free_rate
+  diagnostic_data_allowed:
+    - Fama-French
+  forbidden_initial_data:
+    - Compustat
+    - CCM_feature_joins
+    - options
+    - ownership_13F
+    - IBES_or_event_features
+    - bonds
+    - broker_or_IBKR_data
+
+database:
+  metadata_store: sqlite
+  audit_log: jsonl
+  metric_panel_format: parquet
+  analysis_engine: duckdb
+  program_database_table: programs
+  prompt_table: prompts
+  artifact_table: artifacts
+  validation_exposure_table: validation_exposure
+  dataset_admission_table: dataset_admission
+
+sampling_policy:
+  type: data_aware_map_elites_islands
+  active_islands:
+    daily_stock_signal: 0.45
+    ranking_transform: 0.15
+    portfolio_risk_turnover: 0.20
+    neutralization_liquidity: 0.10
+    repair_near_miss: 0.05
+    negative_control: 0.05
+  parent_sampling:
+    top_adjusted_same_island: 0.45
+    map_elite_underexplored_cell: 0.20
+    novelty_survivor: 0.15
+    recent_local_pass: 0.10
+    random_survivor: 0.05
+    repair_candidate: 0.05
+  inspiration_sampling:
+    num_inspirations: 4
+    include:
+      - global_elite
+      - same_island_elite
+      - diverse_island_program
+      - failure_or_negative_control
+
+mutation_surface_policy:
+  allowed_surfaces:
+    - latent_state_definition
+    - observation_model
+    - innovation_scoring
+    - noise_parameter_estimation
+    - ranking_transform
+    - holding_period
+    - buy_hold_banding
+    - liquidity_filter
+    - sector_neutralization
+    - beta_neutralization
+    - turnover_control
+    - concentration_control
+    - portfolio_construction
+    - risk_control
+    - negative_control
+  max_surfaces_by_generation:
+    "0-2": 1
+    "3-5": 2
+    "6+": 3
+  dataset_addition_counts_as_surface: true
+  dataset_addition_initially_disabled: true
+
+micro_filter:
+  required_checks:
+    - search_replace_parse
+    - exact_search_match
+    - evolve_block_boundary
+    - no_forbidden_imports
+    - no_undeclared_names
+    - compile
+    - vector_smoke_numpy
+    - vector_smoke_pandas
+    - manifest_schema
+    - evaluator_summary_schema
+  repair_on_failure:
+    malformed_search_replace: true
+    oversized_search_block: true
+    max_attempts: 1
+  reject_on_failure_after_repair: true
+
+evaluator_cascade:
+  stages:
+    controller_static:
+      description: parse, patch, compile, vector smoke
+      remote_required: true
+      uses_qwen: true
+      uses_large_data: false
+    toy_eval:
+      description: synthetic toy data evaluation
+      remote_required: true
+      uses_large_data: false
+    remote_sample_eval:
+      description: small daily-stock sample evaluation
+      remote_required: true
+      uses_large_data: true
+    remote_stage0_eval:
+      description: rolling top-500 validation subset
+      remote_required: true
+      uses_large_data: true
+    remote_full_validation:
+      description: full Stage 0 evaluator battery
+      remote_required: true
+      uses_large_data: true
+
+missing_return_policy:
+  no_forward_fill_returns: true
+  no_silent_drop_held_names: true
+  no_silent_survivor_renormalization: true
+  default: fail_if_held_return_missing
+  max_allowed_missing_held_weight_remote_full_validation: 0.0001
+  terminal_return_recovery_requires_verified_field: true
+
+dataset_unlock_policy:
+  stage0_daily_stock_only: true
+  codex_can_write_review: true
+  codex_can_unlock_executable_generation: false
+  human_approval_required: true
+  unlock_dir: projects/quant_research_system/phase4_search_loop/dataset_unlocks
+
+validation_overuse_policy:
+  max_remote_validations_per_branch_before_review: 25
+  max_remote_validations_per_root_before_review: 100
+  max_promotions_per_root_before_freeze_review: 5
+  test_evaluation_requires_branch_freeze: true
+  forbid_mutation_after_test_evaluation: true
+
+cost_policy:
+  cost_grid_bps_total: [0.0, 2.5, 5.0, 10.0]
+  baseline_cost_bps_total: 2.5
+  severe_stress_cost_bps_total: 10.0
+
+artifact_outputs:
+  required:
+    - run_manifest.yaml
+    - scorecard.csv
+    - diagnostics.csv
+    - evaluator_summary.json
+    - failure_report.md
+    - review.md
+    - audit_log.jsonl
+  per_child:
+    - program.py
+    - diff.txt
+    - prompt.txt
+    - micro_filter.json
+    - evaluator_summary.json
+  sync_policy:
+    heavy_data_stays_remote: true
+    compact_artifacts_sync_to_vault: true

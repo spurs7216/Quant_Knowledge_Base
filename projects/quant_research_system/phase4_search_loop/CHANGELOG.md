@@ -1,0 +1,48 @@
+---
+title: Phase 4 Markdown Package Changelog
+type: project
+status: active
+updated: 2026-04-27
+tags:
+  - project
+  - phase4
+  - changelog
+---
+# Phase 4 Markdown Package Changelog
+
+## 2026-04-27 Update
+
+This package updates the prior Phase 4 markdown zip using the latest project decisions.
+
+## Major Changes
+
+- Clarified that `task_001_search_design.md` is the design source of truth.
+- Clarified that `task_004_seed_strategy_program.md` implements Task 001 and does not replace it.
+- Added `phase4_sampling_policy_v1.md` for data-aware MAP-Elites + island sampling.
+- Added `program_database_schema.md` with SQLite tables and JSONL audit requirements.
+- Added `universe_and_split_policy.md` with chronological 70/15/15 splits and rolling top-500 market-cap universe.
+- Added `dataset_admission_policy.md` with staged dataset unlock and point-in-time join gates.
+- Added `processed_outputs_policy.md` to prevent processed CSV outputs from being treated as parent programs without source-script validation.
+- Added `remote_csv_execution_policy.md` to handle remote CSV warehouse constraints and no external `.exe` assumption.
+- Added `prompt_contracts.md` with exact Qwen prompt, repair, reviewer, and immutable-rule contracts.
+- Added `artifact_renderer_contract.md` for `evaluator_summary.json`, `prompt_card.md`, and search-state summaries.
+- Added `codex_implementation_tasks.md` as an explicit implementation sequence for Codex.
+- Updated model policy to remove Gemma 4 from the active stack.
+- Updated first-loop policy to remain daily-stock-only.
+
+## Current Active Design
+
+```yaml
+phase4_active_design:
+  first_loop_data_scope: daily_stock_only
+  universe: rolling_top500_market_cap_v1
+  split: chronological_70_15_15
+  inner_loop_model: Qwen3.5-9B
+  repair_model: Qwen3.5-9B
+  medium_reviewer: Qwen3.5-27B-FP8 optional
+  deep_reviewer: Qwen3.6-35B-A3B-FP8 scheduled
+  database: SQLite
+  audit: JSONL
+  metric_panels: Parquet if available, CSV fallback
+  analysis: DuckDB if available, SQLite/pandas fallback
+```

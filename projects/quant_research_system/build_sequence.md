@@ -2,7 +2,7 @@
 title: Quant Research System Build Sequence
 type: project
 status: active
-updated: 2026-04-25
+updated: 2026-04-29
 tags:
   - project
   - roadmap
@@ -174,7 +174,7 @@ Exit criteria:
 
 ## Phase 3. Candidate registry
 
-Status: `active` as of 2026-04-25. Task 001 seeded the registry from Phase 1 and Phase 2B artifacts; Task 002 added manifest-driven candidate registration; Task 003 added status-update and event intake; Task 004 created an executable remote-validation handoff; Task 005 prepared the remote execution packet.
+Status: `closed` on 2026-04-25 after Task 007 closure.
 
 Goal:
 
@@ -202,6 +202,8 @@ Phase package:
 - [phase3_candidate_registry/task_003_evaluation_intake.md](phase3_candidate_registry/task_003_evaluation_intake.md)
 - [phase3_candidate_registry/task_004_remote_validation_handoff.md](phase3_candidate_registry/task_004_remote_validation_handoff.md)
 - [phase3_candidate_registry/task_005_remote_execution_packet.md](phase3_candidate_registry/task_005_remote_execution_packet.md)
+- [phase3_candidate_registry/task_006_remote_artifact_review.md](phase3_candidate_registry/task_006_remote_artifact_review.md)
+- [phase3_candidate_registry/task_007_phase3_closure.md](phase3_candidate_registry/task_007_phase3_closure.md)
 
 Exit criteria:
 
@@ -215,20 +217,60 @@ Exit criteria:
 
 ## Phase 4. Search loop
 
+Status: `active` as of 2026-04-29. The clarified Phase 4 package is now the active control package. Task 001 is the design source of truth; Task 002 is an evaluator seed; Task 004 implements the first seed strategy program and Qwen loop.
+
 Goal:
 
 Add AlphaEvolve-style iterative improvement.
 
 Foundation scope:
 
-- patch one bounded artifact region
-- evaluate through remote validation cascade
-- keep best survivors and diverse alternatives
-- do not evolve whole notebooks
+- represent a seed strategy as executable code with bounded evolve blocks
+- generate or apply SEARCH/REPLACE diffs against those bounded regions
+- evaluate through local and remote validation cascades
+- store programs, scores, descriptors, and lineage in a search-facing database
+- keep best survivors and diverse alternatives for later prompt sampling
+- use a rolling point-in-time top-500 market-cap universe and chronological 70/15/15 split
+- use a Qwen-only measured model stack for the first production loop
+- run every Qwen call and AlphaEvolve-lite controller stage on the remote Linux/GPU/data server, never on local Windows
+- keep test-set results locked until branch freeze
+- do not evolve whole notebooks or evaluator control code
+
+Phase package:
+
+- [phase4_search_loop/README.md](phase4_search_loop/README.md)
+- [phase4_search_loop/phase4_readthrough.md](phase4_search_loop/phase4_readthrough.md)
+- [phase4_search_loop/alphaevolve_method_translation.md](phase4_search_loop/alphaevolve_method_translation.md)
+- [phase4_search_loop/cost_model_policy.md](phase4_search_loop/cost_model_policy.md)
+- [phase4_search_loop/universe_and_split_policy.md](phase4_search_loop/universe_and_split_policy.md)
+- [phase4_search_loop/phase4_sampling_policy_v1.md](phase4_search_loop/phase4_sampling_policy_v1.md)
+- [phase4_search_loop/program_database_schema.md](phase4_search_loop/program_database_schema.md)
+- [phase4_search_loop/prompt_contracts.md](phase4_search_loop/prompt_contracts.md)
+- [phase4_search_loop/artifact_renderer_contract.md](phase4_search_loop/artifact_renderer_contract.md)
+- [phase4_search_loop/remote_csv_execution_policy.md](phase4_search_loop/remote_csv_execution_policy.md)
+- [phase4_search_loop/dataset_admission_policy.md](phase4_search_loop/dataset_admission_policy.md)
+- [phase4_search_loop/processed_outputs_policy.md](phase4_search_loop/processed_outputs_policy.md)
+- [phase4_search_loop/model_stack_and_vllm_results.md](phase4_search_loop/model_stack_and_vllm_results.md)
+- [phase4_search_loop/remote_qwen_vllm_config.md](phase4_search_loop/remote_qwen_vllm_config.md)
+- [phase4_codex_clarifications.md](phase4_codex_clarifications.md)
+- [phase4_search_loop/evaluator_contract.md](phase4_search_loop/evaluator_contract.md)
+- [phase4_search_loop/task_001_search_design.md](phase4_search_loop/task_001_search_design.md)
+- [phase4_search_loop/task_002_kalman_reversal_batch.md](phase4_search_loop/task_002_kalman_reversal_batch.md)
+- [phase4_search_loop/task_003_alphaevolve_scaffold.md](phase4_search_loop/task_003_alphaevolve_scaffold.md)
+- [phase4_search_loop/task_004_seed_strategy_program.md](phase4_search_loop/task_004_seed_strategy_program.md)
+- [phase4_search_loop/codex_implementation_tasks.md](phase4_search_loop/codex_implementation_tasks.md)
 
 Exit criteria:
 
-- search improves at least one validation metric without breaking gates
+- a seed program with evolve blocks is evaluated
+- rolling top-500 universe and 70/15/15 split manifests are reproducible
+- generated or human-proposed diffs produce at least one child program through the deterministic patch pipeline
+- the program database samples parents and inspirations for later prompts
+- SQLite program records and JSONL audit events exist for every child attempt
+- Qwen3.5-9B produces a 50-attempt remote-controller batch with parse, repair, compile, vector-smoke, and insertion metrics
+- at least one `controller_static`-valid child reaches `remote_sample_eval` before any full validation
+- search improves at least one validation metric without breaking hard gates
+- no test-set evaluation is used before branch freeze
 - failure modes are logged
 
 ## Phase 5. IBKR read-only and dry-run layer
@@ -290,7 +332,7 @@ Exit criteria:
 
 ## Current next decision
 
-Phase 2B is closed within its scoped objective, and Phase 3 has started.
+Phase 3 is closed within its scoped objective, and Phase 4 has moved from broad search-loop design to a clarified implementation contract.
 
 What is established:
 
@@ -304,12 +346,14 @@ What is established:
 Why the system should still not jump directly to search:
 
 - the benchmark bank is still small and internal
-- candidate registry should come before search so candidate lineage does not disappear into chat history
+- Phase 4 should begin with the clarified scaffold, database, prompt, universe, split, and seed-program mechanics before generating many child candidates
 - later IBKR read-only and dry-run stages still need live local broker metadata and order-construction verification
 
 The next concrete choice is:
 
-- recommended next: commit and sync the exact Phase 3 packet for `CAND-20260425-002` when the remote machine is ready, then run the remote job and ingest returned evidence through the status-update path
-- defer: search loop and paper-order submission until candidate lineage and later IBKR stages exist
+- recommended next: follow [phase4_search_loop/codex_implementation_tasks.md](phase4_search_loop/codex_implementation_tasks.md) Task A through Task H: design readthrough, missing package modules, SQLite database, audit log, remote daily-stock schema inspection, universe/split builders, seed strategy module, and generation-zero seed insert
+- next after that: implement the prompt builder and Qwen router, then run the 50-attempt Qwen3.5-9B remote-controller batch through deterministic `controller_static` micro-filters
+- still useful but not sufficient: run the Task 002 Kalman remote batch as evaluator calibration under the rolling top-500 and chronological 70/15/15 policy
+- defer: paper-order submission until later IBKR stages exist
 
-Independent judgment: Phase 2 falsification and Phase 2B translation are strong enough to leave cleanly. Phase 3 should close only after a registered candidate can be handed to remote validation and the result can be ingested back into the registry without provenance loss.
+Independent judgment: Phase 2 falsification, Phase 2B translation, and Phase 3 registry construction are strong enough to leave cleanly. Phase 4 should now treat the clarified package as active. The most important change is that search is constrained by point-in-time universe construction, locked split/test policy, validation-exposure accounting, remote Qwen patch generation, deterministic micro-filters, SQLite search memory, JSONL audit, and compact prompt-facing evaluator artifacts.
