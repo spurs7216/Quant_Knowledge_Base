@@ -118,6 +118,7 @@ New implementation-policy files:
 - [dataset_admission_policy.md](dataset_admission_policy.md): staged dataset unlock and point-in-time join requirements.
 - [processed_outputs_policy.md](processed_outputs_policy.md): how to use processed research CSV outputs and validate source scripts.
 - [remote_csv_execution_policy.md](remote_csv_execution_policy.md): remote CSV execution, artifact, and storage rules.
+- [remote_sample_eval_hardening_20260430.md](remote_sample_eval_hardening_20260430.md): duplicate, null-baseline, git-status, and turnover-aware-score hardening for seed sample evaluation.
 - [prompt_contracts.md](prompt_contracts.md): exact prompt modes, output rules, repair prompts, and model routing.
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.

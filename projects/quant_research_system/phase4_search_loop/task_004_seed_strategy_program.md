@@ -249,11 +249,14 @@ Use:
 ```bash
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
-  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v1 \
+  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --start-date 2018-01-01 \
-  --end-date 2020-12-31
+  --end-date 2020-12-31 \
+  --null-seeds 10
 ```
+
+The sample evaluator must report duplicate-row conflict diagnostics, git dirty status detail, random null baselines, sign-flipped baseline, and `turnover_aware_score`.
 
 Do not run full remote validation until:
 

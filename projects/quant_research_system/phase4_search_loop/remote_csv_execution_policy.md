@@ -132,6 +132,16 @@ split_manifest.yaml
 code_snapshot.txt or code_snapshot_hash.txt
 ```
 
+For hardened Phase 4 sample evaluation, also produce:
+
+```text
+duplicate_diagnostics.csv
+null_baselines.csv
+baseline_summary.json
+git_status.txt
+git_diff_stat.txt
+```
+
 Optional:
 
 ```text

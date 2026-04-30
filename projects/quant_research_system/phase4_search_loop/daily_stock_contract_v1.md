@@ -118,10 +118,22 @@ Run on the remote machine, not local Windows:
 ```bash
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
-  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v1 \
+  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --start-date 2018-01-01 \
-  --end-date 2020-12-31
+  --end-date 2020-12-31 \
+  --null-seeds 10
 ```
 
-Do not start Qwen child generation until this remote sample-eval artifact is reviewed.
+The hardened evaluator writes:
+
+```text
+duplicate_diagnostics.csv
+null_baselines.csv
+baseline_summary.json
+git_status.txt
+git_diff_stat.txt
+turnover_aware_score inside evaluator_summary.json
+```
+
+Do not start Qwen child generation until this hardened remote sample-eval artifact is reviewed.
