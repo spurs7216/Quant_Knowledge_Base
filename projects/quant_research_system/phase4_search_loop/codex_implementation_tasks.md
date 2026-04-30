@@ -207,7 +207,8 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
   --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 5 \
-  --model-role fast_generator
+  --model-role fast_generator \
+  --max-tokens 4096
 ```
 
 Review:

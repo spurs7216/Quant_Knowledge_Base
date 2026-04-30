@@ -27,7 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--attempts", type=int, default=5)
     parser.add_argument("--model-role", default="fast_generator")
     parser.add_argument("--temperature-grid", default="0.0,0.2,0.5")
-    parser.add_argument("--max-tokens", type=int, default=1200)
+    parser.add_argument("--max-tokens", type=int, default=4096)
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
     parser.add_argument("--mock-patch-mode", choices=["none", "sign_flip", "no_valid_patch"], default="none")
     return parser.parse_args()

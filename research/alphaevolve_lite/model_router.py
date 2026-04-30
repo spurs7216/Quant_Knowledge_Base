@@ -117,7 +117,7 @@ def chat_completion(
     system_prompt: str,
     user_prompt: str,
     temperature: float = 0.2,
-    max_tokens: int = 1200,
+    max_tokens: int = 4096,
     verify: bool = True,
 ) -> dict[str, Any]:
     """Call remote vLLM OpenAI-compatible chat completions."""

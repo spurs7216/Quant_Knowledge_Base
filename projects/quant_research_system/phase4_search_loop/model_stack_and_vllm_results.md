@@ -191,7 +191,7 @@ The NCCL workaround is a performance/stability deployment setting, not a model-q
 runtime_policy:
   inner_loop:
     model: Qwen3.5-9B
-    max_tokens: 512_to_1024
+    max_tokens: 4096
     temperature_grid: [0.0, 0.2, 0.5]
 
   repair:
