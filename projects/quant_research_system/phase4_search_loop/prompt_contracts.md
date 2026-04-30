@@ -245,6 +245,8 @@ prompt_failure_category:
   - semantic_pattern_warning
   - compile_failed
   - vector_smoke_failed
+  - portfolio_semantic_failed
+  - duplicate_child
   - forbidden_policy_edit
   - broker_logic_detected
   - dataset_without_admission

@@ -189,6 +189,7 @@ def build_child_generation_prompt(
     evaluator_summary: dict[str, Any] | None = None,
     attempt_index: int = 0,
     target_surface: str | None = None,
+    previous_accepted_patches: list[str] | None = None,
     mutation_instruction: str = DEFAULT_MUTATION_INSTRUCTION,
 ) -> dict[str, str]:
     """Build system/user messages for a child-generation attempt."""
@@ -197,6 +198,12 @@ def build_child_generation_prompt(
     surface = target_surface or choose_target_surface(attempt_index)
     editable_body = editable_block_text(parent_code, surface)
     guidance = SURFACE_GUIDANCE.get(surface, "Edit only the target EVOLVE-BLOCK.")
+    previous_patch_text = "None."
+    if previous_accepted_patches:
+        previous_patch_text = "\n\n".join(
+            f"Previous accepted patch {idx + 1}:\n{patch.strip()}"
+            for idx, patch in enumerate(previous_accepted_patches)
+        )
     user_prompt = f"""Task type: controller_static_child_dry_run
 Attempt index: {attempt_index}
 Target mutation surface: {surface}
@@ -218,6 +225,13 @@ Editable code body for target surface `{surface}`:
 ```
 
 Only copy SEARCH text from the editable code body above. Do not copy from helper functions, DEFAULT_PARAMS, function signatures, imports, loader code, or EVOLVE marker lines.
+
+Previously accepted patches for target surface `{surface}`:
+```text
+{previous_patch_text}
+```
+
+Do not repeat the same SEARCH/REPLACE patch or the same semantic change as a previous accepted patch for this surface.
 
 Output format example:
 <<<<<<< SEARCH

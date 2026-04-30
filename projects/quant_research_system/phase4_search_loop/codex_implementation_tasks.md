@@ -204,9 +204,9 @@ Recommended first command:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 5 \
+  --attempts 10 \
   --model-role fast_generator \
   --max-tokens 4096
 ```
@@ -214,12 +214,12 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/repair_output.txt
 ```
 
 If the small dry run shows the controller path is healthy, then run the larger batch:
@@ -235,9 +235,11 @@ metrics:
   repair_success_rate:
   exact_search_match_rate:
   evolve_block_safe_rate:
-  undeclared_name_pass_rate:
   compile_pass_rate:
   vector_smoke_pass_rate:
+  portfolio_semantic_pass_rate:
+  unique_child_pass_rate:
+  duplicate_child_count:
   db_insert_pass_rate:
 ```
 

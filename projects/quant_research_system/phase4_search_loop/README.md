@@ -121,6 +121,7 @@ New implementation-policy files:
 - [remote_sample_eval_hardening_20260430.md](remote_sample_eval_hardening_20260430.md): duplicate, null-baseline, git-status, and turnover-aware-score hardening for seed sample evaluation.
 - [controller_child_dry_run_20260430.md](controller_child_dry_run_20260430.md): small Qwen controller dry-run protocol before any child historical evaluation.
 - [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md): review of the first failed small child batch and controller repair update.
+- [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md): review of the repaired small child batch and semantic-gate follow-up.
 - [prompt_contracts.md](prompt_contracts.md): exact prompt modes, output rules, repair prompts, and model routing.
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.

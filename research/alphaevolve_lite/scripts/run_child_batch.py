@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -31,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
     parser.add_argument(
         "--mock-patch-mode",
-        choices=["none", "sign_flip", "marker_oversize", "no_valid_patch"],
+        choices=["none", "sign_flip", "marker_oversize", "portfolio_long_only", "no_valid_patch"],
         default="none",
     )
     parser.add_argument("--no-repair", action="store_true", help="Disable one-shot critic repair.")
@@ -79,7 +80,7 @@ def write_messages(path: Path, title: str, messages: dict[str, str]) -> None:
     )
 
 
-def mock_patch(parent_text: str, mode: str) -> str:
+def mock_patch(parent_text: str, mode: str, target_surface: str = "signal") -> str:
     if mode == "no_valid_patch":
         return "NO_VALID_PATCH"
     if mode == "sign_flip":
@@ -104,6 +105,21 @@ def mock_patch(parent_text: str, mode: str) -> str:
             raise RuntimeError("mock marker_oversize SEARCH text not found")
         replace = search + "    # mock oversized patch touched marker lines\n"
         return f"<<<<<<< SEARCH\n{search}=======\n{replace}>>>>>>> REPLACE\n"
+    if mode == "portfolio_long_only":
+        search = (
+            "        weights.loc[longs] = 0.5 * gross / len(longs)\n"
+            "        weights.loc[shorts] = -0.5 * gross / len(shorts)\n"
+        )
+        if search not in parent_text:
+            raise RuntimeError("mock portfolio_long_only SEARCH text not found")
+        return (
+            "<<<<<<< SEARCH\n"
+            f"{search}"
+            "=======\n"
+            "        weights.loc[longs] = 0.5 * gross * valid.loc[longs, \"signal\"] / valid.loc[longs, \"signal\"].sum()\n"
+            "        weights.loc[shorts] = -0.5 * gross * valid.loc[shorts, \"signal\"] / valid.loc[shorts, \"signal\"].abs().sum()\n"
+            ">>>>>>> REPLACE\n"
+        )
     raise RuntimeError(f"unknown mock patch mode: {mode}")
 
 
@@ -152,7 +168,10 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "apply_pass_rate": final_rate("apply_patch"),
         "compile_pass_rate": final_rate("compile_pass"),
         "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
+        "portfolio_semantic_pass_rate": final_rate("portfolio_semantic_pass"),
+        "unique_child_pass_rate": final_rate("unique_child"),
         "db_insert_pass_rate": sum(1 for item in attempts if item.get("db_inserted")) / total if total else 0.0,
+        "duplicate_child_count": sum(1 for item in attempts if item.get("failure_category") == "duplicate_child"),
         "failure_categories": {
             str(category): sum(1 for item in attempts if item.get("failure_category") == category)
             for category in sorted({item.get("failure_category") for item in attempts if item.get("failure_category")})
@@ -174,6 +193,9 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- apply_pass_rate: `{summary['apply_pass_rate']}`",
         f"- compile_pass_rate: `{summary['compile_pass_rate']}`",
         f"- vector_smoke_pass_rate: `{summary['vector_smoke_pass_rate']}`",
+        f"- portfolio_semantic_pass_rate: `{summary['portfolio_semantic_pass_rate']}`",
+        f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
+        f"- duplicate_child_count: `{summary['duplicate_child_count']}`",
         f"- db_insert_pass_rate: `{summary['db_insert_pass_rate']}`",
         "",
         "## Failure Categories",
@@ -221,6 +243,8 @@ def main() -> int:
         init_db(args.db_path)
 
     attempt_records: list[dict[str, Any]] = []
+    seen_child_hashes: dict[str, str] = {}
+    accepted_patches_by_surface: dict[str, list[str]] = {}
     for attempt in range(args.attempts):
         attempt_dir = out_dir / f"attempt_{attempt:03d}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
@@ -231,6 +255,7 @@ def main() -> int:
             evaluator_summary=evaluator_summary,
             attempt_index=attempt,
             target_surface=target_surface,
+            previous_accepted_patches=accepted_patches_by_surface.get(target_surface, [])[-3:],
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -246,7 +271,7 @@ def main() -> int:
             )
             generated_text = response_record["content"]
         else:
-            generated_text = mock_patch(parent_text, args.mock_patch_mode)
+            generated_text = mock_patch(parent_text, args.mock_patch_mode, target_surface=target_surface)
             response_record = {
                 "role": "mock",
                 "served_model_name": "mock",
@@ -257,12 +282,13 @@ def main() -> int:
         (attempt_dir / "raw_output.txt").write_text(generated_text, encoding="utf-8")
         write_json(attempt_dir / "model_response.json", response_record)
 
-        result = run_micro_filter(parent_text, generated_text)
+        result = run_micro_filter(parent_text, generated_text, target_surface=target_surface)
         initial_result_record = result.to_record()
         write_json(attempt_dir / "micro_filter_initial_result.json", initial_result_record)
         repair_attempted = False
         repair_succeeded = False
         repair_record: dict[str, Any] | None = None
+        final_diff_text = generated_text
 
         if (
             not args.no_repair
@@ -298,11 +324,30 @@ def main() -> int:
                 }
             (attempt_dir / "repair_output.txt").write_text(repair_text, encoding="utf-8")
             write_json(attempt_dir / "repair_response.json", repair_record)
-            repair_result = run_micro_filter(parent_text, repair_text)
+            repair_result = run_micro_filter(parent_text, repair_text, target_surface=target_surface)
             write_json(attempt_dir / "repair_micro_filter_result.json", repair_result.to_record())
             if repair_result.decision == "pass":
                 result = repair_result
                 repair_succeeded = True
+                final_diff_text = repair_text
+
+        child_hash = None
+        duplicate_of_program_id = None
+        if result.child_text is not None:
+            child_hash = hashlib.sha256(result.child_text.encode("utf-8")).hexdigest()
+        if result.decision == "pass":
+            result.hard_gates["unique_child"] = True
+            if child_hash in seen_child_hashes:
+                duplicate_of_program_id = seen_child_hashes[child_hash]
+                result.decision = "reject"
+                result.failure_category = "duplicate_child"
+                result.failure_reason = f"duplicate child program hash already seen for {duplicate_of_program_id}"
+                result.hard_gates["unique_child"] = False
+            elif child_hash is not None:
+                seen_child_hashes[child_hash] = f"{args.program_id_prefix}-{attempt:04d}"
+                accepted_patches_by_surface.setdefault(target_surface, []).append(final_diff_text)
+        else:
+            result.hard_gates["unique_child"] = False
 
         result_record = result.to_record()
         program_id = f"{args.program_id_prefix}-{attempt:04d}"
@@ -335,6 +380,8 @@ def main() -> int:
                             "model_role": args.model_role,
                             "temperature": temperature,
                             "target_surface": target_surface,
+                            "child_sha256": child_hash,
+                            "duplicate_of_program_id": duplicate_of_program_id,
                             "repair_attempted": repair_attempted,
                             "repair_succeeded": repair_succeeded,
                             "initial_failure_category": initial_result_record.get("failure_category"),
@@ -362,6 +409,8 @@ def main() -> int:
                 "temperature": temperature,
                 "db_inserted": db_inserted,
                 "child_program_path": str(child_path) if child_path else None,
+                "child_sha256": child_hash,
+                "duplicate_of_program_id": duplicate_of_program_id,
                 "initial_decision": initial_result_record.get("decision"),
                 "initial_failure_category": initial_result_record.get("failure_category"),
                 "initial_failure_reason": initial_result_record.get("failure_reason"),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import platform
@@ -21,9 +22,10 @@ def _ensure_repo_import() -> None:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Remote sample-evaluate the Phase 4 Kalman seed.")
+    parser = argparse.ArgumentParser(description="Remote sample-evaluate a Phase 4 strategy program.")
     parser.add_argument("--csv-path", required=True)
     parser.add_argument("--out-dir", required=True)
+    parser.add_argument("--program-path", default="research/alphaevolve_lite/seeds/kalman_reversal_seed.py")
     parser.add_argument("--db-path", default="")
     parser.add_argument("--start-date", default="2018-01-01")
     parser.add_argument("--end-date", default="2020-12-31")
@@ -38,6 +40,36 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--program-id", default="PROG-20260430-000000")
     parser.add_argument("--run-id", default="")
     return parser.parse_args()
+
+
+def load_strategy_module(program_path: str):
+    path = Path(program_path)
+    if not path.is_absolute():
+        path = Path.cwd() / path
+    if not path.exists():
+        raise FileNotFoundError(f"strategy program path does not exist: {path}")
+    module_name = f"alphaevolve_eval_program_{uuid.uuid4().hex}"
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot import strategy program from {path}")
+    module = importlib.util.module_from_spec(spec)
+    old_dont_write_bytecode = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = old_dont_write_bytecode
+    required = [
+        "DEFAULT_PARAMS",
+        "compute_signal",
+        "rank_or_transform_signal",
+        "construct_portfolio",
+        "apply_risk_controls",
+    ]
+    missing = [name for name in required if not hasattr(module, name)]
+    if missing:
+        raise RuntimeError(f"strategy program missing required names: {missing}")
+    return module, path
 
 
 def utc_now_iso() -> str:
@@ -482,7 +514,6 @@ def main() -> int:
         load_daily_stock_window,
     )
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
-    from research.alphaevolve_lite.seeds import kalman_reversal_seed
     from research.alphaevolve_lite.splits import build_chronological_splits, write_split_manifest
     from research.alphaevolve_lite.universe import (
         UNIVERSE_POLICY_ID,
@@ -506,6 +537,7 @@ def main() -> int:
     failure_reason = None
 
     try:
+        strategy_module, resolved_program_path = load_strategy_module(args.program_path)
         raw, load_diag = load_daily_stock_window(
             args.csv_path,
             start_date=args.start_date,
@@ -535,10 +567,11 @@ def main() -> int:
             raise RuntimeError("rolling universe produced no sample rows")
 
         eval_panel = build_forward_returns(universe_panel, CONTRACT)
-        signal = kalman_reversal_seed.compute_signal(eval_panel, kalman_reversal_seed.DEFAULT_PARAMS)
-        ranked = kalman_reversal_seed.rank_or_transform_signal(signal, eval_panel, kalman_reversal_seed.DEFAULT_PARAMS)
-        raw_weights = kalman_reversal_seed.construct_portfolio(ranked, eval_panel, kalman_reversal_seed.DEFAULT_PARAMS)
-        weights = kalman_reversal_seed.apply_risk_controls(raw_weights, eval_panel, kalman_reversal_seed.DEFAULT_PARAMS)
+        strategy_params = dict(strategy_module.DEFAULT_PARAMS)
+        signal = strategy_module.compute_signal(eval_panel, strategy_params)
+        ranked = strategy_module.rank_or_transform_signal(signal, eval_panel, strategy_params)
+        raw_weights = strategy_module.construct_portfolio(ranked, eval_panel, strategy_params)
+        weights = strategy_module.apply_risk_controls(raw_weights, eval_panel, strategy_params)
         full_portfolio, positions = portfolio_from_weights(eval_panel, weights, args.total_cost_bps, CONTRACT)
         validation_end = splits[1].end
         portfolio = full_portfolio.loc[full_portfolio["DlyCalDt"] <= validation_end].copy()
@@ -655,6 +688,7 @@ def main() -> int:
             "run_id": run_id,
             "program_id": args.program_id,
             "stage": "remote_sample_eval",
+            "program_path": str(resolved_program_path),
             "csv_path": args.csv_path,
             "start_date": args.start_date,
             "end_date": args.end_date,
@@ -694,11 +728,12 @@ def main() -> int:
                 "descriptors": {
                     "daily_stock_contract": CONTRACT.contract_id,
                     "strategy_family": "kalman_innovation_reversal",
+                    "program_path": str(resolved_program_path),
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
                     "git_dirty": git_status["git_dirty"],
                 },
-                "next_prompt_hint": "If sample_pass, register the seed and proceed to controller_static child-generation dry run. Do not use test metrics for prompt sampling.",
+                "next_prompt_hint": "If sample_pass, compare against seed, null baselines, and sibling children before any stage-0/full validation. Do not use test metrics for prompt sampling.",
                 "artifact_paths": {
                     "scorecard": "scorecard.csv",
                     "diagnostics": "diagnostics.csv",
@@ -752,23 +787,31 @@ def main() -> int:
         )
 
         if args.db_path:
+            default_seed_path = Path("research/alphaevolve_lite/seeds/kalman_reversal_seed.py")
+            try:
+                is_seed_program = resolved_program_path.resolve() == (Path.cwd() / default_seed_path).resolve()
+            except Exception:
+                is_seed_program = str(resolved_program_path).replace("\\", "/").endswith(default_seed_path.as_posix())
             init_db(args.db_path)
             insert_program_record(
                 args.db_path,
                 {
                     "program_id": args.program_id,
-                    "parent_id": None,
+                    "parent_id": None if is_seed_program else "PROG-20260430-000000",
                     "root_id": "CAND-20260423-001",
                     "branch_id": "BRANCH-CAND-20260423-001-001",
-                    "generation": 0,
+                    "generation": 0 if is_seed_program else 1,
                     "island": "daily_stock_signal",
-                    "mutation_surface": "seed",
+                    "mutation_surface": "seed" if is_seed_program else "child_program",
                     "data_scope": "daily_stock_only",
-                    "status": "seed_sample_evaluated",
-                    "program_path": "research/alphaevolve_lite/seeds/kalman_reversal_seed.py",
+                    "status": "seed_sample_evaluated" if is_seed_program else "child_sample_evaluated",
+                    "program_path": str(resolved_program_path),
                     "evaluator_summary_path": str(out_dir / "evaluator_summary.json"),
                     "metrics": metrics,
-                    "descriptors": {"daily_stock_contract": CONTRACT.contract_id},
+                    "descriptors": {
+                        "daily_stock_contract": CONTRACT.contract_id,
+                        "program_path": str(resolved_program_path),
+                    },
                     "hard_gates": hard_gates,
                     "validation_exposure": {
                         "remote_sample_eval": True,

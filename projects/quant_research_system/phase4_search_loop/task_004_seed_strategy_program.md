@@ -231,7 +231,7 @@ Required checks:
 - compile;
 - vector smoke.
 
-Implemented in `research/alphaevolve_lite/micro_filter.py` for first-pass controller filtering. It checks SEARCH/REPLACE parsing, exact unique SEARCH matches, evolve-block containment, marker preservation, forbidden broker/data-loader patterns, new imports, Python compilation, and a synthetic vector smoke run against the seed module interface.
+Implemented in `research/alphaevolve_lite/micro_filter.py` for first-pass controller filtering. It checks SEARCH/REPLACE parsing, exact unique SEARCH matches, target evolve-block containment, marker preservation, forbidden broker/data-loader patterns, new imports, Python compilation, synthetic vector smoke, and portfolio semantic invariants such as both-side exposure, net exposure, side-sign consistency, gross exposure, and max weight.
 
 ### 7. First Remote Controller Dry Run
 
@@ -241,9 +241,9 @@ Run a small remote controller batch first:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 5 \
+  --attempts 10 \
   --model-role fast_generator \
   --max-tokens 4096
 ```
@@ -254,7 +254,7 @@ Purpose:
 - inspect raw proposals before increasing search pressure;
 - avoid evaluating child programs on remote historical data until the controller output is auditable.
 
-The first run, `controller_batch_001_small`, proved the Qwen/router/database path but rejected all children at the evolve-block boundary. The repair-enabled rerun must use prompt slicing and one-shot `critic_repair` before deciding whether to scale to 50 controller attempts.
+The first run, `controller_batch_001_small`, proved the Qwen/router/database path but rejected all children at the evolve-block boundary. The repair-enabled rerun, `controller_batch_001_small_repair_v1`, proved prompt slicing but exposed duplicate children and one semantically bad long-only portfolio mutation. The next small rerun must use target-surface enforcement, portfolio semantic gates, duplicate detection, and child-evaluator `--program-path` support before deciding whether to scale to 50 controller attempts.
 
 This first dry run must not launch child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation.
 
@@ -276,7 +276,8 @@ Track:
 - exact-search match;
 - evolve-block safe;
 - undeclared-name pass;
-- semantic-warning pass;
+- portfolio semantic pass;
+- unique child pass;
 - compile pass;
 - vector-smoke pass;
 - program database insertion pass.
@@ -292,8 +293,10 @@ Use:
 ```bash
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
-  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2 \
+  --program-path artifacts/phase4_alphaevolve/controller_batch_002_50/attempt_NNN/child_program.py \
+  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_child_NNN \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
+  --program-id PROG-20260430-CHILD-NNNN \
   --start-date 2018-01-01 \
   --end-date 2020-12-31 \
   --null-seeds 10
@@ -308,7 +311,7 @@ Do not run full remote validation until:
 - null and cost outputs exist;
 - `evaluator_summary.json` is prompt-ready.
 
-For the immediate next milestone, this sample evaluation applies only after reviewing `controller_batch_001_small_repair_v1`. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
+For the immediate next milestone, this sample evaluation applies only after reviewing `controller_batch_001_small_semantic_v2`. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
 
 ## Acceptance Criteria
 

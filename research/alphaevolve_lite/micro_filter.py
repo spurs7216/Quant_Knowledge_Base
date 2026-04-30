@@ -34,6 +34,14 @@ FORBIDDEN_TEXT_PATTERNS = [
 ]
 
 
+class PortfolioSemanticError(ValueError):
+    """Raised when a child compiles but violates portfolio-shape invariants."""
+
+    def __init__(self, reason: str, metrics: dict[str, float]) -> None:
+        super().__init__(reason)
+        self.metrics = metrics
+
+
 @dataclass
 class MicroFilterResult:
     """Serializable result for one generated patch."""
@@ -60,6 +68,7 @@ def _fail(
     category: str,
     reason: str,
     parsed_block_count: int = 0,
+    vector_smoke_metrics: dict[str, float] | None = None,
 ) -> MicroFilterResult:
     return MicroFilterResult(
         decision="reject",
@@ -67,16 +76,58 @@ def _fail(
         failure_category=category,
         failure_reason=reason,
         parsed_block_count=parsed_block_count,
+        vector_smoke_metrics=vector_smoke_metrics or {},
     )
 
 
-def _search_blocks_inside_evolve_blocks(parent_text: str, diff_text: str) -> tuple[bool, str | None]:
+def _named_evolve_block_bodies(parent_text: str) -> dict[str, str]:
+    lines = parent_text.splitlines(keepends=True)
+    bodies: dict[str, str] = {}
+    current_name: str | None = None
+    current_body: list[str] = []
+    unnamed_count = 0
+    for line in lines:
+        if START_MARKER in line:
+            suffix = line.split(START_MARKER, 1)[1].strip()
+            if suffix.startswith(":"):
+                current_name = suffix[1:].strip() or f"unnamed_{unnamed_count}"
+            else:
+                current_name = f"unnamed_{unnamed_count}"
+            unnamed_count += 1
+            current_body = []
+            continue
+        if END_MARKER in line and current_name is not None:
+            bodies[current_name] = "".join(current_body)
+            current_name = None
+            current_body = []
+            continue
+        if current_name is not None:
+            current_body.append(line)
+    return bodies
+
+
+def _search_blocks_inside_evolve_blocks(
+    parent_text: str,
+    diff_text: str,
+    *,
+    target_surface: str | None = None,
+) -> tuple[bool, str | None]:
     blocks = parse_search_replace_blocks(diff_text)
-    evolve_blocks = find_evolve_blocks(parent_text)
+    if target_surface:
+        named_bodies = _named_evolve_block_bodies(parent_text)
+        target_body = named_bodies.get(target_surface)
+        if target_body is None:
+            allowed = ", ".join(sorted(named_bodies))
+            return False, f"target EVOLVE block {target_surface!r} not found; allowed: {allowed}"
+        allowed_bodies = [target_body]
+    else:
+        allowed_bodies = [evolve.text for evolve in find_evolve_blocks(parent_text)]
     for block in blocks:
         if START_MARKER in block.search or END_MARKER in block.search:
             return False, "SEARCH block includes EVOLVE marker"
-        if not any(block.search in evolve.text for evolve in evolve_blocks):
+        if not any(block.search in body for body in allowed_bodies):
+            if target_surface:
+                return False, f"SEARCH block is not strictly inside target EVOLVE block {target_surface!r}"
             return False, "SEARCH block is not strictly inside an EVOLVE block"
     return True, None
 
@@ -161,21 +212,87 @@ def _vector_smoke(child_text: str) -> dict[str, float]:
     if finite_weights.empty:
         raise ValueError("weights are all nonfinite")
     max_weight = float(finite_weights.abs().max())
-    if max_weight > 1.0:
-        raise ValueError(f"max smoke-test weight too large: {max_weight}")
+    configured_max_weight = float(params.get("max_weight", 0.02))
+    max_weight_limit = min(0.05, max(configured_max_weight, 0.0) + 1e-12)
+    if max_weight > max_weight_limit:
+        raise ValueError(f"max smoke-test weight too large: {max_weight} > {max_weight_limit}")
+
+    ranked_numeric = pd.to_numeric(ranked.reindex(panel.index), errors="coerce")
+    weight_numeric = pd.to_numeric(weights.reindex(panel.index), errors="coerce").fillna(0.0)
+    smoke_frame = pd.DataFrame(
+        {
+            "date": panel[CONTRACT.date].to_numpy(),
+            "ranked_signal": ranked_numeric.to_numpy(dtype=float),
+            "weight": weight_numeric.to_numpy(dtype=float),
+        },
+        index=panel.index,
+    )
+    eps = 1e-12
+    by_date = smoke_frame.groupby("date", sort=True)
+    gross_by_date = by_date["weight"].apply(lambda s: float(s.abs().sum()))
+    active_dates = gross_by_date[gross_by_date > eps].index
+    if len(active_dates) == 0:
+        raise ValueError("weights are all zero")
+
+    net_by_date = by_date["weight"].sum().reindex(active_dates)
+    long_count_by_date = by_date["weight"].apply(lambda s: int((s > eps).sum())).reindex(active_dates)
+    short_count_by_date = by_date["weight"].apply(lambda s: int((s < -eps).sum())).reindex(active_dates)
+    long_sum_by_date = by_date["weight"].apply(lambda s: float(s[s > eps].sum())).reindex(active_dates)
+    short_sum_by_date = by_date["weight"].apply(lambda s: float(-s[s < -eps].sum())).reindex(active_dates)
+    active = smoke_frame["weight"].abs() > eps
+    sign_bad = active & (
+        ((smoke_frame["weight"] > eps) & (smoke_frame["ranked_signal"] < -eps))
+        | ((smoke_frame["weight"] < -eps) & (smoke_frame["ranked_signal"] > eps))
+    )
 
     output = {
         "max_weight": max_weight,
         "nonzero_weight_count": float(finite_weights.ne(0.0).sum()),
         "mean_abs_weight": float(finite_weights.abs().mean()),
+        "active_day_count": float(len(active_dates)),
+        "mean_gross_exposure": float(gross_by_date.reindex(active_dates).mean()),
+        "max_gross_exposure": float(gross_by_date.max()),
+        "mean_net_exposure": float(net_by_date.mean()),
+        "max_abs_net_exposure": float(net_by_date.abs().max()),
+        "min_long_count_active_day": float(long_count_by_date.min()),
+        "min_short_count_active_day": float(short_count_by_date.min()),
+        "mean_long_exposure": float(long_sum_by_date.mean()),
+        "mean_short_exposure": float(short_sum_by_date.mean()),
+        "side_sign_bad_count": float(sign_bad.sum()),
+        "side_sign_bad_weight": float(smoke_frame.loc[sign_bad, "weight"].abs().sum()),
     }
     for key, value in metrics.items():
         if isinstance(value, (int, float)) and math.isfinite(float(value)):
             output[f"eval_{key}"] = float(value)
+
+    gross_limit = float(params.get("gross_exposure", 1.0)) * 1.05 + 1e-12
+    net_limit = max(0.05, 0.10 * output["max_gross_exposure"])
+    if output["max_gross_exposure"] > gross_limit:
+        raise PortfolioSemanticError(
+            f"gross exposure too large: {output['max_gross_exposure']} > {gross_limit}",
+            output,
+        )
+    if output["max_abs_net_exposure"] > net_limit:
+        raise PortfolioSemanticError(
+            f"net exposure too large: {output['max_abs_net_exposure']} > {net_limit}",
+            output,
+        )
+    if output["min_long_count_active_day"] <= 0 or output["min_short_count_active_day"] <= 0:
+        raise PortfolioSemanticError("active days must contain both long and short weights", output)
+    if output["side_sign_bad_count"] > 0 and output["side_sign_bad_weight"] > 1e-9:
+        raise PortfolioSemanticError(
+            f"weights disagree with ranked signal sign for {output['side_sign_bad_count']} rows",
+            output,
+        )
     return output
 
 
-def run_micro_filter(parent_text: str, generated_text: str) -> MicroFilterResult:
+def run_micro_filter(
+    parent_text: str,
+    generated_text: str,
+    *,
+    target_surface: str | None = None,
+) -> MicroFilterResult:
     """Apply deterministic controller-static checks to one generated patch."""
 
     gates = {
@@ -190,6 +307,7 @@ def run_micro_filter(parent_text: str, generated_text: str) -> MicroFilterResult
         "no_new_imports": False,
         "compile_pass": False,
         "vector_smoke_pass": False,
+        "portfolio_semantic_pass": False,
     }
     text = generated_text.strip()
     if not text:
@@ -217,7 +335,11 @@ def run_micro_filter(parent_text: str, generated_text: str) -> MicroFilterResult
     gates["exact_search_match"] = True
 
     try:
-        safe, reason = _search_blocks_inside_evolve_blocks(parent_text, generated_text)
+        safe, reason = _search_blocks_inside_evolve_blocks(
+            parent_text,
+            generated_text,
+            target_surface=target_surface,
+        )
     except (DiffBlockError, EvolveBlockError) as exc:
         return _fail(gates, category="outside_evolve_block", reason=str(exc), parsed_block_count=parsed_count)
     if not safe:
@@ -275,9 +397,19 @@ def run_micro_filter(parent_text: str, generated_text: str) -> MicroFilterResult
 
     try:
         smoke_metrics = _vector_smoke(child_text)
+    except PortfolioSemanticError as exc:
+        gates["vector_smoke_pass"] = True
+        return _fail(
+            gates,
+            category="portfolio_semantic_failed",
+            reason=str(exc),
+            parsed_block_count=parsed_count,
+            vector_smoke_metrics=exc.metrics,
+        )
     except Exception as exc:
         return _fail(gates, category="vector_smoke_failed", reason=str(exc), parsed_block_count=parsed_count)
     gates["vector_smoke_pass"] = True
+    gates["portfolio_semantic_pass"] = True
 
     return MicroFilterResult(
         decision="pass",
