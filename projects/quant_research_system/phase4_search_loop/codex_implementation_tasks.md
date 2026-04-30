@@ -194,7 +194,32 @@ The Qwen router is a remote-server client. It must not attempt to launch or call
 
 Do not require 27B/35B for first milestone.
 
-## Task J. Run 50 Remote Controller Attempts
+## Task J. Run Small Remote Controller Dry Run, Then 50 Attempts
+
+First run 5 to 10 child attempts on the remote server through the remote controller and Qwen3.5-9B. This is a controller-static dry run only. It must not launch child `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, or test-set evaluation.
+
+Recommended first command:
+
+```bash
+python research/alphaevolve_lite/scripts/run_child_batch.py \
+  --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
+  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
+  --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
+  --attempts 5 \
+  --model-role fast_generator
+```
+
+Review:
+
+```text
+artifacts/phase4_alphaevolve/controller_batch_001_small/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/raw_output.txt
+```
+
+If the small dry run shows the controller path is healthy, then run the larger batch:
 
 Run 50 child attempts on the remote server through the remote controller and Qwen3.5-9B.
 

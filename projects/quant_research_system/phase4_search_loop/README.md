@@ -119,6 +119,7 @@ New implementation-policy files:
 - [processed_outputs_policy.md](processed_outputs_policy.md): how to use processed research CSV outputs and validate source scripts.
 - [remote_csv_execution_policy.md](remote_csv_execution_policy.md): remote CSV execution, artifact, and storage rules.
 - [remote_sample_eval_hardening_20260430.md](remote_sample_eval_hardening_20260430.md): duplicate, null-baseline, git-status, and turnover-aware-score hardening for seed sample evaluation.
+- [controller_child_dry_run_20260430.md](controller_child_dry_run_20260430.md): small Qwen controller dry-run protocol before any child historical evaluation.
 - [prompt_contracts.md](prompt_contracts.md): exact prompt modes, output rules, repair prompts, and model routing.
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
@@ -186,7 +187,7 @@ The first loop is complete when:
 - seed program exists with at least signal and portfolio evolve blocks
 - the rolling top-500-by-market-cap universe is reproducible and point-in-time safe
 - the 70/15/15 chronological split is fixed under a named `split_id`
-- `Qwen3.5-9B` can generate 50+ children through the remote server's localhost vLLM API
+- `Qwen3.5-9B` first produces a small auditable controller dry run, then can generate 50+ children through the remote server's localhost vLLM API
 - every child is stored in the program database with lineage and result status
 - malformed/oversized patches are repaired once or rejected
 - `controller_static` produces valid `evaluator_summary.json`

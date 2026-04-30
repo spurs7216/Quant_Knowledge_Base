@@ -28,7 +28,7 @@ This task implements Task 001. It does not replace Task 001. Task 001 remains th
 
 All Qwen calls and AlphaEvolve-lite controller execution for this task run on the remote Linux/GPU/data server. The local Windows machine may edit the code/specification and review compact artifacts, but it must not launch Qwen or run LLM inference.
 
-As of `daily_stock_contract_v1`, field-name verification is complete. The next executable gate is the seed `remote_sample_eval`; child generation remains blocked until the sample-eval bundle is reviewed.
+As of `remote_sample_eval_seed_v2`, the daily-stock contract and seed sample-eval infrastructure are verified enough to start a small controller child dry run. Child generation is now unblocked only for `controller_static` attempts. Child `remote_sample_eval`, stage-0 evaluation, full validation, and test-set use remain blocked until the generated patches and controller metrics are reviewed.
 
 ## Required Deliverables
 
@@ -160,6 +160,8 @@ Prompt must include:
 
 Use [prompt_contracts.md](prompt_contracts.md).
 
+Implemented in `research/alphaevolve_lite/prompt_builder.py` for the first child dry run. The prompt includes the parent program, daily-stock-only scope, immutable rules, SEARCH/REPLACE contract, allowed evolve surfaces, and compact evaluator evidence from the hardened seed sample evaluation.
+
 ### 5. Qwen Model Router
 
 Create:
@@ -194,6 +196,18 @@ deep_generator:
   base_url: http://127.0.0.1:8010/v1
 ```
 
+Implemented in `research/alphaevolve_lite/model_router.py` for `fast_generator` and `critic_repair`.
+
+Remote operator preflight is mandatory before any non-mock child batch:
+
+1. Open a dedicated terminal or `tmux` pane on the remote Linux/GPU server.
+2. Launch the Qwen3.5-9B vLLM server there and keep the terminal alive.
+3. Set `AE_VLLM_API_KEY` only in the remote shell or private scheduler environment.
+4. From a separate remote terminal, verify `/health` and `/v1/models`.
+5. Only then call `run_child_batch.py`.
+
+The local Windows machine must not launch Qwen and must not be used for Phase 4 LLM inference.
+
 ### 6. Controller Static Micro-Filter
 
 Create:
@@ -217,7 +231,31 @@ Required checks:
 - compile;
 - vector smoke.
 
-### 7. First Remote Controller Batch
+Implemented in `research/alphaevolve_lite/micro_filter.py` for first-pass controller filtering. It checks SEARCH/REPLACE parsing, exact unique SEARCH matches, evolve-block containment, marker preservation, forbidden broker/data-loader patterns, new imports, Python compilation, and a synthetic vector smoke run against the seed module interface.
+
+### 7. First Remote Controller Dry Run
+
+Run a small remote controller batch first:
+
+```bash
+python research/alphaevolve_lite/scripts/run_child_batch.py \
+  --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
+  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
+  --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
+  --attempts 5 \
+  --model-role fast_generator
+```
+
+Purpose:
+
+- prove Qwen server preflight, prompt construction, model routing, patch parsing, micro-filtering, and database insertion work end to end;
+- inspect raw proposals before increasing search pressure;
+- avoid evaluating child programs on remote historical data until the controller output is auditable.
+
+This first dry run must not launch child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation.
+
+### 8. First 50 Remote Controller Attempts
 
 Run:
 
@@ -240,7 +278,9 @@ Track:
 - vector-smoke pass;
 - program database insertion pass.
 
-### 8. First Sample Evaluation
+Only run this 50-attempt controller batch after the small dry run shows that patches are well formed, exact-match failures are understood, and the program database records every attempt.
+
+### 9. First Child Sample Evaluation
 
 After `controller_static` and `toy_eval` success, run a small historical `remote_sample_eval` on remote CSV data.
 
@@ -264,6 +304,8 @@ Do not run full remote validation until:
 - sample evaluation artifacts are valid;
 - null and cost outputs exist;
 - `evaluator_summary.json` is prompt-ready.
+
+For the immediate next milestone, this sample evaluation applies only after reviewing `controller_batch_001_small`. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
 
 ## Acceptance Criteria
 

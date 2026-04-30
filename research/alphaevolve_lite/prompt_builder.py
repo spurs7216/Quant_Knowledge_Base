@@ -1,0 +1,175 @@
+"""Prompt construction for Phase 4 AlphaEvolve-lite child dry runs."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any
+
+
+STRICT_SEARCH_REPLACE_SYSTEM_PROMPT = """You are a code patch generator for a quantitative research AlphaEvolve loop.
+
+You must output only SEARCH/REPLACE blocks in exactly this format:
+
+<<<<<<< SEARCH
+exact original code
+=======
+replacement code
+>>>>>>> REPLACE
+
+Rules:
+- No markdown fences.
+- No explanation.
+- The SEARCH text must be copied exactly from the current code.
+- The output must contain the literal final line: >>>>>>> REPLACE.
+- The SEARCH block must contain only lines strictly between # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END.
+- Do not include function definitions in the SEARCH block.
+- Do not include # EVOLVE-BLOCK-START or # EVOLVE-BLOCK-END in the SEARCH block.
+- Do not introduce new imports, new global names, file I/O, data loading, or undeclared dependencies.
+- Do not change train/validation/test split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
+- Do not add broker, IBKR, TWS, account, position, order, or credential logic.
+- If no valid change is possible, output exactly: NO_VALID_PATCH.
+"""
+
+
+IMMUTABLE_RULES = """You may not change train/validation/test split dates or split proportions.
+You may not change the rolling top-500-by-market-cap universe policy.
+You may not change raw data paths.
+You may not remove or weaken transaction costs.
+You may not edit duplicate policy, return timing, artifact-writing logic, or evaluator gates.
+You may not add broker, IBKR, TWS, account, position, order, or credential logic.
+You may not add a non-primary dataset unless the prompt explicitly provides a dataset_admission_id.
+You must keep SEARCH blocks strictly inside EVOLVE-BLOCK markers.
+"""
+
+
+DEFAULT_MUTATION_INSTRUCTION = """Improve the generation-zero Kalman innovation reversal seed for the next controller-static dry run.
+
+The hardened sample evaluator showed:
+- the seed passes infrastructure gates but loses money after costs;
+- turnover is high;
+- random matched long/short baselines are worse than the seed;
+- the sign-flipped seed is better than the current seed.
+
+Prefer bounded changes to signal direction, turnover dampening, ranking transform, or risk controls.
+Do not edit loader, universe, split, cost, duplicate, artifact, or data-contract logic.
+Return one SEARCH/REPLACE patch only unless a second patch is necessary for the same local idea.
+"""
+
+
+def load_json_if_exists(path: str | Path | None) -> dict[str, Any]:
+    if not path:
+        return {}
+    file_path = Path(path)
+    if not file_path.exists():
+        return {}
+    return json.loads(file_path.read_text(encoding="utf-8"))
+
+
+def compact_evaluator_context(summary: dict[str, Any]) -> str:
+    """Extract prompt-facing evaluator evidence from a hardened summary."""
+
+    if not summary:
+        return "No evaluator summary supplied."
+    metrics = summary.get("metrics", {}).get("search_sample", {})
+    baseline = summary.get("baseline_summary", {})
+    fields = {
+        "decision": summary.get("decision"),
+        "search_sample_sharpe": metrics.get("sharpe"),
+        "search_sample_annualized_return": metrics.get("annualized_return"),
+        "search_sample_turnover": metrics.get("turnover"),
+        "search_sample_turnover_aware_score": metrics.get("turnover_aware_score"),
+        "max_weight": metrics.get("max_weight"),
+        "max_missing_held_weight": metrics.get("max_missing_held_weight"),
+        "random_sharpe_summary": baseline.get("random_search_sample_sharpe"),
+        "random_turnover_aware_summary": baseline.get("random_search_sample_turnover_aware_score"),
+        "sign_flip_search_sample": baseline.get("sign_flip_search_sample"),
+    }
+    return json.dumps(fields, indent=2, sort_keys=True)
+
+
+def build_child_generation_prompt(
+    *,
+    parent_code: str,
+    evaluator_summary: dict[str, Any] | None = None,
+    attempt_index: int = 0,
+    mutation_instruction: str = DEFAULT_MUTATION_INSTRUCTION,
+) -> dict[str, str]:
+    """Build system/user messages for a child-generation attempt."""
+
+    context = compact_evaluator_context(evaluator_summary or {})
+    user_prompt = f"""Task type: controller_static_child_dry_run
+Attempt index: {attempt_index}
+Allowed mutation surfaces: signal, ranking, portfolio, risk
+Data scope: daily_stock_only
+Universe policy: rolling_top500_market_cap_v1
+Split policy: daily_stock_top500_chrono_70_15_15_v1
+daily_stock contract: daily_stock_contract_v1
+
+Relevant evaluator feedback:
+{context}
+
+Immutable rules:
+{IMMUTABLE_RULES}
+
+Current program:
+```python
+{parent_code}
+```
+
+Output format example:
+<<<<<<< SEARCH
+    old_line
+=======
+    new_line
+>>>>>>> REPLACE
+
+Task:
+{mutation_instruction}
+
+Output only one or more SEARCH/REPLACE blocks. Do not write commentary.
+"""
+    return {
+        "system": STRICT_SEARCH_REPLACE_SYSTEM_PROMPT,
+        "user": user_prompt,
+    }
+
+
+def write_prompt_artifact(out_dir: str | Path, messages: dict[str, str]) -> dict[str, str]:
+    path = Path(out_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    json_path = path / "prompt.json"
+    md_path = path / "prompt.md"
+    json_path.write_text(json.dumps(messages, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    md_path.write_text(
+        "\n".join(
+            [
+                "# Child Generation Prompt",
+                "",
+                "## System",
+                "",
+                "```text",
+                messages["system"],
+                "```",
+                "",
+                "## User",
+                "",
+                "```text",
+                messages["user"],
+                "```",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return {"json": str(json_path), "markdown": str(md_path)}
+
+
+__all__ = [
+    "DEFAULT_MUTATION_INSTRUCTION",
+    "IMMUTABLE_RULES",
+    "STRICT_SEARCH_REPLACE_SYSTEM_PROMPT",
+    "build_child_generation_prompt",
+    "load_json_if_exists",
+    "write_prompt_artifact",
+]
