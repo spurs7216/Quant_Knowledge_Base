@@ -112,6 +112,7 @@ Core design files:
 New implementation-policy files:
 
 - [phase4_sampling_policy_v1.md](phase4_sampling_policy_v1.md): data-aware MAP-Elites + island sampling policy.
+- [daily_stock_contract_v1.md](daily_stock_contract_v1.md): frozen `daily_stock` field mapping, fixed eligibility filters, and seed evaluator command.
 - [program_database_schema.md](program_database_schema.md): SQLite schema, JSONL audit log, and descriptor fields.
 - [universe_and_split_policy.md](universe_and_split_policy.md): 70/15/15 split and rolling top-500 universe rules.
 - [dataset_admission_policy.md](dataset_admission_policy.md): staged dataset unlock and point-in-time join requirements.

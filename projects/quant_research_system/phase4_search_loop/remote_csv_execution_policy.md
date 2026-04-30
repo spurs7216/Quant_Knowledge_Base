@@ -109,6 +109,8 @@ The exact column names must be verified against the sample and EDA summaries bef
 
 Before freezing the `daily_stock` contract, schema evidence must include not only column names and dtypes but also compact value diagnostics for universe-critical fields: date range, identifier fields, return fields, price, volume, dollar volume, market cap or shares outstanding, exchange, security type, share type, trading status, conditional type, US-incorporation flag, and industry fields. A bounded sample is enough for this contract preflight, but the report must be explicit about sample size and must not be mistaken for full-file coverage.
 
+`daily_stock_contract_v1` is now frozen from `schema_evidence_v2`; implementation must import the contract from `research/alphaevolve_lite/daily_stock_contract.py` rather than retyping field names.
+
 ## Output Bundle
 
 Every remote validation must produce:

@@ -1,8 +1,8 @@
 ---
 title: Phase 4 Task 004 Seed Strategy Program and Qwen Loop
 type: project
-status: proposed
-updated: 2026-04-29
+status: active
+updated: 2026-04-30
 tags:
   - project
   - phase4
@@ -11,6 +11,7 @@ tags:
   - qwen
 sources:
   - "README.md"
+  - "daily_stock_contract_v1.md"
   - "task_001_search_design.md"
   - "task_003_alphaevolve_scaffold.md"
   - "universe_and_split_policy.md"
@@ -26,6 +27,8 @@ Create the first true AlphaEvolve-style seed strategy program for the Kalman/rev
 This task implements Task 001. It does not replace Task 001. Task 001 remains the design contract for the Phase 4 search loop.
 
 All Qwen calls and AlphaEvolve-lite controller execution for this task run on the remote Linux/GPU/data server. The local Windows machine may edit the code/specification and review compact artifacts, but it must not launch Qwen or run LLM inference.
+
+As of `daily_stock_contract_v1`, field-name verification is complete. The next executable gate is the seed `remote_sample_eval`; child generation remains blocked until the sample-eval bundle is reviewed.
 
 ## Required Deliverables
 
@@ -68,6 +71,8 @@ def evaluate(eval_inputs) -> dict[str, float]:
     ...
 ```
 
+Implemented as generation-zero Kalman innovation reversal seed with EVOLVE blocks for `signal`, `ranking`, `portfolio`, and `risk`.
+
 Non-evolvable skeleton owns:
 
 - CSV data loading;
@@ -98,6 +103,15 @@ Requirements:
 - universe summary written;
 - candidate code cannot edit these files through evolve blocks.
 
+Implemented with verified `daily_stock_contract_v1` fields in:
+
+```text
+research/alphaevolve_lite/daily_stock_contract.py
+research/alphaevolve_lite/daily_stock_loader.py
+research/alphaevolve_lite/splits.py
+research/alphaevolve_lite/universe.py
+```
+
 ### 3. Program Database Generation Zero
 
 Insert seed as generation zero:
@@ -116,6 +130,13 @@ mutation_surface:
   secondary: []
   surface_count: 0
 data_scope: daily_stock_only
+```
+
+Use:
+
+```bash
+python research/alphaevolve_lite/scripts/register_seed_program.py \
+  --db-path artifacts/phase4_alphaevolve/program_database.sqlite
 ```
 
 ### 4. Prompt Builder
@@ -222,6 +243,17 @@ Track:
 ### 8. First Sample Evaluation
 
 After `controller_static` and `toy_eval` success, run a small historical `remote_sample_eval` on remote CSV data.
+
+Use:
+
+```bash
+python research/alphaevolve_lite/scripts/remote_sample_eval.py \
+  --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
+  --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v1 \
+  --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
+  --start-date 2018-01-01 \
+  --end-date 2020-12-31
+```
 
 Do not run full remote validation until:
 
