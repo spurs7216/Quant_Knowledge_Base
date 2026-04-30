@@ -204,7 +204,7 @@ Recommended first command:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 5 \
   --model-role fast_generator \
@@ -214,10 +214,12 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/repair_output.txt
 ```
 
 If the small dry run shows the controller path is healthy, then run the larger batch:

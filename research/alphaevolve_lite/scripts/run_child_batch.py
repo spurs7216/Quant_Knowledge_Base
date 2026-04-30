@@ -29,7 +29,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--temperature-grid", default="0.0,0.2,0.5")
     parser.add_argument("--max-tokens", type=int, default=4096)
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
-    parser.add_argument("--mock-patch-mode", choices=["none", "sign_flip", "no_valid_patch"], default="none")
+    parser.add_argument(
+        "--mock-patch-mode",
+        choices=["none", "sign_flip", "marker_oversize", "no_valid_patch"],
+        default="none",
+    )
+    parser.add_argument("--no-repair", action="store_true", help="Disable one-shot critic repair.")
     return parser.parse_args()
 
 
@@ -49,6 +54,31 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(clean_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
+def write_messages(path: Path, title: str, messages: dict[str, str]) -> None:
+    write_json(path.with_suffix(".json"), messages)
+    path.with_suffix(".md").write_text(
+        "\n".join(
+            [
+                f"# {title}",
+                "",
+                "## System",
+                "",
+                "```text",
+                messages["system"],
+                "```",
+                "",
+                "## User",
+                "",
+                "```text",
+                messages["user"],
+                "```",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def mock_patch(parent_text: str, mode: str) -> str:
     if mode == "no_valid_patch":
         return "NO_VALID_PATCH"
@@ -63,29 +93,65 @@ def mock_patch(parent_text: str, mode: str) -> str:
             "        signal = -signal / rolling_vol.clip(lower=1e-4)\n"
             ">>>>>>> REPLACE\n"
         )
+    if mode == "marker_oversize":
+        search = (
+            "    # EVOLVE-BLOCK-START: signal\n"
+            "    q = float(cfg[\"kalman_q\"])\n"
+            "    r = float(cfg[\"kalman_r\"])\n"
+            "    min_history = int(cfg[\"min_history\"])\n"
+        )
+        if search not in parent_text:
+            raise RuntimeError("mock marker_oversize SEARCH text not found")
+        replace = search + "    # mock oversized patch touched marker lines\n"
+        return f"<<<<<<< SEARCH\n{search}=======\n{replace}>>>>>>> REPLACE\n"
     raise RuntimeError(f"unknown mock patch mode: {mode}")
+
+
+def mock_repair_patch(parent_text: str, mode: str) -> str:
+    if mode == "marker_oversize":
+        return mock_patch(parent_text, "sign_flip")
+    return "NO_VALID_PATCH"
+
+
+REPAIRABLE_FAILURE_CATEGORIES = {
+    "malformed_search_replace",
+    "exact_search_not_found",
+    "outside_evolve_block",
+    "evolve_marker_error",
+}
 
 
 def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
     total = len(attempts)
 
-    def rate(gate: str) -> float:
+    def final_rate(gate: str) -> float:
         if total == 0:
             return 0.0
         return sum(1 for item in attempts if item.get("hard_gates", {}).get(gate)) / total
 
+    def initial_rate(gate: str) -> float:
+        if total == 0:
+            return 0.0
+        return sum(
+            1
+            for item in attempts
+            if item.get("initial_hard_gates", item.get("hard_gates", {})).get(gate)
+        ) / total
+
     passed = [item for item in attempts if item.get("decision") == "pass"]
+    repair_attempts = [item for item in attempts if item.get("repair_attempted")]
+    repair_successes = [item for item in repair_attempts if item.get("repair_succeeded")]
     return {
         "attempt_count": total,
         "pass_count": len(passed),
-        "raw_parse_pass_rate": rate("parse_search_replace"),
-        "repair_attempt_rate": 0.0,
-        "repair_success_rate": 0.0,
-        "exact_search_match_rate": rate("exact_search_match"),
-        "evolve_block_safe_rate": rate("evolve_block_safe"),
-        "apply_pass_rate": rate("apply_patch"),
-        "compile_pass_rate": rate("compile_pass"),
-        "vector_smoke_pass_rate": rate("vector_smoke_pass"),
+        "raw_parse_pass_rate": initial_rate("parse_search_replace"),
+        "repair_attempt_rate": len(repair_attempts) / total if total else 0.0,
+        "repair_success_rate": len(repair_successes) / len(repair_attempts) if repair_attempts else 0.0,
+        "exact_search_match_rate": final_rate("exact_search_match"),
+        "evolve_block_safe_rate": final_rate("evolve_block_safe"),
+        "apply_pass_rate": final_rate("apply_patch"),
+        "compile_pass_rate": final_rate("compile_pass"),
+        "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
         "db_insert_pass_rate": sum(1 for item in attempts if item.get("db_inserted")) / total if total else 0.0,
         "failure_categories": {
             str(category): sum(1 for item in attempts if item.get("failure_category") == category)
@@ -101,6 +167,8 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- attempt_count: `{summary['attempt_count']}`",
         f"- pass_count: `{summary['pass_count']}`",
         f"- raw_parse_pass_rate: `{summary['raw_parse_pass_rate']}`",
+        f"- repair_attempt_rate: `{summary['repair_attempt_rate']}`",
+        f"- repair_success_rate: `{summary['repair_success_rate']}`",
         f"- exact_search_match_rate: `{summary['exact_search_match_rate']}`",
         f"- evolve_block_safe_rate: `{summary['evolve_block_safe_rate']}`",
         f"- apply_pass_rate: `{summary['apply_pass_rate']}`",
@@ -127,6 +195,8 @@ def main() -> int:
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
     from research.alphaevolve_lite.prompt_builder import (
         build_child_generation_prompt,
+        build_patch_repair_prompt,
+        choose_target_surface,
         load_json_if_exists,
         write_prompt_artifact,
     )
@@ -155,10 +225,12 @@ def main() -> int:
         attempt_dir = out_dir / f"attempt_{attempt:03d}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         temperature = temperatures[attempt % len(temperatures)]
+        target_surface = choose_target_surface(attempt)
         messages = build_child_generation_prompt(
             parent_code=parent_text,
             evaluator_summary=evaluator_summary,
             attempt_index=attempt,
+            target_surface=target_surface,
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -186,6 +258,52 @@ def main() -> int:
         write_json(attempt_dir / "model_response.json", response_record)
 
         result = run_micro_filter(parent_text, generated_text)
+        initial_result_record = result.to_record()
+        write_json(attempt_dir / "micro_filter_initial_result.json", initial_result_record)
+        repair_attempted = False
+        repair_succeeded = False
+        repair_record: dict[str, Any] | None = None
+
+        if (
+            not args.no_repair
+            and result.decision != "pass"
+            and result.failure_category in REPAIRABLE_FAILURE_CATEGORIES
+        ):
+            repair_attempted = True
+            repair_messages = build_patch_repair_prompt(
+                parent_code=parent_text,
+                unsafe_patch=generated_text,
+                failure_reason=result.failure_reason or result.failure_category or "unknown",
+                attempt_index=attempt,
+                target_surface=target_surface,
+            )
+            write_messages(attempt_dir / "repair_prompt", "Patch Repair Prompt", repair_messages)
+            if args.mock_patch_mode == "none":
+                repair_record = chat_completion(
+                    role="critic_repair",
+                    system_prompt=repair_messages["system"],
+                    user_prompt=repair_messages["user"],
+                    temperature=0.0,
+                    max_tokens=args.max_tokens,
+                    verify=True,
+                )
+                repair_text = repair_record["content"]
+            else:
+                repair_text = mock_repair_patch(parent_text, args.mock_patch_mode)
+                repair_record = {
+                    "role": "mock_repair",
+                    "served_model_name": "mock",
+                    "temperature": 0.0,
+                    "content": repair_text,
+                }
+            (attempt_dir / "repair_output.txt").write_text(repair_text, encoding="utf-8")
+            write_json(attempt_dir / "repair_response.json", repair_record)
+            repair_result = run_micro_filter(parent_text, repair_text)
+            write_json(attempt_dir / "repair_micro_filter_result.json", repair_result.to_record())
+            if repair_result.decision == "pass":
+                result = repair_result
+                repair_succeeded = True
+
         result_record = result.to_record()
         program_id = f"{args.program_id_prefix}-{attempt:04d}"
         child_path = None
@@ -209,13 +327,17 @@ def main() -> int:
                         "data_scope": "daily_stock_only",
                         "status": "controller_static_pass" if result.decision == "pass" else "controller_static_reject",
                         "program_path": str(child_path) if child_path else str(program_path),
-                        "diff_path": str(attempt_dir / "raw_output.txt"),
+                        "diff_path": str(attempt_dir / ("repair_output.txt" if repair_succeeded else "raw_output.txt")),
                         "prompt_path": str(attempt_dir / "prompt.json"),
                         "evaluator_summary_path": None,
                         "metrics": result.vector_smoke_metrics,
                         "descriptors": {
                             "model_role": args.model_role,
                             "temperature": temperature,
+                            "target_surface": target_surface,
+                            "repair_attempted": repair_attempted,
+                            "repair_succeeded": repair_succeeded,
+                            "initial_failure_category": initial_result_record.get("failure_category"),
                             "dry_run_only": True,
                         },
                         "hard_gates": result.hard_gates,
@@ -236,9 +358,18 @@ def main() -> int:
             {
                 "attempt": attempt,
                 "program_id": program_id,
+                "target_surface": target_surface,
                 "temperature": temperature,
                 "db_inserted": db_inserted,
                 "child_program_path": str(child_path) if child_path else None,
+                "initial_decision": initial_result_record.get("decision"),
+                "initial_failure_category": initial_result_record.get("failure_category"),
+                "initial_failure_reason": initial_result_record.get("failure_reason"),
+                "initial_hard_gates": initial_result_record.get("hard_gates", {}),
+                "repair_attempted": repair_attempted,
+                "repair_succeeded": repair_succeeded,
+                "repair_response_path": str(attempt_dir / "repair_response.json") if repair_attempted else None,
+                "final_diff_path": str(attempt_dir / ("repair_output.txt" if repair_succeeded else "raw_output.txt")),
             }
         )
         write_json(attempt_dir / "micro_filter_result.json", result_record)

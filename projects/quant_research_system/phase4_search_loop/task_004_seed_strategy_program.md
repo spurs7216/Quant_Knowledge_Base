@@ -241,7 +241,7 @@ Run a small remote controller batch first:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 5 \
   --model-role fast_generator \
@@ -253,6 +253,8 @@ Purpose:
 - prove Qwen server preflight, prompt construction, model routing, patch parsing, micro-filtering, and database insertion work end to end;
 - inspect raw proposals before increasing search pressure;
 - avoid evaluating child programs on remote historical data until the controller output is auditable.
+
+The first run, `controller_batch_001_small`, proved the Qwen/router/database path but rejected all children at the evolve-block boundary. The repair-enabled rerun must use prompt slicing and one-shot `critic_repair` before deciding whether to scale to 50 controller attempts.
 
 This first dry run must not launch child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation.
 
@@ -306,7 +308,7 @@ Do not run full remote validation until:
 - null and cost outputs exist;
 - `evaluator_summary.json` is prompt-ready.
 
-For the immediate next milestone, this sample evaluation applies only after reviewing `controller_batch_001_small`. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
+For the immediate next milestone, this sample evaluation applies only after reviewing `controller_batch_001_small_repair_v1`. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
 
 ## Acceptance Criteria
 

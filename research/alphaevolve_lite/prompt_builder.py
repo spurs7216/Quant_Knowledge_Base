@@ -6,6 +6,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .evolve_blocks import END_MARKER, START_MARKER
+
+
+SURFACE_ORDER = ("signal", "ranking", "portfolio", "risk")
 
 STRICT_SEARCH_REPLACE_SYSTEM_PROMPT = """You are a code patch generator for a quantitative research AlphaEvolve loop.
 
@@ -32,6 +36,29 @@ Rules:
 """
 
 
+REPAIR_SYSTEM_PROMPT = """You repair unsafe or malformed AlphaEvolve SEARCH/REPLACE patches.
+
+You must output exactly one SEARCH/REPLACE block using this literal format:
+
+<<<<<<< SEARCH
+exact original code
+=======
+replacement code
+>>>>>>> REPLACE
+
+Rules:
+- No markdown fences.
+- No explanation.
+- The SEARCH text must be copied exactly from the editable code body supplied by the user.
+- The SEARCH block must contain only code strictly inside the EVOLVE-BLOCK.
+- Do not include function definitions.
+- Do not include # EVOLVE-BLOCK-START or # EVOLVE-BLOCK-END.
+- Preserve the intended semantic change when it can be expressed safely inside the target EVOLVE-BLOCK.
+- Do not invent a new strategy idea during repair.
+- If no valid safe repair is possible, output exactly: NO_VALID_PATCH.
+"""
+
+
 IMMUTABLE_RULES = """You may not change train/validation/test split dates or split proportions.
 You may not change the rolling top-500-by-market-cap universe policy.
 You may not change raw data paths.
@@ -53,8 +80,29 @@ The hardened sample evaluator showed:
 
 Prefer bounded changes to signal direction, turnover dampening, ranking transform, or risk controls.
 Do not edit loader, universe, split, cost, duplicate, artifact, or data-contract logic.
-Return one SEARCH/REPLACE patch only unless a second patch is necessary for the same local idea.
+Return exactly one SEARCH/REPLACE patch.
 """
+
+
+SURFACE_GUIDANCE = {
+    "signal": (
+        "Edit only the signal EVOLVE-BLOCK. Suitable changes include flipping the signal after volatility "
+        "scaling, adding bounded nonlinear damping, changing causal smoothing inside the existing group loop, "
+        "or attenuating noisy short-history observations."
+    ),
+    "ranking": (
+        "Edit only the ranking EVOLVE-BLOCK. Suitable changes include flipping ranked direction, robust "
+        "winsorization choices, monotone transforms, or stronger cross-sectional shrinkage."
+    ),
+    "portfolio": (
+        "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
+        "signal-strength weighting within the selected tails, or bounded gross exposure use through local logic."
+    ),
+    "risk": (
+        "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
+        "normalization, and conservative handling of small long or short books."
+    ),
+}
 
 
 def load_json_if_exists(path: str | Path | None) -> dict[str, Any]:
@@ -88,19 +136,71 @@ def compact_evaluator_context(summary: dict[str, Any]) -> str:
     return json.dumps(fields, indent=2, sort_keys=True)
 
 
+def choose_target_surface(attempt_index: int) -> str:
+    """Deterministically rotate target mutation surfaces across attempts."""
+
+    return SURFACE_ORDER[attempt_index % len(SURFACE_ORDER)]
+
+
+def extract_evolve_block_bodies(parent_code: str) -> dict[str, str]:
+    """Return evolve-block bodies keyed by marker name.
+
+    The seed uses markers such as ``# EVOLVE-BLOCK-START: signal``. Only the
+    body between the markers is returned, which is the only valid SEARCH source.
+    """
+
+    blocks: dict[str, str] = {}
+    lines = parent_code.splitlines(keepends=True)
+    current_name: str | None = None
+    current_body: list[str] = []
+    unnamed_count = 0
+    for line in lines:
+        if START_MARKER in line:
+            suffix = line.split(START_MARKER, 1)[1].strip()
+            if suffix.startswith(":"):
+                current_name = suffix[1:].strip() or f"unnamed_{unnamed_count}"
+            else:
+                current_name = f"unnamed_{unnamed_count}"
+            unnamed_count += 1
+            current_body = []
+            continue
+        if END_MARKER in line and current_name is not None:
+            blocks[current_name] = "".join(current_body)
+            current_name = None
+            current_body = []
+            continue
+        if current_name is not None:
+            current_body.append(line)
+    return blocks
+
+
+def editable_block_text(parent_code: str, target_surface: str) -> str:
+    blocks = extract_evolve_block_bodies(parent_code)
+    try:
+        return blocks[target_surface]
+    except KeyError as exc:
+        allowed = ", ".join(sorted(blocks))
+        raise ValueError(f"target surface {target_surface!r} not found; allowed: {allowed}") from exc
+
+
 def build_child_generation_prompt(
     *,
     parent_code: str,
     evaluator_summary: dict[str, Any] | None = None,
     attempt_index: int = 0,
+    target_surface: str | None = None,
     mutation_instruction: str = DEFAULT_MUTATION_INSTRUCTION,
 ) -> dict[str, str]:
     """Build system/user messages for a child-generation attempt."""
 
     context = compact_evaluator_context(evaluator_summary or {})
+    surface = target_surface or choose_target_surface(attempt_index)
+    editable_body = editable_block_text(parent_code, surface)
+    guidance = SURFACE_GUIDANCE.get(surface, "Edit only the target EVOLVE-BLOCK.")
     user_prompt = f"""Task type: controller_static_child_dry_run
 Attempt index: {attempt_index}
-Allowed mutation surfaces: signal, ranking, portfolio, risk
+Target mutation surface: {surface}
+Allowed mutation surface: {surface} only
 Data scope: daily_stock_only
 Universe policy: rolling_top500_market_cap_v1
 Split policy: daily_stock_top500_chrono_70_15_15_v1
@@ -112,10 +212,12 @@ Relevant evaluator feedback:
 Immutable rules:
 {IMMUTABLE_RULES}
 
-Current program:
+Editable code body for target surface `{surface}`:
 ```python
-{parent_code}
+{editable_body}
 ```
+
+Only copy SEARCH text from the editable code body above. Do not copy from helper functions, DEFAULT_PARAMS, function signatures, imports, loader code, or EVOLVE marker lines.
 
 Output format example:
 <<<<<<< SEARCH
@@ -127,10 +229,51 @@ Output format example:
 Task:
 {mutation_instruction}
 
-Output only one or more SEARCH/REPLACE blocks. Do not write commentary.
+Target-surface guidance:
+{guidance}
+
+Output exactly one SEARCH/REPLACE block. Do not write commentary.
 """
     return {
         "system": STRICT_SEARCH_REPLACE_SYSTEM_PROMPT,
+        "user": user_prompt,
+    }
+
+
+def build_patch_repair_prompt(
+    *,
+    parent_code: str,
+    unsafe_patch: str,
+    failure_reason: str,
+    attempt_index: int = 0,
+    target_surface: str | None = None,
+) -> dict[str, str]:
+    """Build a one-shot repair prompt for an unsafe child patch."""
+
+    surface = target_surface or choose_target_surface(attempt_index)
+    editable_body = editable_block_text(parent_code, surface)
+    user_prompt = f"""Task type: controller_static_patch_repair
+Target mutation surface: {surface}
+Allowed mutation surface: {surface} only
+
+Editable code body for target surface `{surface}`:
+```python
+{editable_body}
+```
+
+Unsafe patch:
+```text
+{unsafe_patch}
+```
+
+Reason rejected:
+{failure_reason}
+
+Repair instruction:
+Shrink or retarget the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. Preserve the original idea only if it can be expressed inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
+"""
+    return {
+        "system": REPAIR_SYSTEM_PROMPT,
         "user": user_prompt,
     }
 
@@ -168,8 +311,13 @@ def write_prompt_artifact(out_dir: str | Path, messages: dict[str, str]) -> dict
 __all__ = [
     "DEFAULT_MUTATION_INSTRUCTION",
     "IMMUTABLE_RULES",
+    "REPAIR_SYSTEM_PROMPT",
     "STRICT_SEARCH_REPLACE_SYSTEM_PROMPT",
     "build_child_generation_prompt",
+    "build_patch_repair_prompt",
+    "choose_target_surface",
+    "editable_block_text",
+    "extract_evolve_block_bodies",
     "load_json_if_exists",
     "write_prompt_artifact",
 ]

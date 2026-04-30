@@ -35,6 +35,14 @@ research/alphaevolve_lite/scripts/run_child_batch.py
 
 The dry-run path builds a strict SEARCH/REPLACE prompt, calls the remote Qwen/vLLM server, applies deterministic controller-static filtering, writes per-attempt artifacts, and inserts every attempt into the SQLite program database when `--db-path` is supplied.
 
+After `controller_batch_001_small`, the controller was tightened:
+
+- generation prompts now expose only one target evolve-block body per attempt, not the whole seed program;
+- target surfaces rotate across `signal`, `ranking`, `portfolio`, and `risk`;
+- the prompt asks for exactly one SEARCH/REPLACE block;
+- rejected repairable patches get one `critic_repair` pass;
+- summaries report `repair_attempt_rate` and `repair_success_rate`.
+
 The child batch script intentionally writes:
 
 ```yaml
@@ -66,7 +74,7 @@ Run:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 5 \
   --model-role fast_generator \
@@ -76,12 +84,21 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Expected artifacts:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/prompt.json
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small/attempt_*/child_program.py
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/prompt.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/child_program.py
+```
+
+If a repair is attempted, also inspect:
+
+```text
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/repair_prompt.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_repair_v1/attempt_*/repair_micro_filter_result.json
 ```
 
 ## Review Gates
@@ -95,6 +112,7 @@ Minimum things to check:
 - exact-match failures are explainable;
 - all accepted SEARCH blocks are strictly inside evolve blocks;
 - vector smoke failures are informative rather than infrastructure failures;
+- repair attempts preserve intended semantics instead of inventing unrelated patches;
 - database insertion rate is measured;
 - no child `remote_sample_eval`, stage-0 eval, full validation, or test-set evaluation was launched.
 

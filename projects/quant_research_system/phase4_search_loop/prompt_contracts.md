@@ -131,10 +131,12 @@ Relevant evaluator feedback:
 Immutable rules:
 {immutable_rules}
 
-Current program:
+Editable code body for target surface `{mutation_surface.primary}`:
 ```python
-{parent_code_or_slice}
+{target_evolve_block_body_without_markers}
 ```
+
+Only copy SEARCH text from the editable code body above. Do not copy from helper functions, DEFAULT_PARAMS, function signatures, imports, loader code, or EVOLVE marker lines.
 
 Output format example:
 <<<<<<< SEARCH
@@ -146,7 +148,7 @@ Output format example:
 Task:
 {specific_mutation_instruction}
 
-Output only one or more SEARCH/REPLACE blocks. Do not write commentary.
+Output exactly one SEARCH/REPLACE block. Do not write commentary.
 ```
 
 ## Repair System Prompt
@@ -169,7 +171,8 @@ Rules:
 - The SEARCH block must not include function definitions or EVOLVE markers unless the repair task explicitly says whole-block replacement is allowed.
 - Preserve the intended semantic change when possible.
 - Do not invent a new strategy idea during repair.
-- The final line must be exactly: >>>>>>> REPLACE.
+- If no valid safe repair is possible, output exactly: NO_VALID_PATCH.
+- For a valid repaired patch, the final line must be exactly: >>>>>>> REPLACE.
 ```
 
 ## Oversized Patch Repair User Prompt Template
@@ -179,7 +182,7 @@ The following patch is syntactically valid but unsafe because the SEARCH block i
 
 Current code:
 ```python
-{current_code}
+{target_evolve_block_body_without_markers}
 ```
 
 Unsafe patch:
@@ -188,8 +191,8 @@ Unsafe patch:
 Reason rejected:
 {failure_reason}
 
-Shrink the SEARCH/REPLACE block so that only code strictly inside the EVOLVE-BLOCK is modified.
-Output only one valid SEARCH/REPLACE block.
+Shrink or retarget the SEARCH/REPLACE block so that only code strictly inside the target EVOLVE-BLOCK is modified.
+Output only one valid SEARCH/REPLACE block, or output exactly NO_VALID_PATCH if no safe repair exists.
 ```
 
 ## Reviewer Prompt Contract
