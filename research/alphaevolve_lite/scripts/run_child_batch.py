@@ -29,6 +29,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-role", default="fast_generator")
     parser.add_argument("--temperature-grid", default="0.0,0.2,0.5")
     parser.add_argument("--max-tokens", type=int, default=4096)
+    parser.add_argument("--empty-retry-attempts", type=int, default=1)
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
     parser.add_argument(
         "--mock-patch-mode",
@@ -134,6 +135,8 @@ REPAIRABLE_FAILURE_CATEGORIES = {
     "exact_search_not_found",
     "outside_evolve_block",
     "evolve_marker_error",
+    "vector_smoke_failed",
+    "portfolio_semantic_failed",
 }
 
 
@@ -157,12 +160,26 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
     passed = [item for item in attempts if item.get("decision") == "pass"]
     repair_attempts = [item for item in attempts if item.get("repair_attempted")]
     repair_successes = [item for item in repair_attempts if item.get("repair_succeeded")]
+    empty_retries = [item for item in attempts if item.get("empty_retry_count", 0) > 0]
+    empty_retry_successes = [item for item in empty_retries if item.get("empty_retry_succeeded")]
+    reasoning_only_empty = [
+        item
+        for item in attempts
+        if item.get("initial_response_content_length", 0) == 0
+        and item.get("initial_response_reasoning_length", 0) > 0
+    ]
     return {
         "attempt_count": total,
         "pass_count": len(passed),
         "raw_parse_pass_rate": initial_rate("parse_search_replace"),
         "repair_attempt_rate": len(repair_attempts) / total if total else 0.0,
         "repair_success_rate": len(repair_successes) / len(repair_attempts) if repair_attempts else 0.0,
+        "empty_retry_rate": len(empty_retries) / total if total else 0.0,
+        "empty_retry_success_rate": len(empty_retry_successes) / len(empty_retries) if empty_retries else 0.0,
+        "reasoning_only_empty_count": len(reasoning_only_empty),
+        "max_initial_response_reasoning_length": max(
+            [int(item.get("initial_response_reasoning_length", 0)) for item in attempts] or [0]
+        ),
         "exact_search_match_rate": final_rate("exact_search_match"),
         "evolve_block_safe_rate": final_rate("evolve_block_safe"),
         "apply_pass_rate": final_rate("apply_patch"),
@@ -188,6 +205,10 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- raw_parse_pass_rate: `{summary['raw_parse_pass_rate']}`",
         f"- repair_attempt_rate: `{summary['repair_attempt_rate']}`",
         f"- repair_success_rate: `{summary['repair_success_rate']}`",
+        f"- empty_retry_rate: `{summary['empty_retry_rate']}`",
+        f"- empty_retry_success_rate: `{summary['empty_retry_success_rate']}`",
+        f"- reasoning_only_empty_count: `{summary['reasoning_only_empty_count']}`",
+        f"- max_initial_response_reasoning_length: `{summary['max_initial_response_reasoning_length']}`",
         f"- exact_search_match_rate: `{summary['exact_search_match_rate']}`",
         f"- evolve_block_safe_rate: `{summary['evolve_block_safe_rate']}`",
         f"- apply_pass_rate: `{summary['apply_pass_rate']}`",
@@ -281,6 +302,41 @@ def main() -> int:
 
         (attempt_dir / "raw_output.txt").write_text(generated_text, encoding="utf-8")
         write_json(attempt_dir / "model_response.json", response_record)
+        initial_response_record = dict(response_record)
+
+        empty_retry_count = 0
+        empty_retry_succeeded = False
+        while (
+            args.mock_patch_mode == "none"
+            and not generated_text.strip()
+            and empty_retry_count < max(0, args.empty_retry_attempts)
+        ):
+            empty_retry_count += 1
+            retry_messages = {
+                "system": messages["system"]
+                + "\nYou must put the SEARCH/REPLACE patch in message.content. Do not use reasoning output.",
+                "user": messages["user"]
+                + "\n\nPrevious response had empty final content. Retry once with only the final SEARCH/REPLACE patch in message.content.",
+            }
+            write_messages(attempt_dir / f"empty_retry_{empty_retry_count}_prompt", "Empty Output Retry Prompt", retry_messages)
+            retry_record = chat_completion(
+                role=args.model_role,
+                system_prompt=retry_messages["system"],
+                user_prompt=retry_messages["user"],
+                temperature=0.0,
+                max_tokens=args.max_tokens,
+                verify=True,
+            )
+            retry_text = retry_record["content"]
+            write_json(attempt_dir / f"empty_retry_{empty_retry_count}_response.json", retry_record)
+            (attempt_dir / f"empty_retry_{empty_retry_count}_output.txt").write_text(retry_text, encoding="utf-8")
+            if retry_text.strip():
+                generated_text = retry_text
+                response_record = retry_record
+                empty_retry_succeeded = True
+                (attempt_dir / "raw_output.txt").write_text(generated_text, encoding="utf-8")
+                write_json(attempt_dir / "model_response.json", response_record)
+                break
 
         result = run_micro_filter(parent_text, generated_text, target_surface=target_surface)
         initial_result_record = result.to_record()
@@ -384,6 +440,8 @@ def main() -> int:
                             "duplicate_of_program_id": duplicate_of_program_id,
                             "repair_attempted": repair_attempted,
                             "repair_succeeded": repair_succeeded,
+                            "empty_retry_count": empty_retry_count,
+                            "empty_retry_succeeded": empty_retry_succeeded,
                             "initial_failure_category": initial_result_record.get("failure_category"),
                             "dry_run_only": True,
                         },
@@ -411,12 +469,20 @@ def main() -> int:
                 "child_program_path": str(child_path) if child_path else None,
                 "child_sha256": child_hash,
                 "duplicate_of_program_id": duplicate_of_program_id,
+                "initial_response_content_was_null": bool(initial_response_record.get("content_was_null", False)),
+                "initial_response_content_length": len(str(initial_response_record.get("content", "") or "")),
+                "initial_response_reasoning_length": int(initial_response_record.get("reasoning_length", 0) or 0),
+                "final_response_content_was_null": bool(response_record.get("content_was_null", False)),
+                "final_response_content_length": len(str(response_record.get("content", "") or "")),
+                "final_response_reasoning_length": int(response_record.get("reasoning_length", 0) or 0),
                 "initial_decision": initial_result_record.get("decision"),
                 "initial_failure_category": initial_result_record.get("failure_category"),
                 "initial_failure_reason": initial_result_record.get("failure_reason"),
                 "initial_hard_gates": initial_result_record.get("hard_gates", {}),
                 "repair_attempted": repair_attempted,
                 "repair_succeeded": repair_succeeded,
+                "empty_retry_count": empty_retry_count,
+                "empty_retry_succeeded": empty_retry_succeeded,
                 "repair_response_path": str(attempt_dir / "repair_response.json") if repair_attempted else None,
                 "final_diff_path": str(attempt_dir / ("repair_output.txt" if repair_succeeded else "raw_output.txt")),
             }

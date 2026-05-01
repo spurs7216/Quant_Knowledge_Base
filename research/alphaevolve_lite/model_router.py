@@ -133,7 +133,10 @@ def chat_completion(
         ],
         "temperature": temperature,
         "max_tokens": max_tokens,
-        "extra_body": {"chat_template_kwargs": {"enable_thinking": False}},
+        # This is a direct HTTP client, not the OpenAI SDK. vLLM expects these
+        # extra OpenAI-compatible fields at the top level of the JSON body.
+        "chat_template_kwargs": {"enable_thinking": False},
+        "top_p": 0.95,
     }
     status, body = _read_url(endpoint.chat_url, api_key=api_key, payload=payload)
     try:
@@ -144,10 +147,16 @@ def chat_completion(
     if not choices:
         raise ModelRouterError(f"chat response had no choices: {body[:500]}")
     message = choices[0].get("message", {}) if isinstance(choices[0], dict) else {}
-    content = message.get("content", "")
+    content = message.get("content")
+    reasoning = message.get("reasoning") or message.get("reasoning_content") or ""
+    content_was_null = content is None
+    if content is None:
+        content = ""
     return {
         "status": status,
         "content": content,
+        "content_was_null": content_was_null,
+        "reasoning_length": len(reasoning) if isinstance(reasoning, str) else 0,
         "raw_response": response,
         "endpoint_status": endpoint_status,
         "role": role,

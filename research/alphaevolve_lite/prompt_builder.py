@@ -24,6 +24,7 @@ replacement code
 Rules:
 - No markdown fences.
 - No explanation.
+- No hidden reasoning, scratchpad, analysis, or thought process.
 - The SEARCH text must be copied exactly from the current code.
 - The output must contain the literal final line: >>>>>>> REPLACE.
 - The SEARCH block must contain only lines strictly between # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END.
@@ -49,6 +50,7 @@ replacement code
 Rules:
 - No markdown fences.
 - No explanation.
+- No hidden reasoning, scratchpad, analysis, or thought process.
 - The SEARCH text must be copied exactly from the editable code body supplied by the user.
 - The SEARCH block must contain only code strictly inside the EVOLVE-BLOCK.
 - Do not include function definitions.
@@ -88,7 +90,8 @@ SURFACE_GUIDANCE = {
     "signal": (
         "Edit only the signal EVOLVE-BLOCK. Suitable changes include flipping the signal after volatility "
         "scaling, adding bounded nonlinear damping, changing causal smoothing inside the existing group loop, "
-        "or attenuating noisy short-history observations."
+        "or attenuating noisy short-history observations. Avoid hard saturation such as tanh if it can create "
+        "many tied signals and imbalanced long/short books."
     ),
     "ranking": (
         "Edit only the ranking EVOLVE-BLOCK. Suitable changes include flipping ranked direction, robust "
@@ -96,11 +99,14 @@ SURFACE_GUIDANCE = {
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
-        "signal-strength weighting within the selected tails, or bounded gross exposure use through local logic."
+        "or bounded gross exposure use through local logic. If you weight by signal strength, compute positive "
+        "long-side magnitudes and positive short-side magnitudes separately, then assign negative weights to "
+        "shorts; preserve both long and short exposure and keep net exposure near zero."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
-        "normalization, and conservative handling of small long or short books."
+        "normalization, and conservative handling of small long or short books. Preserve both long and short "
+        "books; avoid logic that can make the portfolio one-sided or materially net long/net short."
     ),
 }
 
@@ -233,6 +239,12 @@ Previously accepted patches for target surface `{surface}`:
 
 Do not repeat the same SEARCH/REPLACE patch or the same semantic change as a previous accepted patch for this surface.
 
+Portfolio semantic constraints:
+- active days must retain both positive and negative weights;
+- short-side weights must remain negative and long-side weights must remain positive;
+- net exposure must stay near zero after risk controls;
+- avoid transforms that create many tied signals and unbalanced long/short counts.
+
 Output format example:
 <<<<<<< SEARCH
     old_line
@@ -284,7 +296,7 @@ Reason rejected:
 {failure_reason}
 
 Repair instruction:
-Shrink or retarget the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. Preserve the original idea only if it can be expressed inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
+Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
 """
     return {
         "system": REPAIR_SYSTEM_PROMPT,

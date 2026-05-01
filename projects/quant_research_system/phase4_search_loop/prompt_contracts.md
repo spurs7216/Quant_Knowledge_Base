@@ -98,6 +98,7 @@ replacement code
 Rules:
 - No markdown fences.
 - No explanation.
+- No hidden reasoning, scratchpad, analysis, or thought process.
 - The SEARCH text must be copied exactly from the current code.
 - The output must contain the literal final line: >>>>>>> REPLACE.
 - The SEARCH block must contain only lines strictly between # EVOLVE-BLOCK-START and # EVOLVE-BLOCK-END.
@@ -167,6 +168,7 @@ replacement code
 Rules:
 - No markdown.
 - No explanation.
+- No hidden reasoning, scratchpad, analysis, or thought process.
 - The SEARCH block must contain only code strictly inside the EVOLVE-BLOCK.
 - The SEARCH block must not include function definitions or EVOLVE markers unless the repair task explicitly says whole-block replacement is allowed.
 - Preserve the intended semantic change when possible.
@@ -247,6 +249,7 @@ prompt_failure_category:
   - vector_smoke_failed
   - portfolio_semantic_failed
   - duplicate_child
+  - empty_output
   - forbidden_policy_edit
   - broker_logic_detected
   - dataset_without_admission

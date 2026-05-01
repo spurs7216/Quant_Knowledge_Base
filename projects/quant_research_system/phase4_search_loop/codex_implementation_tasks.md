@@ -204,7 +204,7 @@ Recommended first command:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 10 \
   --model-role fast_generator \
@@ -214,12 +214,13 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/empty_retry_*_response.json
 ```
 
 If the small dry run shows the controller path is healthy, then run the larger batch:
@@ -233,6 +234,10 @@ metrics:
   raw_parse_pass_rate:
   repair_attempt_rate:
   repair_success_rate:
+  empty_retry_rate:
+  empty_retry_success_rate:
+  reasoning_only_empty_count:
+  max_initial_response_reasoning_length:
   exact_search_match_rate:
   evolve_block_safe_rate:
   compile_pass_rate:

@@ -51,6 +51,15 @@ After `controller_batch_001_small_repair_v1`, the controller was tightened again
 - generation prompts include previous accepted patches for the same target surface to reduce repeated sign flips;
 - `remote_sample_eval.py` accepts `--program-path` so generated children can be evaluated without hardcoding the seed.
 
+After `controller_batch_001_small_semantic_v2`, the controller was tightened again:
+
+- direct vLLM requests now send `chat_template_kwargs.enable_thinking=false` at the top level of the HTTP body;
+- `model_router` records `content_was_null` and `reasoning_length`;
+- empty final content gets one retry that explicitly asks for final SEARCH/REPLACE content;
+- summaries report `reasoning_only_empty_count` and max initial reasoning length;
+- vector-smoke and portfolio-semantic failures are now repairable once;
+- prompts explicitly forbid hidden reasoning/scratchpad output and warn against saturated/tied signals or one-sided portfolios.
+
 The child batch script intentionally writes:
 
 ```yaml
@@ -82,7 +91,7 @@ Run:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 10 \
   --model-role fast_generator \
@@ -92,21 +101,22 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Expected artifacts:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/prompt.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/child_program.py
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/prompt.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/child_program.py
 ```
 
 If a repair is attempted, also inspect:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/repair_prompt.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/repair_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v2/attempt_*/repair_micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/repair_prompt.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/repair_micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/empty_retry_*_response.json
 ```
 
 ## Review Gates
