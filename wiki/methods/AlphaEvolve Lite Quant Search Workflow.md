@@ -50,11 +50,32 @@ Reasoning memory stores compact lessons from successes and failures: patch-contr
 
 For quant research, deterministic controller and evaluator outcomes should label success or failure. The LLM may synthesize candidate memories, but it should not be the authority on whether a child was valid.
 
+## Diagnostic And Skill Layers
+
+Dr. RTL adds two layers that are useful on top of ordinary AlphaEvolve program storage.
+
+The diagnostic analyzer localizes bottlenecks before generation:
+
+```text
+evaluator/controller artifact -> bottleneck card -> bounded mutation prompt
+```
+
+The explicit skill library stores confidence-tagged pattern -> strategy rules:
+
+```text
+pattern: recurring bottleneck
+strategy: reusable transformation principle
+confidence: high | medium | low | avoid
+status: candidate | active | superseded | rejected
+```
+
+In quant search, these layers must stay subordinate to deterministic gates. A diagnostic card is not proof of alpha, and a skill should not become active from one noisy backtest.
+
 ## Module Translation
 
 | AlphaEvolve module | Quant implementation role |
 | --- | --- |
-| Prompt sampler | Builds compact prompts from parent code, target evolve surface, evaluator summaries, prior accepted/rejected patches, `wiki/` method knowledge, `catalog/` dataset context, and immutable rules. |
+| Prompt sampler | Builds compact prompts from parent code, target evolve surface, evaluator summaries, diagnostic cards, skill cards, prior accepted/rejected patches, `wiki/` method knowledge, `catalog/` dataset context, and immutable rules. |
 | LLM ensemble | Uses a fast remote model for many bounded patches, a repair role for malformed diffs, and optional larger reviewers for search-state synthesis. |
 | Evaluator pools | Runs a cascade: static parsing and semantic checks, toy arrays, remote sample data, validation subsets, full validation, and final human review. |
 | Program database | Stores every child, including failures, with lineage, prompt, diff, code hash, scores, descriptors, hard gates, validation exposure, and artifact paths. |

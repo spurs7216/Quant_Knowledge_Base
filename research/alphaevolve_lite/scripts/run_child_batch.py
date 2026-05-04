@@ -54,6 +54,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--memory-card-limit", type=int, default=3)
     parser.add_argument("--disable-reasoning-memory", action="store_true")
+    parser.add_argument("--diagnostic-card-limit", type=int, default=4)
+    parser.add_argument(
+        "--skill-library-path",
+        default="artifacts/phase4_alphaevolve/skill_library/skill_items.jsonl",
+        help="JSONL explicit skill library used for prompt skill cards.",
+    )
+    parser.add_argument("--skill-card-limit", type=int, default=3)
+    parser.add_argument("--disable-skill-library", action="store_true")
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
     parser.add_argument(
         "--mock-patch-mode",
@@ -274,6 +282,23 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
                 f"- reasoning_memory_update_log: `{summary.get('reasoning_memory_update_log')}`",
             ]
         )
+    if "skill_library_enabled" in summary:
+        lines.extend(
+            [
+                f"- skill_library_enabled: `{summary['skill_library_enabled']}`",
+                f"- skill_library_item_count: `{summary.get('skill_library_item_count')}`",
+                f"- retrieved_skill_ids: `{summary.get('retrieved_skill_ids')}`",
+                f"- skill_update_json: `{summary.get('skill_update_json')}`",
+                f"- skill_update_log: `{summary.get('skill_update_log')}`",
+            ]
+        )
+    if "evaluator_diagnostic_report_json" in summary:
+        lines.extend(
+            [
+                f"- evaluator_diagnostic_report_json: `{summary.get('evaluator_diagnostic_report_json')}`",
+                f"- controller_diagnostic_report_json: `{summary.get('controller_diagnostic_report_json')}`",
+            ]
+        )
     lines.extend(["", "## Failure Categories", ""])
     if summary["failure_categories"]:
         for category, count in summary["failure_categories"].items():
@@ -289,6 +314,13 @@ def main() -> int:
     from research.alphaevolve_lite.diversity import (
         choose_diversity_target,
         patch_diversity_descriptor,
+    )
+    from research.alphaevolve_lite.diagnostic_analyzer import (
+        build_controller_diagnostic_report,
+        build_evaluator_diagnostic_report,
+        render_diagnostic_cards,
+        retrieve_diagnostic_cards,
+        write_diagnostic_report,
     )
     from research.alphaevolve_lite.micro_filter import run_micro_filter
     from research.alphaevolve_lite.model_router import chat_completion
@@ -308,6 +340,14 @@ def main() -> int:
         retrieve_memory_items,
         write_memory_update,
     )
+    from research.alphaevolve_lite.skill_library import (
+        append_skill_update,
+        bootstrap_default_skill_library,
+        build_controller_batch_skill_update,
+        render_skill_cards,
+        retrieve_skill_items,
+        write_skill_update,
+    )
 
     args = parse_args()
     if args.attempts <= 0:
@@ -322,6 +362,15 @@ def main() -> int:
     evaluator_summary = load_json_if_exists(args.evaluator_summary)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    evaluator_diagnostic_report = build_evaluator_diagnostic_report(
+        evaluator_summary,
+        source_path=args.evaluator_summary or None,
+    )
+    evaluator_diagnostic_paths = write_diagnostic_report(
+        out_dir,
+        "evaluator_diagnostic_report",
+        evaluator_diagnostic_report,
+    )
     temperatures = [float(item.strip()) for item in args.temperature_grid.split(",") if item.strip()]
     if not temperatures:
         temperatures = [0.2]
@@ -341,6 +390,20 @@ def main() -> int:
                     1 for item in reasoning_memory_items if item.get("status") == "active"
                 ),
                 "memory_item_ids": [item.get("memory_item_id") for item in reasoning_memory_items],
+            },
+        )
+    skill_library_path = None if args.disable_skill_library else Path(args.skill_library_path)
+    skill_items: list[dict[str, Any]] = []
+    retrieved_skill_ids_seen: set[str] = set()
+    if skill_library_path is not None:
+        skill_items = bootstrap_default_skill_library(skill_library_path)
+        write_json(
+            out_dir / "skill_library_loaded.json",
+            {
+                "skill_library_path": str(skill_library_path),
+                "skill_item_count": len(skill_items),
+                "active_skill_item_count": sum(1 for item in skill_items if item.get("status") == "active"),
+                "skill_ids": [item.get("skill_id") for item in skill_items],
             },
         )
 
@@ -489,6 +552,35 @@ def main() -> int:
         ]
         retrieved_memory_ids_seen.update(retrieved_memory_item_ids)
         reasoning_memory_text = render_memory_cards(retrieved_memory_items)
+        diagnostic_cards = retrieve_diagnostic_cards(
+            evaluator_diagnostic_report.get("diagnostic_cards", []),
+            target_surface=target_surface,
+            limit=max(0, args.diagnostic_card_limit),
+        )
+        diagnostic_text = render_diagnostic_cards(diagnostic_cards)
+        diagnostic_card_ids = [
+            str(card.get("diagnostic_id")) for card in diagnostic_cards if card.get("diagnostic_id")
+        ]
+        skill_query = " ".join(
+            [
+                memory_query,
+                diagnostic_text,
+                " ".join(diagnostic_card_ids),
+            ]
+        )
+        retrieved_skill_items = retrieve_skill_items(
+            skill_items,
+            source_stage="controller_static",
+            target_surface=target_surface,
+            data_stage="stage_0_daily_stock",
+            query=skill_query,
+            limit=max(0, args.skill_card_limit),
+        )
+        retrieved_skill_ids = [
+            str(item.get("skill_id")) for item in retrieved_skill_items if item.get("skill_id")
+        ]
+        retrieved_skill_ids_seen.update(retrieved_skill_ids)
+        skill_text = render_skill_cards(retrieved_skill_items)
         messages = build_child_generation_prompt(
             parent_code=parent_text,
             evaluator_summary=evaluator_summary,
@@ -498,6 +590,8 @@ def main() -> int:
             diversity_target=diversity_target,
             occupied_map_cells=occupied_same_surface_cells,
             reasoning_memory_text=reasoning_memory_text,
+            diagnostic_text=diagnostic_text,
+            skill_text=skill_text,
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -640,6 +734,24 @@ def main() -> int:
                         str(item.get("memory_item_id")) for item in retry_memory_items if item.get("memory_item_id")
                     ]
                     retrieved_memory_ids_seen.update(retry_memory_ids)
+                    retry_diagnostic_cards = retrieve_diagnostic_cards(
+                        evaluator_diagnostic_report.get("diagnostic_cards", []),
+                        target_surface=target_surface,
+                        limit=max(0, args.diagnostic_card_limit),
+                    )
+                    retry_diagnostic_text = render_diagnostic_cards(retry_diagnostic_cards)
+                    retry_skill_items = retrieve_skill_items(
+                        skill_items,
+                        source_stage="controller_static",
+                        target_surface=target_surface,
+                        data_stage="stage_0_daily_stock",
+                        query=retry_memory_query + " " + retry_diagnostic_text,
+                        limit=max(0, args.skill_card_limit),
+                    )
+                    retry_skill_ids = [
+                        str(item.get("skill_id")) for item in retry_skill_items if item.get("skill_id")
+                    ]
+                    retrieved_skill_ids_seen.update(retry_skill_ids)
                     retry_messages = build_child_generation_prompt(
                         parent_code=parent_text,
                         evaluator_summary=evaluator_summary,
@@ -651,6 +763,8 @@ def main() -> int:
                         forbidden_patches=forbidden_patches,
                         duplicate_retry_reason=duplicate_retry_reason,
                         reasoning_memory_text=render_memory_cards(retry_memory_items),
+                        diagnostic_text=retry_diagnostic_text,
+                        skill_text=render_skill_cards(retry_skill_items),
                     )
                     write_messages(
                         attempt_dir / f"duplicate_retry_{retry_index}_prompt",
@@ -804,7 +918,9 @@ def main() -> int:
                             "repair_succeeded": repair_succeeded,
                             "empty_retry_count": empty_retry_count,
                             "empty_retry_succeeded": empty_retry_succeeded,
+                            "diagnostic_card_ids": diagnostic_card_ids,
                             "reasoning_memory_item_ids": retrieved_memory_item_ids,
+                            "skill_ids": retrieved_skill_ids,
                             "initial_failure_category": initial_result_record.get("failure_category"),
                             "dry_run_only": True,
                         },
@@ -856,8 +972,11 @@ def main() -> int:
                 "empty_retry_succeeded": empty_retry_succeeded,
                 "repair_response_path": str(repair_response_path) if repair_response_path else None,
                 "final_diff_path": str(final_diff_path),
+                "diagnostic_card_ids": diagnostic_card_ids,
                 "reasoning_memory_item_ids": retrieved_memory_item_ids,
                 "reasoning_memory_path": str(memory_path) if memory_path else None,
+                "skill_ids": retrieved_skill_ids,
+                "skill_library_path": str(skill_library_path) if skill_library_path else None,
             }
         )
         write_json(attempt_dir / "micro_filter_result.json", result_record)
@@ -876,6 +995,16 @@ def main() -> int:
             "reasoning_memory_path": str(memory_path) if memory_path else None,
             "reasoning_memory_item_count": len(reasoning_memory_items),
             "retrieved_reasoning_memory_ids": sorted(retrieved_memory_ids_seen),
+            "skill_library_enabled": skill_library_path is not None,
+            "skill_library_path": str(skill_library_path) if skill_library_path else None,
+            "skill_library_item_count": len(skill_items),
+            "retrieved_skill_ids": sorted(retrieved_skill_ids_seen),
+            "evaluator_diagnostic_report_json": evaluator_diagnostic_paths["json"],
+            "evaluator_diagnostic_report_markdown": evaluator_diagnostic_paths["markdown"],
+            "evaluator_diagnostic_card_ids": [
+                card.get("diagnostic_id")
+                for card in evaluator_diagnostic_report.get("diagnostic_cards", [])
+            ],
         }
     )
     if memory_path is not None:
@@ -891,6 +1020,34 @@ def main() -> int:
         summary["reasoning_memory_update_json"] = memory_update_paths["json"]
         summary["reasoning_memory_update_markdown"] = memory_update_paths["markdown"]
         summary["reasoning_memory_update_log"] = memory_update_log
+    controller_diagnostic_report = build_controller_diagnostic_report(
+        summary=summary,
+        attempts=attempt_records,
+        source_path=out_dir / "summary.json",
+    )
+    controller_diagnostic_paths = write_diagnostic_report(
+        out_dir,
+        "controller_diagnostic_report",
+        controller_diagnostic_report,
+    )
+    summary["controller_diagnostic_report_json"] = controller_diagnostic_paths["json"]
+    summary["controller_diagnostic_report_markdown"] = controller_diagnostic_paths["markdown"]
+    summary["controller_diagnostic_card_ids"] = [
+        card.get("diagnostic_id") for card in controller_diagnostic_report.get("diagnostic_cards", [])
+    ]
+    if skill_library_path is not None:
+        skill_update = build_controller_batch_skill_update(
+            source_run_id=out_dir.name,
+            summary=summary,
+            attempts=attempt_records,
+            skill_library_path=skill_library_path,
+            retrieved_skill_ids=sorted(retrieved_skill_ids_seen),
+        )
+        skill_update_paths = write_skill_update(out_dir, skill_update)
+        skill_update_log = append_skill_update(skill_library_path.parent / "skill_updates.jsonl", skill_update)
+        summary["skill_update_json"] = skill_update_paths["json"]
+        summary["skill_update_markdown"] = skill_update_paths["markdown"]
+        summary["skill_update_log"] = skill_update_log
     write_json(out_dir / "summary.json", {"summary": summary, "attempts": attempt_records})
     write_summary_markdown(out_dir / "summary.md", summary)
     print(json.dumps({"status": "ok", "out_dir": str(out_dir), "summary": summary}, sort_keys=True))

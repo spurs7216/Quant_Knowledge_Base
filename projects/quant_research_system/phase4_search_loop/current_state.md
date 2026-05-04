@@ -19,6 +19,7 @@ sources:
   - "controller_batch_001_small_repair_v1_review_20260430.md"
   - "controller_batch_001_small_semantic_v2_review_20260501.md"
   - "reasoning_memory_layer_design.md"
+  - "diagnostic_analyzer_and_skill_library_20260504.md"
 ---
 # Phase 4 Current State
 
@@ -53,12 +54,17 @@ artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/
 
 | AlphaEvolve module | Phase 4 design |
 | --- | --- |
-| Prompt sampler | `prompt_builder.py` samples parent code slices, target surfaces, prior accepted same-surface patches, evaluator summaries, dataset/cost context, and wiki/catalog reminders. |
+| Prompt sampler | `prompt_builder.py` samples parent code slices, target surfaces, prior accepted same-surface patches, evaluator summaries, diagnostic cards, skill cards, dataset/cost context, and wiki/catalog reminders. |
 | LLM ensemble | Qwen-only remote stack: Qwen3.5-9B for child generation and repair, Qwen3.5-27B-FP8 for optional medium review, Qwen3.6-35B-A3B-FP8 for scheduled deep review. |
 | Evaluator pools | `controller_static` first; later `toy_eval`, `remote_sample_eval`, stage-0 validation, full validation, artifact review, and branch-freeze/test unlock. |
 | Program database | SQLite plus JSONL audit log under `artifacts/phase4_alphaevolve/`, storing every generated child, failure, prompt, diff, descriptors, metrics, and validation exposure. |
 
 The program database is different from the Phase 3 candidate registry. The database is search memory; the registry is reviewed research lineage.
+
+Dr. RTL adds two additional controller-side roles now implemented in the local scaffold:
+
+- diagnostic analyzer: deterministic bottleneck cards from evaluator/controller artifacts;
+- explicit skill library: confidence/status-tagged pattern -> strategy rules retrieved into prompts.
 
 ## Frozen Contracts
 
@@ -138,9 +144,11 @@ The memory bank is distinct from the program database:
 - program database: exhaustive evidence for every generated child;
 - reasoning memory bank: compact, evidence-linked lessons retrieved into future prompts.
 
+The explicit skill library is a third layer. It is narrower than reasoning memory and stores operational pattern -> strategy rules with `high`, `medium`, `low`, or `avoid` confidence. New `skill_update.json` entries from a small controller batch are candidate-level only until deterministic evidence supports promotion.
+
 ## Current Next Step
 
-After `controller_batch_001_small_semantic_v3`, the right local controller change was MAP-Elites-style duplicate hardening plus the C1 reasoning-memory scaffold. Both are now implemented locally. The Dr. RTL transfer patch adds group-relative sibling reporting to the memory update, so the next action is the small remote rerun with memory cards enabled, then remote Qwen self-contrast extraction from the new batch's `reasoning_memory_update.json` and attempt artifacts.
+After `controller_batch_001_small_semantic_v3`, the local controller changes now implemented are MAP-Elites-style duplicate hardening, the C1 reasoning-memory scaffold, Dr. RTL-style group-relative sibling reporting, deterministic diagnostic analyzer cards, and an explicit skill-library layer. The next action is the small remote rerun with memory, diagnostic, and skill cards enabled, then remote Qwen self-contrast extraction from the new batch's `reasoning_memory_update.json`, `skill_update.json`, and attempt artifacts.
 
 Expected rerun command after duplicate-retry hardening:
 
@@ -154,6 +162,8 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
   --model-role fast_generator \
   --max-tokens 8192 \
   --memory-card-limit 3 \
+  --diagnostic-card-limit 4 \
+  --skill-card-limit 3 \
   --duplicate-retry-attempts 1
 ```
 
@@ -169,6 +179,10 @@ target_small_batch:
   reasoning_memory_enabled: true
   reasoning_memory_update_written: true
   group_relative_controller_report_written: true
+  evaluator_diagnostic_report_written: true
+  controller_diagnostic_report_written: true
+  skill_library_enabled: true
+  skill_update_written: true
   db_insert_pass_rate: "near 1.0"
   remote_sample_eval_launched: false
   full_validation_launched: false
@@ -180,7 +194,7 @@ If the run fails, inspect `summary.json`, raw/repair outputs, response metadata,
 
 - Active design: [README.md](README.md), [task_001_search_design.md](task_001_search_design.md), [task_004_seed_strategy_program.md](task_004_seed_strategy_program.md)
 - Contracts: [daily_stock_contract_v1.md](daily_stock_contract_v1.md), [prompt_contracts.md](prompt_contracts.md), [evaluator_contract.md](evaluator_contract.md), [program_database_schema.md](program_database_schema.md)
-- Memory layer: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md)
+- Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md)

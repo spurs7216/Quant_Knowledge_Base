@@ -18,6 +18,7 @@ sources:
   - "program_database_schema.md"
   - "prompt_contracts.md"
   - "artifact_renderer_contract.md"
+  - "diagnostic_analyzer_and_skill_library_20260504.md"
 ---
 # Phase 4 Reasoning Memory Layer Design
 
@@ -50,6 +51,8 @@ The program database is exhaustive search memory. It stores every generated chil
 
 The reasoning memory bank is prompt-facing operating memory. It stores only the lessons worth reusing.
 
+The explicit skill library is a narrower derived layer. It stores pattern -> strategy rules with confidence, status, applicability, and evidence. Reasoning memory can hold broad lessons; the skill library should hold only operational rules that are safe to inject as prompt instructions.
+
 They should be linked but not merged:
 
 ```text
@@ -57,6 +60,7 @@ program_database / artifacts
   -> episode packet
   -> memory extraction
   -> reasoning_memory_items
+  -> skill candidates when the lesson is a reusable pattern -> strategy rule
   -> prompt sampler
 ```
 
@@ -129,6 +133,15 @@ Example self-contrast questions:
 
 Dr. RTL strengthens this rule: compare siblings generated from the same parent under the same evaluator context before extracting skills. The implementation now writes a `group_relative_controller_report` into each controller batch's `reasoning_memory_update.json` / `.md`.
 
+Dr. RTL also requires a diagnostic agent before optimization. The Phase 4 implementation now writes deterministic diagnostic reports:
+
+```text
+evaluator_diagnostic_report.json/.md
+controller_diagnostic_report.json/.md
+```
+
+These reports localize bottlenecks such as cost fragility, high turnover, sign-flip dominance, duplicate generation, portfolio semantic failures, and reasoning-only empty output. They are analyzer output, not alpha evidence.
+
 ## Current Seed Memory From Phase 4
 
 The initial active memory should include these lessons, all already supported by prior artifacts and [current_state.md](current_state.md):
@@ -194,6 +207,25 @@ The lightweight local module can:
 
 This does not require local Qwen or embedding inference. `run_child_batch.py` bootstraps the default Phase 4 seed lessons into `artifacts/phase4_alphaevolve/reasoning_memory/memory_items.jsonl` unless reasoning memory is explicitly disabled.
 
+### C1b - Diagnostic Analyzer And Explicit Skill Library
+
+Implemented 2026-05-04 in:
+
+- `research/alphaevolve_lite/diagnostic_analyzer.py`
+- `research/alphaevolve_lite/skill_library.py`
+- `research/alphaevolve_lite/prompt_builder.py`
+- `research/alphaevolve_lite/scripts/run_child_batch.py`
+
+The scaffold now:
+
+- builds evaluator diagnostic cards before generation;
+- builds controller diagnostic cards after the batch;
+- bootstraps a conservative skill library under `artifacts/phase4_alphaevolve/skill_library/skill_items.jsonl`;
+- retrieves stage/surface-specific skill cards into prompts;
+- writes `skill_update.json` / `.md` with candidate skills after a batch.
+
+New candidate skills are not auto-promoted to active from one controller batch.
+
 ### C2 - Remote Extraction
 
 Add a remote-only script that builds an episode packet from a controller/evaluator batch and calls the Qwen server to propose candidate memory items.
@@ -202,7 +234,7 @@ Remote operator instruction: before any extraction call, open a persistent termi
 
 ### C3 - Prompt Sampler Integration
 
-Child-generation and duplicate-retry prompts now inject retrieved memory cards filtered by controller stage, data stage, and target evolve surface. Direct repair-prompt injection is still deferred; repair already receives the concrete failure reason and target editable body.
+Child-generation and duplicate-retry prompts now inject retrieved memory cards, diagnostic cards, and skill cards filtered by controller stage, data stage, and target evolve surface. Direct repair-prompt injection is still deferred; repair already receives the concrete failure reason and target editable body.
 
 ### C4 - Consolidation
 
@@ -215,7 +247,8 @@ Start append-only. Add dedupe and supersession once there are enough items to ob
 - Whether embeddings should use a local lexical fallback forever or move to remote embedding once the memory bank grows.
 - How many memory cards should be injected by default. The initial recommendation is three, with a hard cap of five.
 - Whether memory should be stored only as JSONL or mirrored into SQLite next to the program database.
+- Which deterministic support threshold should promote candidate skills to active after remote sample-evaluator evidence exists.
 
 ## Next Step
 
-Run `controller_batch_001_small_semantic_v4` with memory cards enabled but without using Qwen extraction locally. After the run, perform C2 remotely and create the first evidence-derived memory update from the new batch.
+Run `controller_batch_001_small_semantic_v4` with memory, diagnostic, and skill cards enabled but without using Qwen extraction locally. After the run, perform C2 remotely and review both `reasoning_memory_update.md` and `skill_update.md` before promoting any new lesson or skill.

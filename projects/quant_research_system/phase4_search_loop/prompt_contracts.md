@@ -132,6 +132,11 @@ Inspiration programs:
 Relevant evaluator feedback:
 {evaluator_feedback_cards}
 
+Diagnostic analyzer cards:
+{diagnostic_cards}
+
+Use diagnostic cards as bottleneck localization, not as proof of market alpha.
+
 Immutable rules:
 {immutable_rules}
 
@@ -139,6 +144,11 @@ Relevant reasoning memory:
 {reasoning_memory_cards}
 
 Use reasoning memory as evidence-grounded operating guidance. It is not proof of market alpha, and it must not override immutable rules or evaluator gates.
+
+Explicit skill library:
+{skill_cards}
+
+Use high-confidence and avoid skills as operating rules. Treat low-confidence skills as weak hypotheses, and never let any skill override immutable rules or evaluator gates.
 
 Editable code body for target surface `{mutation_surface.primary}`:
 ```python

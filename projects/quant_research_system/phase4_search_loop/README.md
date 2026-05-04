@@ -131,6 +131,7 @@ New implementation-policy files:
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
 - [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md): ReasoningBank-style memory layer for turning batch successes and failures into retrievable prompt lessons.
 - [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md): Dr. RTL transfer note for group-relative sibling comparison and skill learning.
+- [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md): implementation note for the deterministic analyzer role and explicit skill-library layer.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 
 Existing policy files included for completeness:
@@ -163,6 +164,8 @@ A remote validation batch is only an evaluator artifact. An AlphaEvolve-style lo
 - deterministic patch application
 - `controller_static` preflight and smoke tests on the remote server
 - evaluator feedback as scalar metrics and hard-gate diagnostics
+- deterministic diagnostic cards that localize evaluator/controller bottlenecks before generation
+- explicit skill cards with confidence/status, separate from raw program memory
 - a program database that stores every generated program, not just winners
 - parent/inspiration sampling that balances exploitation and diversity
 

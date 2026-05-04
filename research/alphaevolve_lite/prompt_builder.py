@@ -202,6 +202,8 @@ def build_child_generation_prompt(
     forbidden_patches: list[str] | None = None,
     duplicate_retry_reason: str | None = None,
     reasoning_memory_text: str | None = None,
+    diagnostic_text: str | None = None,
+    skill_text: str | None = None,
     mutation_instruction: str = DEFAULT_MUTATION_INSTRUCTION,
 ) -> dict[str, str]:
     """Build system/user messages for a child-generation attempt."""
@@ -232,6 +234,8 @@ def build_child_generation_prompt(
             f"but was rejected for diversity: {duplicate_retry_reason}"
         )
     memory_text = reasoning_memory_text.strip() if reasoning_memory_text and reasoning_memory_text.strip() else "None."
+    diagnostics = diagnostic_text.strip() if diagnostic_text and diagnostic_text.strip() else "None."
+    skills = skill_text.strip() if skill_text and skill_text.strip() else "None."
     user_prompt = f"""Task type: controller_static_child_dry_run
 Attempt index: {attempt_index}
 Target mutation surface: {surface}
@@ -244,6 +248,13 @@ daily_stock contract: daily_stock_contract_v1
 Relevant evaluator feedback:
 {context}
 
+Diagnostic analyzer cards:
+```text
+{diagnostics}
+```
+
+Use diagnostic cards as bottleneck localization, not as proof of market alpha.
+
 Immutable rules:
 {IMMUTABLE_RULES}
 
@@ -253,6 +264,13 @@ Relevant reasoning memory:
 ```
 
 Use reasoning memory as evidence-grounded operating guidance. It is not proof of market alpha, and it must not override immutable rules or evaluator gates.
+
+Explicit skill library:
+```text
+{skills}
+```
+
+Use high-confidence and avoid skills as operating rules. Treat low-confidence skills as weak hypotheses, and never let any skill override immutable rules or evaluator gates.
 
 Editable code body for target surface `{surface}`:
 ```python

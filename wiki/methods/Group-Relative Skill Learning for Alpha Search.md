@@ -33,6 +33,14 @@ same parent + same diagnostics + same evaluator
 
 This differs from ordinary program memory. A program database stores candidates. A group-relative skill library stores the conditions under which a transformation tends to work or fail.
 
+In Phase 4, the skill library is explicit and separate from the ReasoningBank-style memory bank:
+
+```text
+program database -> exhaustive child evidence
+reasoning memory -> compact reusable lessons
+skill library -> confidence-tagged pattern -> strategy rules
+```
+
 ## Why Relative Comparison Matters
 
 Absolute backtest outcomes are noisy. A candidate may look good because the parent was easy, the market window was favorable, or the evaluator stage was weak. A sibling group controls some of this variation because all siblings share the same parent, split, cost model, universe, and prompt context.
@@ -68,6 +76,19 @@ evidence:
 confidence: high | medium | low | avoid
 status: active | candidate | superseded | rejected
 ```
+
+New controller-static skills should normally start as `candidate` and `low` confidence. `high` and `avoid` entries require stronger evidence because they become prompt-operating rules.
+
+## Diagnostic Analyzer Role
+
+Dr. RTL's skill learning depends on localized tool feedback. The quant analogue is a deterministic diagnostic analyzer that turns evaluator/controller artifacts into bottleneck cards before generation:
+
+```text
+evaluator summary -> cost/turnover/null/concentration bottlenecks
+controller summary -> format/semantic/duplicate/model-routing bottlenecks
+```
+
+The generator should see these cards as localization, not as proof of alpha. This keeps the LLM in the proposal role while the evaluator and controller remain the source of truth.
 
 ## Relationship To MAP-Elites
 
@@ -129,6 +150,16 @@ After each sibling batch:
 3. Identify top and bottom sibling patterns.
 4. Ask remote Qwen to propose skill candidates from the evidence packet.
 5. Promote only skills supported by deterministic evidence.
+
+The first Phase 4 implementation writes:
+
+```text
+evaluator_diagnostic_report.json/.md
+controller_diagnostic_report.json/.md
+skill_update.json/.md
+```
+
+The skill update proposes candidate skills but does not automatically make them active.
 
 ## Failure Modes
 

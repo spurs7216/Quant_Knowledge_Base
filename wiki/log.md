@@ -14,6 +14,7 @@ tags:
 - Added [[Dr RTL - Autonomous Agentic RTL Optimization through Tool-Grounded Self-Improvement]] after a full paper readthrough and inspection of the official `hkust-zhiyao/DR_RTL` repository, especially `.claude/agents/` and `.claude/skill/rtl-opt/skill.md`.
 - Added [[Group-Relative Skill Learning for Alpha Search]] as the durable method note for translating Dr. RTL's sibling comparison and confidence-aware skill library into Phase 4 alpha search.
 - Added `projects/quant_research_system/phase4_search_loop/dr_rtl_method_transfer_20260504.md` and patched the controller memory update to write a `group_relative_controller_report` for the next remote batch.
+- Added the Phase 4 diagnostic analyzer and explicit skill-library scaffold so Dr. RTL's analyzer role and confidence-aware skill library are represented in code, not only in prose.
 
 ## 2026-05-04 | source ingest | reasoningbank memory layer
 

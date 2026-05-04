@@ -20,7 +20,7 @@ sources:
 
 ## Decision
 
-Before the next remote controller run, Phase 4 should add Dr. RTL-style group-relative sibling reporting to the reasoning-memory update.
+Before the next remote controller run, Phase 4 should add Dr. RTL-style group-relative sibling reporting, deterministic diagnostic cards, and an explicit skill-library layer.
 
 This is not an RTL-specific transfer. The useful method is:
 
@@ -114,16 +114,29 @@ Implemented 2026-05-04:
   - aggregates strategy stats by target surface and patch intent;
   - writes the report into `reasoning_memory_update.json` and `.md`.
 - `research/alphaevolve_lite/prompt_builder.py`
-  - adds a group-relative sibling role reminder to child-generation prompts.
+  - adds diagnostic analyzer cards, explicit skill-library cards, and a group-relative sibling role reminder to child-generation prompts.
+- `research/alphaevolve_lite/diagnostic_analyzer.py`
+  - writes evaluator and controller diagnostic cards;
+  - localizes bottlenecks without proposing patches or assigning market-alpha validity.
+- `research/alphaevolve_lite/skill_library.py`
+  - defines explicit skill items with confidence, status, pattern, strategy, applicability, and evidence;
+  - bootstraps conservative active controller skills;
+  - writes candidate `skill_update.json` / `.md` after controller batches without auto-promotion.
+- `research/alphaevolve_lite/scripts/run_child_batch.py`
+  - loads memory and skill cards;
+  - writes `evaluator_diagnostic_report.*`, `controller_diagnostic_report.*`, and `skill_update.*`.
 
 The score is intentionally controller-specific. It is not a market-alpha score.
 
 ## Remote Run Implication
 
-The next remote run command stays the same, but review must include:
+The next remote run command can use defaults for the skill library, but review must include:
 
 ```text
 artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/reasoning_memory_update.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/evaluator_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/controller_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/skill_update.md
 ```
 
 New review questions:
@@ -132,7 +145,9 @@ New review questions:
 - Which target surface and patch intent produced the best controller behavior?
 - Which strategy groups had zero pass rate?
 - Did memory cards reduce duplicate or semantic failures?
-- Are any candidate memory topics strong enough for remote Qwen self-contrast extraction?
+- Did diagnostic cards identify the right bottleneck before generation?
+- Did skill cards help without crowding out the strict patch contract?
+- Are any candidate memory or skill topics strong enough for remote Qwen self-contrast extraction?
 
 ## Still Vague
 
