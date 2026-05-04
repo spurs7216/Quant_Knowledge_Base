@@ -97,13 +97,15 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-9B \
   --port 8001 \
   --api-key "${AE_VLLM_API_KEY}" \
   --tensor-parallel-size 1 \
-  --max-model-len 16384 \
+  --max-model-len 32768 \
   --gpu-memory-utilization 0.55 \
-  --max-num-seqs 2 \
+  --max-num-seqs 1 \
   --enforce-eager \
   --reasoning-parser qwen3 \
   --language-model-only
 ```
+
+The inner-loop controller requests up to `8192` completion tokens. Because vLLM counts prompt tokens and completion tokens inside `--max-model-len`, the 9B server should be launched with a larger context window than the requested completion budget. Keep `--max-model-len 32768` for the next small rerun if memory allows; if it OOMs, fall back to `--max-model-len 16384` while keeping the completion budget at `8192`.
 
 ## Qwen3.5-27B-FP8 medium reviewer
 
@@ -175,9 +177,7 @@ curl -s http://127.0.0.1:8001/v1/chat/completions \
     ],
     "temperature": 0,
     "max_tokens": 32,
-    "extra_body": {
-      "chat_template_kwargs": {"enable_thinking": false}
-    }
+    "chat_template_kwargs": {"enable_thinking": false}
   }' | python -m json.tool
 ```
 

@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-04
 tags:
   - project
   - phase4
@@ -12,6 +12,12 @@ tags:
   - sampling-policy
 ---
 # Phase 4 Search Loop
+
+## Start Here
+
+Use [current_state.md](current_state.md) as the compact entry point before reading dated run reviews. It combines the current decisions, evidence timeline, failure memory, and next remote action.
+
+The dated run reviews remain useful evidence records, but they should not be treated as separate active plans once their lessons have been folded into `current_state.md` and the implementation tasks.
 
 ## Purpose
 
@@ -99,9 +105,12 @@ Measured policy:
 
 ## Package
 
+Compact entry point:
+
+- [current_state.md](current_state.md): current decisions, evidence timeline, failure memory, and next remote action.
+
 Core design files:
 
-- [phase4_readthrough.md](phase4_readthrough.md): comparison against the old Phase 4 plan, adopted fixes, and remaining unresolved points.
 - [../phase4_codex_clarifications.md](../phase4_codex_clarifications.md): implementation clarifications for remote-only Qwen, stage naming, schema verification, split construction, missing-return policy, and dataset unlock authority.
 - [alphaevolve_method_translation.md](alphaevolve_method_translation.md): paper-grounded translation of AlphaEvolve into this quant research system.
 - [task_001_search_design.md](task_001_search_design.md): source-of-truth search-loop design. Do not bypass it.
@@ -118,13 +127,9 @@ New implementation-policy files:
 - [dataset_admission_policy.md](dataset_admission_policy.md): staged dataset unlock and point-in-time join requirements.
 - [processed_outputs_policy.md](processed_outputs_policy.md): how to use processed research CSV outputs and validate source scripts.
 - [remote_csv_execution_policy.md](remote_csv_execution_policy.md): remote CSV execution, artifact, and storage rules.
-- [remote_sample_eval_hardening_20260430.md](remote_sample_eval_hardening_20260430.md): duplicate, null-baseline, git-status, and turnover-aware-score hardening for seed sample evaluation.
-- [controller_child_dry_run_20260430.md](controller_child_dry_run_20260430.md): small Qwen controller dry-run protocol before any child historical evaluation.
-- [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md): review of the first failed small child batch and controller repair update.
-- [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md): review of the repaired small child batch and semantic-gate follow-up.
-- [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md): review of the semantic-gated small batches and no-thinking/repair follow-up.
 - [prompt_contracts.md](prompt_contracts.md): exact prompt modes, output rules, repair prompts, and model routing.
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
+- [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md): ReasoningBank-style memory layer for turning batch successes and failures into retrievable prompt lessons.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 
 Existing policy files included for completeness:
@@ -134,6 +139,17 @@ Existing policy files included for completeness:
 - [dataset_context.md](dataset_context.md)
 - [evaluator_contract.md](evaluator_contract.md)
 - [phase4_evaluator_improvement_plan.md](phase4_evaluator_improvement_plan.md)
+
+Dated review records retained as evidence, not active plans:
+
+- [phase4_readthrough.md](phase4_readthrough.md): old-plan comparison and adoption record.
+- [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md): remote schema/model/controller evidence review.
+- [remote_sample_eval_hardening_20260430.md](remote_sample_eval_hardening_20260430.md): seed sample-evaluator hardening record.
+- [controller_child_dry_run_20260430.md](controller_child_dry_run_20260430.md): first child dry-run protocol record.
+- [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md): first failed small child batch review.
+- [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md): repair-enabled small child batch review.
+- [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md): semantic-gated small batch review.
+- [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md): no-thinking and larger-token-budget small batch review.
 
 ## Search Principle
 

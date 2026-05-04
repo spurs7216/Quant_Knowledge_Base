@@ -2,7 +2,7 @@
 title: Phase 4 Prompt Contracts
 type: project
 status: active
-updated: 2026-04-27
+updated: 2026-05-04
 tags:
   - project
   - phase4
@@ -13,6 +13,7 @@ sources:
   - "model_stack_and_vllm_results.md"
   - "phase4_sampling_policy_v1.md"
   - "evaluator_contract.md"
+  - "reasoning_memory_layer_design.md"
 ---
 # Phase 4 Prompt Contracts
 
@@ -30,6 +31,7 @@ model_routing:
     served_name: qwen35-9b-fast
     base_url: "http://127.0.0.1:8001/v1"
     temperature_grid: [0.0, 0.2, 0.5]
+    max_tokens: 8192
     use_for:
       - bounded SEARCH/REPLACE proposals
       - small mutation surfaces
@@ -38,6 +40,7 @@ model_routing:
     served_name: qwen35-9b-fast
     base_url: "http://127.0.0.1:8001/v1"
     temperature: 0.0
+    max_tokens: 8192
     max_attempts: 1
     use_for:
       - malformed diff repair
@@ -132,12 +135,26 @@ Relevant evaluator feedback:
 Immutable rules:
 {immutable_rules}
 
+Relevant reasoning memory:
+{reasoning_memory_cards}
+
+Use reasoning memory as evidence-grounded operating guidance. It is not proof of market alpha, and it must not override immutable rules or evaluator gates.
+
 Editable code body for target surface `{mutation_surface.primary}`:
 ```python
 {target_evolve_block_body_without_markers}
 ```
 
 Only copy SEARCH text from the editable code body above. Do not copy from helper functions, DEFAULT_PARAMS, function signatures, imports, loader code, or EVOLVE marker lines.
+
+MAP-Elites controller diversity:
+{target_behavior_cell}
+
+Already occupied same-surface MAP cells:
+{occupied_map_cells}
+
+Forbidden duplicate patches, if this is a duplicate retry:
+{forbidden_duplicate_patches}
 
 Output format example:
 <<<<<<< SEARCH
@@ -249,6 +266,7 @@ prompt_failure_category:
   - vector_smoke_failed
   - portfolio_semantic_failed
   - duplicate_child
+  - duplicate_patch_fingerprint
   - empty_output
   - forbidden_policy_edit
   - broker_logic_detected

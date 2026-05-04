@@ -2,7 +2,7 @@
 title: Phase 4 Codex Implementation Tasks
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-04
 tags:
   - project
   - phase4
@@ -198,30 +198,38 @@ Do not require 27B/35B for first milestone.
 
 First run 5 to 10 child attempts on the remote server through the remote controller and Qwen3.5-9B. This is a controller-static dry run only. It must not launch child `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, or test-set evaluation.
 
-Recommended first command:
+Status as of 2026-05-04: no-thinking routing removed the null-content failure in `controller_batch_001_small_semantic_v3`, but the run produced only 7 unique children out of 10 because three attempts were duplicates. MAP-Elites-style diversity targeting, duplicate-retry hardening, and the C1 ReasoningBank-style memory scaffold are now implemented. The next small rerun should keep reasoning memory enabled and should not launch child `remote_sample_eval`.
+
+Recommended next small command:
 
 ```bash
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --attempts 10 \
   --model-role fast_generator \
-  --max-tokens 4096
+  --max-tokens 8192 \
+  --memory-card-limit 3 \
+  --duplicate-retry-attempts 1
 ```
 
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/repair_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/attempt_*/empty_retry_*_response.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/reasoning_memory_update.md
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/reasoning_memory_update.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/empty_retry_*_response.json
 ```
+
+Compare against the `semantic_v3` baseline, especially `duplicate_child_count`, `duplicate_retry_success_rate`, `map_cell_count`, `unique_child_pass_rate`, and `reasoning_only_empty_count`.
 
 If the small dry run shows the controller path is healthy, then run the larger batch:
 
@@ -245,6 +253,11 @@ metrics:
   portfolio_semantic_pass_rate:
   unique_child_pass_rate:
   duplicate_child_count:
+  duplicate_patch_fingerprint_count:
+  duplicate_retry_attempt_rate:
+  duplicate_retry_success_rate:
+  map_cell_count:
+  map_cell_duplicate_count:
   db_insert_pass_rate:
 ```
 

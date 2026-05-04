@@ -2,7 +2,7 @@
 title: AlphaEvolve - A coding agent for scientific and algorithmic discovery
 type: source
 status: active
-updated: 2026-04-26
+updated: 2026-05-01
 tags:
   - source
   - paper
@@ -205,6 +205,7 @@ The paper implies the following correction to Phase 4:
 
 ## Related Notes
 
+- [AlphaEvolve Lite Quant Search Workflow](../../methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md)
 - [Phase 4 Search Loop](../../../projects/quant_research_system/phase4_search_loop/README.md)
 - [Phase 4 AlphaEvolve Method Translation](../../../projects/quant_research_system/phase4_search_loop/alphaevolve_method_translation.md)
 - [Kalman Filtering](../../methods/Kalman%20Filtering.md)

@@ -47,6 +47,8 @@ ENDPOINTS = {
     ),
 }
 
+DEFAULT_MAX_COMPLETION_TOKENS = 8192
+
 
 def _read_url(url: str, *, api_key: str | None = None, payload: dict[str, Any] | None = None) -> tuple[int, str]:
     headers = {"User-Agent": "alphaevolve-lite-model-router"}
@@ -117,7 +119,7 @@ def chat_completion(
     system_prompt: str,
     user_prompt: str,
     temperature: float = 0.2,
-    max_tokens: int = 4096,
+    max_tokens: int = DEFAULT_MAX_COMPLETION_TOKENS,
     verify: bool = True,
 ) -> dict[str, Any]:
     """Call remote vLLM OpenAI-compatible chat completions."""
@@ -166,4 +168,10 @@ def chat_completion(
     }
 
 
-__all__ = ["ModelEndpoint", "ModelRouterError", "chat_completion", "verify_endpoint"]
+__all__ = [
+    "DEFAULT_MAX_COMPLETION_TOKENS",
+    "ModelEndpoint",
+    "ModelRouterError",
+    "chat_completion",
+    "verify_endpoint",
+]
