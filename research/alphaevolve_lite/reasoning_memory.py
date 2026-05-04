@@ -440,6 +440,7 @@ def build_controller_batch_memory_update(
     success_lessons: list[str] = []
     failure_lessons: list[str] = []
     candidate_memory_topics: list[dict[str, Any]] = []
+    group_relative = build_group_relative_controller_report(attempts)
 
     pass_count = int(summary.get("pass_count", 0) or 0)
     if pass_count:
@@ -447,6 +448,45 @@ def build_controller_batch_memory_update(
             "Controller-static generated "
             f"{pass_count} pass children across {summary.get('map_cell_count', 0)} MAP cells."
         )
+    top_siblings = group_relative.get("top_siblings", [])
+    if top_siblings:
+        best = top_siblings[0]
+        best_message = (
+            "Best controller sibling by group-relative score: "
+            f"attempt {best.get('attempt')} on {best.get('target_surface')} with "
+            f"intent {best.get('patch_intent')} and decision {best.get('decision')}."
+        )
+        if best.get("decision") == "pass":
+            success_lessons.append(best_message)
+            candidate_memory_topics.append(
+                {
+                    "memory_type": "success_strategy",
+                    "title": "best_group_relative_controller_sibling",
+                    "support": {
+                        "attempt": best.get("attempt"),
+                        "target_surface": best.get("target_surface"),
+                        "patch_intent": best.get("patch_intent"),
+                        "relative_advantage": best.get("relative_advantage"),
+                    },
+                }
+            )
+        else:
+            failure_lessons.append(
+                best_message + " No sibling passed, so this is contrast evidence only, not a promotable skill."
+            )
+            candidate_memory_topics.append(
+                {
+                    "memory_type": "failure_guardrail",
+                    "title": "no_passing_group_relative_controller_sibling",
+                    "support": {
+                        "attempt": best.get("attempt"),
+                        "target_surface": best.get("target_surface"),
+                        "patch_intent": best.get("patch_intent"),
+                        "failure_category": best.get("failure_category"),
+                        "relative_advantage": best.get("relative_advantage"),
+                    },
+                }
+            )
     if summary.get("reasoning_only_empty_count", 0):
         failure_lessons.append(
             "Reasoning-only empty responses still appeared; keep no-thinking routing and empty-content retry active."
@@ -469,6 +509,24 @@ def build_controller_batch_memory_update(
                     "support": {"count": count},
                 }
             )
+    weak_strategy_rows = [
+        item
+        for item in group_relative.get("strategy_stats", [])
+        if item.get("attempt_count", 0) >= 1 and item.get("pass_rate", 0.0) == 0.0
+    ]
+    for weak in weak_strategy_rows[:3]:
+        candidate_memory_topics.append(
+            {
+                "memory_type": "failure_guardrail",
+                "title": "weak_group_relative_controller_strategy",
+                "support": {
+                    "target_surface": weak.get("target_surface"),
+                    "patch_intent": weak.get("patch_intent"),
+                    "attempt_count": weak.get("attempt_count"),
+                    "mean_relative_advantage": weak.get("mean_relative_advantage"),
+                },
+            }
+        )
 
     surfaces = sorted({str(item.get("target_surface")) for item in attempts if item.get("target_surface")})
     map_cells = sorted({str(item.get("map_cell_key")) for item in attempts if item.get("map_cell_key")})
@@ -488,6 +546,7 @@ def build_controller_batch_memory_update(
             "map_cell_count": summary.get("map_cell_count"),
             "failure_categories": failure_categories,
         },
+        "group_relative_controller_report": group_relative,
         "surfaces_seen": surfaces,
         "map_cells_seen": map_cells,
         "success_lessons": success_lessons,
@@ -499,6 +558,149 @@ def build_controller_batch_memory_update(
             "promoting new non-seed active memories."
         ),
     }
+
+
+def build_group_relative_controller_report(attempts: list[dict[str, Any]]) -> dict[str, Any]:
+    """Compare sibling controller attempts generated from the same parent.
+
+    This is the controller-static analogue of Dr. RTL's group-relative skill
+    signal. It is not a market-alpha score. It ranks siblings by validity,
+    uniqueness, repair burden, and diversity so later skill extraction can
+    compare matched attempts instead of isolated logs.
+    """
+
+    scored = [_controller_attempt_relative_record(item) for item in attempts]
+    if not scored:
+        return {
+            "score_definition": "controller_static_quality_score_higher_is_better",
+            "attempt_count": 0,
+            "mean_score": None,
+            "std_score": None,
+            "top_siblings": [],
+            "bottom_siblings": [],
+            "strategy_stats": [],
+        }
+    scores = [float(item["controller_quality_score"]) for item in scored]
+    mean_score = sum(scores) / len(scores)
+    variance = sum((score - mean_score) ** 2 for score in scores) / len(scores)
+    std_score = variance**0.5
+    for item in scored:
+        if std_score > 1e-12:
+            item["relative_advantage"] = round((item["controller_quality_score"] - mean_score) / std_score, 6)
+        else:
+            item["relative_advantage"] = 0.0
+    ranked = sorted(scored, key=lambda item: (-item["relative_advantage"], _attempt_sort_value(item)))
+    return {
+        "score_definition": (
+            "controller_static_quality_score_higher_is_better; combines decision, hard-gate pass rate, "
+            "uniqueness, repair/empty-output burden, and MAP-cell occupancy. It is for sibling comparison "
+            "only, not market validation."
+        ),
+        "attempt_count": len(scored),
+        "mean_score": round(mean_score, 6),
+        "std_score": round(std_score, 6),
+        "top_siblings": ranked[:5],
+        "bottom_siblings": list(reversed(ranked[-5:])),
+        "strategy_stats": _group_strategy_stats(scored),
+    }
+
+
+def _attempt_sort_value(item: dict[str, Any]) -> int:
+    attempt = item.get("attempt")
+    return attempt if isinstance(attempt, int) else 10**9
+
+
+def _controller_attempt_relative_record(item: dict[str, Any]) -> dict[str, Any]:
+    score = _controller_quality_score(item)
+    return {
+        "attempt": item.get("attempt"),
+        "program_id": item.get("program_id"),
+        "target_surface": item.get("target_surface"),
+        "patch_intent": item.get("patch_intent") or "unknown",
+        "map_cell_key": item.get("map_cell_key"),
+        "decision": item.get("decision"),
+        "failure_category": item.get("failure_category"),
+        "repair_attempted": bool(item.get("repair_attempted")),
+        "repair_succeeded": bool(item.get("repair_succeeded")),
+        "duplicate_retry_attempted": bool(item.get("duplicate_retry_attempted")),
+        "duplicate_retry_succeeded": bool(item.get("duplicate_retry_succeeded")),
+        "map_cell_already_occupied": bool(item.get("map_cell_already_occupied")),
+        "controller_quality_score": round(score, 6),
+    }
+
+
+def _controller_quality_score(item: dict[str, Any]) -> float:
+    hard_gates = item.get("hard_gates", {}) or {}
+    gate_values = [1.0 if value else 0.0 for value in hard_gates.values()]
+    gate_rate = sum(gate_values) / len(gate_values) if gate_values else 0.0
+    score = gate_rate
+    if item.get("decision") == "pass":
+        score += 1.0
+    if item.get("hard_gates", {}).get("unique_child"):
+        score += 0.25
+    if item.get("map_cell_key"):
+        score += 0.10
+    if item.get("map_cell_already_occupied"):
+        score -= 0.10
+    if item.get("repair_attempted"):
+        score -= 0.10
+        if item.get("repair_succeeded"):
+            score += 0.05
+    empty_retry_count = int(item.get("empty_retry_count", 0) or 0)
+    if empty_retry_count:
+        score -= 0.20 * empty_retry_count
+        if item.get("empty_retry_succeeded"):
+            score += 0.05
+    if item.get("duplicate_retry_attempted"):
+        score -= 0.05
+        if item.get("duplicate_retry_succeeded"):
+            score += 0.20
+    failure_penalties = {
+        "empty_output": 0.70,
+        "portfolio_semantic_failed": 0.55,
+        "vector_smoke_failed": 0.35,
+        "duplicate_child": 0.30,
+        "duplicate_patch_fingerprint": 0.30,
+        "exact_search_not_found": 0.30,
+        "outside_evolve_block": 0.45,
+        "evolve_marker_error": 0.45,
+    }
+    failure_category = item.get("failure_category")
+    if failure_category:
+        score -= failure_penalties.get(str(failure_category), 0.25)
+    return score
+
+
+def _group_strategy_stats(scored_attempts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for item in scored_attempts:
+        key = (str(item.get("target_surface")), str(item.get("patch_intent") or "unknown"))
+        groups.setdefault(key, []).append(item)
+    rows: list[dict[str, Any]] = []
+    for (target_surface, patch_intent), group in groups.items():
+        pass_count = sum(1 for item in group if item.get("decision") == "pass")
+        mean_score = sum(float(item["controller_quality_score"]) for item in group) / len(group)
+        mean_advantage = sum(float(item.get("relative_advantage", 0.0)) for item in group) / len(group)
+        rows.append(
+            {
+                "target_surface": target_surface,
+                "patch_intent": patch_intent,
+                "attempt_count": len(group),
+                "pass_count": pass_count,
+                "pass_rate": round(pass_count / len(group), 6),
+                "mean_controller_quality_score": round(mean_score, 6),
+                "mean_relative_advantage": round(mean_advantage, 6),
+                "failure_categories": sorted(
+                    {
+                        str(item.get("failure_category"))
+                        for item in group
+                        if item.get("failure_category")
+                    }
+                ),
+            }
+        )
+    rows.sort(key=lambda item: (-item["mean_relative_advantage"], item["target_surface"], item["patch_intent"]))
+    return rows
 
 
 def write_memory_update(out_dir: str | Path, update: dict[str, Any]) -> dict[str, str]:
@@ -577,6 +779,32 @@ def _render_memory_update_markdown(update: dict[str, Any]) -> str:
             lines.append(f"- {topic.get('memory_type')}: {topic.get('title')} `{topic.get('support')}`")
         else:
             lines.append(f"- {topic}")
+    group_relative = update.get("group_relative_controller_report", {})
+    lines.extend(["", "## Group-Relative Controller Report", ""])
+    lines.append(f"- score_definition: `{group_relative.get('score_definition')}`")
+    lines.append(f"- attempt_count: `{group_relative.get('attempt_count')}`")
+    lines.append(f"- mean_score: `{group_relative.get('mean_score')}`")
+    lines.append(f"- std_score: `{group_relative.get('std_score')}`")
+    lines.extend(["", "### Top Siblings", ""])
+    for item in group_relative.get("top_siblings", []) or ["none"]:
+        if isinstance(item, dict):
+            lines.append(
+                f"- attempt `{item.get('attempt')}` `{item.get('target_surface')}`/"
+                f"`{item.get('patch_intent')}` decision `{item.get('decision')}` "
+                f"relative_advantage `{item.get('relative_advantage')}`"
+            )
+        else:
+            lines.append(f"- {item}")
+    lines.extend(["", "### Strategy Stats", ""])
+    for item in group_relative.get("strategy_stats", []) or ["none"]:
+        if isinstance(item, dict):
+            lines.append(
+                f"- `{item.get('target_surface')}`/`{item.get('patch_intent')}`: "
+                f"attempts `{item.get('attempt_count')}`, pass_rate `{item.get('pass_rate')}`, "
+                f"mean_relative_advantage `{item.get('mean_relative_advantage')}`"
+            )
+        else:
+            lines.append(f"- {item}")
     lines.extend(["", "## Next Extraction Step", "", str(update.get("next_extraction_step", "")), ""])
     return "\n".join(lines)
 
@@ -588,6 +816,7 @@ __all__ = [
     "append_memory_items",
     "append_memory_update",
     "bootstrap_default_memory_bank",
+    "build_group_relative_controller_report",
     "build_controller_batch_memory_update",
     "read_memory_items",
     "render_memory_cards",

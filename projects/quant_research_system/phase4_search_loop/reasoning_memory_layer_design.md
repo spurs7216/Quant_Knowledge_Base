@@ -127,6 +127,8 @@ Example self-contrast questions:
 - Which duplicate patterns suggest the model is stuck in one search cell?
 - Which lessons should become prompt instructions versus deterministic filters?
 
+Dr. RTL strengthens this rule: compare siblings generated from the same parent under the same evaluator context before extracting skills. The implementation now writes a `group_relative_controller_report` into each controller batch's `reasoning_memory_update.json` / `.md`.
+
 ## Current Seed Memory From Phase 4
 
 The initial active memory should include these lessons, all already supported by prior artifacts and [current_state.md](current_state.md):
@@ -188,6 +190,7 @@ The lightweight local module can:
 - retrieve active items by stage/surface/island with lexical fallback;
 - render compact prompt cards.
 - write a deterministic `reasoning_memory_update.json` / `.md` after a controller batch.
+- compute a Dr. RTL-style group-relative controller report across sibling attempts.
 
 This does not require local Qwen or embedding inference. `run_child_batch.py` bootstraps the default Phase 4 seed lessons into `artifacts/phase4_alphaevolve/reasoning_memory/memory_items.jsonl` unless reasoning memory is explicitly disabled.
 

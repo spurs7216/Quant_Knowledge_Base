@@ -153,6 +153,9 @@ MAP-Elites controller diversity:
 Already occupied same-surface MAP cells:
 {occupied_map_cells}
 
+Group-relative sibling role:
+This attempt is one sibling in a matched batch from the same parent and evaluator context. Make one focused semantic change with one clear intent so later skill extraction can compare siblings cleanly.
+
 Forbidden duplicate patches, if this is a duplicate retry:
 {forbidden_duplicate_patches}
 

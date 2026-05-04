@@ -96,6 +96,12 @@ program_database -> episode packet -> memory candidates -> active memory bank ->
 
 The memory bank should store pointers back to artifact paths and database ids. This makes every prompt-facing lesson auditable.
 
+## Group-Relative Skill Signal
+
+Reasoning memory becomes stronger when it uses Dr. RTL-style sibling comparison. A batch of children from the same parent under the same evaluator context is a matched group. The memory update should compare siblings by relative advantage before extracting skills.
+
+At controller-static stage this relative advantage measures validity, uniqueness, repair burden, and MAP-cell diversity. It is not market-alpha evidence. At remote sample-evaluation stage, the relative score can include net performance, cost sensitivity, null comparison, turnover, exposure, and stability.
+
 ## Integration With MAP-Elites
 
 MAP-Elites encourages behavioral diversity. Reasoning memory can make that diversity useful by tagging lessons with behavior cells.
@@ -151,5 +157,7 @@ Then retrieve only the relevant active lessons for the next prompt.
 ## Related Notes
 
 - [[ReasoningBank - Scaling Agent Self-Evolving with Reasoning Memory]]
+- [[Dr RTL - Autonomous Agentic RTL Optimization through Tool-Grounded Self-Improvement]]
+- [[Group-Relative Skill Learning for Alpha Search]]
 - [[AlphaEvolve Lite Quant Search Workflow]]
 - [Phase 4 reasoning memory design](../../projects/quant_research_system/phase4_search_loop/reasoning_memory_layer_design.md)

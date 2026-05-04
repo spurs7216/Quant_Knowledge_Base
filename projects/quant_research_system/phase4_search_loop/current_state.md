@@ -140,7 +140,7 @@ The memory bank is distinct from the program database:
 
 ## Current Next Step
 
-After `controller_batch_001_small_semantic_v3`, the right local controller change was MAP-Elites-style duplicate hardening plus the C1 reasoning-memory scaffold. Both are now implemented locally. The next action is the small remote rerun with memory cards enabled, then remote Qwen self-contrast extraction from the new batch's `reasoning_memory_update.json` and attempt artifacts.
+After `controller_batch_001_small_semantic_v3`, the right local controller change was MAP-Elites-style duplicate hardening plus the C1 reasoning-memory scaffold. Both are now implemented locally. The Dr. RTL transfer patch adds group-relative sibling reporting to the memory update, so the next action is the small remote rerun with memory cards enabled, then remote Qwen self-contrast extraction from the new batch's `reasoning_memory_update.json` and attempt artifacts.
 
 Expected rerun command after duplicate-retry hardening:
 
@@ -168,6 +168,7 @@ target_small_batch:
   map_cell_count: "reported"
   reasoning_memory_enabled: true
   reasoning_memory_update_written: true
+  group_relative_controller_report_written: true
   db_insert_pass_rate: "near 1.0"
   remote_sample_eval_launched: false
   full_validation_launched: false
@@ -179,7 +180,7 @@ If the run fails, inspect `summary.json`, raw/repair outputs, response metadata,
 
 - Active design: [README.md](README.md), [task_001_search_design.md](task_001_search_design.md), [task_004_seed_strategy_program.md](task_004_seed_strategy_program.md)
 - Contracts: [daily_stock_contract_v1.md](daily_stock_contract_v1.md), [prompt_contracts.md](prompt_contracts.md), [evaluator_contract.md](evaluator_contract.md), [program_database_schema.md](program_database_schema.md)
-- Memory layer: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md)
+- Memory layer: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md)

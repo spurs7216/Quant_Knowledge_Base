@@ -198,7 +198,7 @@ Do not require 27B/35B for first milestone.
 
 First run 5 to 10 child attempts on the remote server through the remote controller and Qwen3.5-9B. This is a controller-static dry run only. It must not launch child `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, or test-set evaluation.
 
-Status as of 2026-05-04: no-thinking routing removed the null-content failure in `controller_batch_001_small_semantic_v3`, but the run produced only 7 unique children out of 10 because three attempts were duplicates. MAP-Elites-style diversity targeting, duplicate-retry hardening, and the C1 ReasoningBank-style memory scaffold are now implemented. The next small rerun should keep reasoning memory enabled and should not launch child `remote_sample_eval`.
+Status as of 2026-05-04: no-thinking routing removed the null-content failure in `controller_batch_001_small_semantic_v3`, but the run produced only 7 unique children out of 10 because three attempts were duplicates. MAP-Elites-style diversity targeting, duplicate-retry hardening, the C1 ReasoningBank-style memory scaffold, and Dr. RTL-style group-relative controller reporting are now implemented. The next small rerun should keep reasoning memory enabled and should not launch child `remote_sample_eval`.
 
 Recommended next small command:
 
@@ -230,6 +230,8 @@ artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/em
 ```
 
 Compare against the `semantic_v3` baseline, especially `duplicate_child_count`, `duplicate_retry_success_rate`, `map_cell_count`, `unique_child_pass_rate`, and `reasoning_only_empty_count`.
+
+Also inspect `reasoning_memory_update.md` for `Group-Relative Controller Report`. This report ranks sibling attempts from the same parent by controller validity, uniqueness, repair burden, and MAP-cell diversity. It is not a market-alpha score.
 
 If the small dry run shows the controller path is healthy, then run the larger batch:
 

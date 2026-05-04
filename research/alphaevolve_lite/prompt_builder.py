@@ -267,6 +267,11 @@ MAP-Elites controller diversity:
 - The goal of this attempt is to pass all deterministic gates while filling a distinct behavior cell.
 - Do not use the same patch intent or same semantic change as an already occupied same-surface cell.
 
+Group-relative sibling role:
+- This attempt is one sibling in a matched batch from the same parent, evaluator context, data contract, and prompt policy.
+- Future skill extraction compares siblings by controller validity, uniqueness, repair burden, and MAP-cell diversity.
+- Make one focused semantic change with one clear intent; do not bundle unrelated ideas just to appear novel.
+
 Target behavior cell:
 ```text
 {format_diversity_target(diversity_target)}

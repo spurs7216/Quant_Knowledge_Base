@@ -2,12 +2,47 @@
 title: Wiki Log
 type: log
 status: active
-updated: 2026-04-29
+updated: 2026-05-04
 tags:
   - log
   - wiki
 ---
 # Wiki Log
+
+## 2026-05-04 | source ingest | dr rtl group-relative skill transfer
+
+- Added [[Dr RTL - Autonomous Agentic RTL Optimization through Tool-Grounded Self-Improvement]] after a full paper readthrough and inspection of the official `hkust-zhiyao/DR_RTL` repository, especially `.claude/agents/` and `.claude/skill/rtl-opt/skill.md`.
+- Added [[Group-Relative Skill Learning for Alpha Search]] as the durable method note for translating Dr. RTL's sibling comparison and confidence-aware skill library into Phase 4 alpha search.
+- Added `projects/quant_research_system/phase4_search_loop/dr_rtl_method_transfer_20260504.md` and patched the controller memory update to write a `group_relative_controller_report` for the next remote batch.
+
+## 2026-05-04 | source ingest | reasoningbank memory layer
+
+- Added [[ReasoningBank - Scaling Agent Self-Evolving with Reasoning Memory]] after a full paper readthrough and inspection of the official `google-research/reasoning-bank` WebArena memory-management code.
+- Added [[Reasoning Memory for AlphaEvolve Search]] as the durable method note for converting AlphaEvolve child-batch successes and failures into compact, retrievable, evidence-linked prompt memory.
+- Added `projects/quant_research_system/phase4_search_loop/reasoning_memory_layer_design.md` as the Phase 4 application note, separating exhaustive program-database evidence from the new prompt-facing reasoning memory bank.
+- Updated [[AlphaEvolve Lite Quant Search Workflow]], [[Wiki Index]], and the Phase 4 current-state page so the memory layer is connected to the active search-loop design.
+
+## 2026-05-01 | crystallize | phase4 alphaevolve-lite memory compacted
+
+- Added [[AlphaEvolve Lite Quant Search Workflow]] as the durable method note for translating AlphaEvolve into a quant research search loop with prompt sampler, Qwen ensemble, evaluator pools, program database, semantic gates, and failure memory.
+- Added `projects/quant_research_system/phase4_search_loop/current_state.md` as the compact Phase 4 project entry point, combining current decisions, daily-stock field memory, controller evidence timeline, failure lessons, and the next remote-run gate.
+- Marked dated Phase 4 run-review notes as archived and linked them forward to the compact current-state page so they remain supporting evidence rather than competing active plans.
+- Linked the new method note from [[Wiki Index]] and the AlphaEvolve source note, and linked the active project brief to the compact Phase 4 state page.
+
+## 2026-04-30 | method | daily academic RSS paper intake
+
+- Added [[Daily Academic RSS Paper Intake]] as the durable workflow for using journal RSS feeds as a daily source-discovery layer without promoting metadata-only items into durable wiki claims.
+- Added `projects/literature_rss_intake/` with a project brief and `feeds.quant-research.toml` for the quant-research journal RSS corpus.
+- Linked the intake method from [[Wiki Index]].
+- Expanded the feed corpus from the first ten FT50-derived feeds to 43 verified RSS/XML feeds across finance, economics, econometrics, statistics, applied math, operations, CS, ML, AI, and LLM-adjacent retrieval.
+- Verified the AEA feed as `AEA Research Highlights` rather than an AER-only feed, and verified QJE through Oxford's direct Advance Articles RSS feed.
+- Added `projects/literature_rss_intake/feed_verification_2026-04-30.md` as the dated evidence note for the selected feed corpus.
+- Downloaded the referenced `academic-journal-rss` skill repo into a vault-local tool folder because the global Codex skills directory is not writable from the current sandbox.
+- Added an arXiv preprint feed stream with a stricter preprint gate, plus a daily task design covering arXiv canonicalization, DOI/arXiv/title deduplication, candidate queue states, and source-ingest boundaries.
+- Initialized local journal and preprint runtime configs and verified dry syncs: 43/43 journal feeds and 18/18 arXiv feeds fetched without feed errors.
+- Recorded the runtime configuration explicitly: journal stream uses 48h / top 15 / min relevance 3 / 90d retention, while preprint stream uses 48h / top 10 / min relevance 4 / 90d retention plus the separate `source_strength` gate.
+- Installed `academic-journal-rss` into `C:\Users\g3055\.codex\skills\academic-journal-rss` after permissions were reset, copied the vault-specific runtime instructions into the installed skill, and verified the installed copy can sync both configured streams.
+- Ran the first stateful daily RSS baseline for 2026-04-30: wrote ignored digest files under `projects/literature_rss_intake/digests/journals/` and `projects/literature_rss_intake/digests/preprints/`, updated the ignored local candidate registry with 934 canonical records, queued 15 journal papers and 10 arXiv preprints for source acquisition, then marked the fetched GUIDs seen. Post-mark sync returned zero new items for both streams.
 
 ## 2026-04-29 | project update | phase4 active package
 

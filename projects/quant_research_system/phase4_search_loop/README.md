@@ -130,6 +130,7 @@ New implementation-policy files:
 - [prompt_contracts.md](prompt_contracts.md): exact prompt modes, output rules, repair prompts, and model routing.
 - [artifact_renderer_contract.md](artifact_renderer_contract.md): compact prompt-card and evaluator-summary artifacts.
 - [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md): ReasoningBank-style memory layer for turning batch successes and failures into retrievable prompt lessons.
+- [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md): Dr. RTL transfer note for group-relative sibling comparison and skill learning.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 
 Existing policy files included for completeness:
