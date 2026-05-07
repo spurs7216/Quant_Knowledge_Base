@@ -19,3 +19,18 @@ The first production use should keep data loading, split dates, duplicate policy
 `reasoning_memory.py` is the local ReasoningBank-style scaffold. It bootstraps evidence-linked Phase 4 seed lessons, retrieves active cards by controller stage and target surface, and writes deterministic batch memory updates. It does not call local Qwen or local embedding inference.
 
 `diagnostic_analyzer.py` and `skill_library.py` are the Dr. RTL transfer scaffold. The analyzer localizes bottlenecks without proposing patches; the skill library stores explicit pattern -> strategy rules and writes candidate skill updates after controller batches. Candidate skills are not automatically promoted to active.
+
+Controller batch refactor notes:
+
+- `artifact_io.py` owns shared JSON normalization and deterministic JSON artifact writes.
+- `controller_batch_artifacts.py` owns prompt-message artifacts and controller summary rendering.
+- `controller_batch_filter.py` owns controller-static micro-filter execution plus the bounded one-shot repair path.
+- `controller_batch_mocks.py` owns deterministic mock patches used by local smoke tests.
+- `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
+- `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
+
+Remote sample-evaluator refactor notes:
+
+- `sample_eval_metrics.py` owns one-day-forward return construction, portfolio accounting, split metrics, scorecards, and cost sensitivity.
+- `sample_eval_baselines.py` owns sign-flip and matched-random null baseline construction.
+- `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, and database writes there unless a new reusable contract appears.

@@ -11,6 +11,7 @@ tags:
   - qwen
 sources:
   - "AlphaEvolve - A coding agent for scientific and algorithmic discovery.pdf"
+  - "Illuminating search spaces by mapping elites (MAP-elite).pdf"
   - "README.md"
   - "task_001_search_design.md"
   - "phase4_sampling_policy_v1.md"
@@ -155,6 +156,14 @@ It should sample by:
 - near-miss repair value;
 - negative-control relevance;
 - validation exposure.
+
+MAP-Elites translation for Phase 4:
+
+- The program is the candidate solution.
+- The evaluator score is the performance measure once sample or validation evaluation exists.
+- The MAP cell is a discretized behavior descriptor, initially `target_surface`, `patch_intent`, and controller smoke portfolio-shape buckets.
+- During `controller_static`, exact child hashes and normalized patch fingerprints are retryable duplicates. Occupied MAP cells are recorded so the next prompt can target underfilled cells.
+- During historical evaluation, each cell should keep or promote the highest selection-score child for that behavior niche rather than letting one globally strong family crowd out all other search regions.
 
 ## Prompt Sampling
 

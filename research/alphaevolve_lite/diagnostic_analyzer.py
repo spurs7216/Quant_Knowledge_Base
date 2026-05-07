@@ -8,11 +8,11 @@ market validity labels.
 
 from __future__ import annotations
 
-import json
 import math
 from pathlib import Path
 from typing import Any, Iterable
 
+from .artifact_io import write_json
 from .paths import utc_now_iso
 
 
@@ -433,7 +433,7 @@ def write_diagnostic_report(out_dir: str | Path, stem: str, report: dict[str, An
     path.mkdir(parents=True, exist_ok=True)
     json_path = path / f"{stem}.json"
     md_path = path / f"{stem}.md"
-    json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(json_path, report)
     md_path.write_text(_render_diagnostic_report_markdown(report), encoding="utf-8")
     return {"json": str(json_path), "markdown": str(md_path)}
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import math
 import platform
 import subprocess
 import sys
@@ -102,220 +101,9 @@ def write_git_status_artifacts(out_dir: Path) -> dict[str, Any]:
     }
 
 
-def clean_json(obj: Any) -> Any:
-    try:
-        import numpy as np
-        import pandas as pd
-    except Exception:  # pragma: no cover
-        np = None
-        pd = None
-
-    if isinstance(obj, dict):
-        return {str(k): clean_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_json(v) for v in obj]
-    if pd is not None and isinstance(obj, pd.Timestamp):
-        return obj.isoformat()
-    if np is not None and isinstance(obj, np.generic):
-        return clean_json(obj.item())
-    if isinstance(obj, float):
-        return obj if math.isfinite(obj) else None
-    return obj
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(clean_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
 def write_lines(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-
-
-def max_drawdown(returns):
-    wealth = (1.0 + returns.fillna(0.0)).cumprod()
-    peak = wealth.cummax()
-    drawdown = wealth / peak - 1.0
-    return float(drawdown.min()) if len(drawdown) else float("nan")
-
-
-def beta_to_market(returns, market):
-    import numpy as np
-    import pandas as pd
-
-    joined = pd.concat([returns, market], axis=1).dropna()
-    if len(joined) < 2:
-        return float("nan")
-    y = joined.iloc[:, 0].to_numpy(dtype=float)
-    x = joined.iloc[:, 1].to_numpy(dtype=float)
-    var_x = np.var(x, ddof=1)
-    if var_x <= 0 or not np.isfinite(var_x):
-        return float("nan")
-    return float(np.cov(x, y, ddof=1)[0, 1] / var_x)
-
-
-def turnover_aware_score(
-    *,
-    sharpe: float,
-    turnover: float,
-    max_missing_held_weight: float,
-    turnover_penalty: float = 0.25,
-    missing_weight_penalty: float = 5.0,
-) -> float:
-    values = [sharpe, turnover, max_missing_held_weight]
-    if any(not math.isfinite(float(value)) for value in values):
-        return float("nan")
-    return float(sharpe - turnover_penalty * turnover - missing_weight_penalty * max_missing_held_weight)
-
-
-def split_metrics(
-    portfolio,
-    split_name: str,
-    start,
-    end,
-    *,
-    turnover_penalty: float = 0.25,
-    missing_weight_penalty: float = 5.0,
-) -> dict[str, float]:
-    import numpy as np
-
-    if portfolio.empty:
-        return {
-            "annualized_return": float("nan"),
-            "annualized_volatility": float("nan"),
-            "sharpe": float("nan"),
-            "gross_annualized_return": float("nan"),
-            "gross_sharpe": float("nan"),
-            "max_drawdown": float("nan"),
-            "turnover": float("nan"),
-            "hit_rate": float("nan"),
-            "beta_to_vwretd": float("nan"),
-            "mean_daily_n_names": float("nan"),
-            "mean_missing_held_weight": float("nan"),
-            "max_missing_held_weight": float("nan"),
-            "max_weight": float("nan"),
-            "turnover_aware_score": float("nan"),
-        }
-    part = portfolio.loc[portfolio["DlyCalDt"].between(start, end)].copy()
-    if part.empty:
-        return split_metrics(
-            part,
-            split_name,
-            start,
-            end,
-            turnover_penalty=turnover_penalty,
-            missing_weight_penalty=missing_weight_penalty,
-        )
-    ann = 252.0
-    rets = part.set_index("DlyCalDt")["net_return"]
-    gross = part.set_index("DlyCalDt")["gross_return"]
-    market = part.set_index("DlyCalDt")["vwretd"]
-    vol = rets.std(ddof=1)
-    gross_vol = gross.std(ddof=1)
-    sharpe = float(rets.mean() / vol * math.sqrt(ann)) if vol and vol > 0 else float("nan")
-    turnover = float(part["turnover"].mean())
-    max_missing = float(part["missing_held_weight"].max())
-    return {
-        "annualized_return": float(rets.mean() * ann),
-        "annualized_volatility": float(vol * math.sqrt(ann)) if np.isfinite(vol) else float("nan"),
-        "sharpe": sharpe,
-        "gross_annualized_return": float(gross.mean() * ann),
-        "gross_sharpe": float(gross.mean() / gross_vol * math.sqrt(ann)) if gross_vol and gross_vol > 0 else float("nan"),
-        "max_drawdown": max_drawdown(rets),
-        "turnover": turnover,
-        "hit_rate": float((rets > 0).mean()),
-        "beta_to_vwretd": beta_to_market(rets, market),
-        "mean_daily_n_names": float(part["n_names"].mean()),
-        "mean_missing_held_weight": float(part["missing_held_weight"].mean()),
-        "max_missing_held_weight": max_missing,
-        "max_weight": float(part["max_weight"].max()),
-        "turnover_aware_score": turnover_aware_score(
-            sharpe=sharpe,
-            turnover=turnover,
-            max_missing_held_weight=max_missing,
-            turnover_penalty=turnover_penalty,
-            missing_weight_penalty=missing_weight_penalty,
-        ),
-    }
-
-
-def build_forward_returns(panel, contract):
-    import pandas as pd
-
-    data = panel.sort_values([contract.security_id, contract.date]).copy()
-    trading_dates = pd.Index(data[contract.date].drop_duplicates().sort_values())
-    next_date_map = pd.Series(trading_dates[1:].to_numpy(), index=trading_dates[:-1])
-    data["next_market_date"] = data[contract.date].map(next_date_map)
-    grouped = data.groupby(contract.security_id, sort=False)
-    data["fwd_ret"] = grouped[contract.ex_dividend_return].shift(-1)
-    data["fwd_date"] = grouped[contract.date].shift(-1)
-    data["fwd_vwretd"] = grouped[contract.benchmark_return_primary].shift(-1)
-    data["one_day_forward"] = data["fwd_date"].eq(data["next_market_date"])
-    return data
-
-
-def portfolio_from_weights(panel, weights, total_cost_bps: float, contract):
-    import pandas as pd
-
-    data = panel[
-        [contract.date, contract.security_id, "fwd_ret", "fwd_date", "fwd_vwretd", "one_day_forward"]
-    ].copy()
-    data["weight"] = weights.reindex(data.index).fillna(0.0)
-    data = data.loc[data["weight"].ne(0.0)].copy()
-    if data.empty:
-        return pd.DataFrame(
-            columns=[
-                "DlyCalDt",
-                "signal_date",
-                "gross_return",
-                "net_return",
-                "turnover",
-                "n_names",
-                "missing_held_weight",
-                "max_weight",
-                "vwretd",
-            ]
-        ), data
-
-    cost_rate = total_cost_bps / 10000.0
-    rows: list[dict[str, Any]] = []
-    prev_weights = None
-    for signal_date, group in data.groupby(contract.date, sort=True):
-        w = group.set_index(contract.security_id)["weight"]
-        if prev_weights is None:
-            turnover = float(w.abs().sum())
-        else:
-            combined = w.index.union(prev_weights.index)
-            turnover = float((w.reindex(combined, fill_value=0.0) - prev_weights.reindex(combined, fill_value=0.0)).abs().sum())
-        prev_weights = w
-
-        valid = group["one_day_forward"].fillna(False) & group["fwd_ret"].notna()
-        missing_held_weight = float(group.loc[~valid, "weight"].abs().sum())
-        available = group.loc[valid].copy()
-        if available.empty:
-            gross_return = float("nan")
-            next_date = group["fwd_date"].dropna().min()
-            market_return = float("nan")
-        else:
-            gross_return = float((available["weight"] * available["fwd_ret"]).sum())
-            next_date = available["fwd_date"].iloc[0]
-            market_return = float(available["fwd_vwretd"].iloc[0])
-        rows.append(
-            {
-                "DlyCalDt": pd.Timestamp(next_date) if pd.notna(next_date) else pd.NaT,
-                "signal_date": pd.Timestamp(signal_date),
-                "gross_return": gross_return,
-                "net_return": gross_return - turnover * cost_rate if math.isfinite(gross_return) else float("nan"),
-                "turnover": turnover,
-                "n_names": int(len(group)),
-                "missing_held_weight": missing_held_weight,
-                "max_weight": float(group["weight"].abs().max()),
-                "vwretd": market_return,
-            }
-        )
-    portfolio = pd.DataFrame(rows).dropna(subset=["DlyCalDt"]).sort_values("DlyCalDt")
-    return portfolio, data
 
 
 def duplicate_diagnostics(frame, contract, max_rows: int = 200):
@@ -365,148 +153,11 @@ def duplicate_diagnostics(frame, contract, max_rows: int = 200):
     return detail.head(max_rows), summary
 
 
-def random_baseline_weights(panel, reference_weights, contract, seed: int):
-    import numpy as np
-    import pandas as pd
-
-    rng = np.random.default_rng(seed)
-    weights = pd.Series(0.0, index=panel.index, dtype=float)
-    reference = reference_weights.reindex(panel.index).fillna(0.0)
-    for _, group in panel.groupby(contract.date, sort=True):
-        ref = reference.loc[group.index]
-        n_long = int((ref > 0.0).sum())
-        n_short = int((ref < 0.0).sum())
-        needed = n_long + n_short
-        if n_long == 0 or n_short == 0 or len(group) < needed:
-            continue
-        chosen = rng.choice(group.index.to_numpy(), size=needed, replace=False)
-        long_idx = chosen[:n_long]
-        short_idx = chosen[n_long:]
-        weights.loc[long_idx] = 0.5 / n_long
-        weights.loc[short_idx] = -0.5 / n_short
-    return weights.rename("random_weight")
-
-
-def baseline_metrics_for_weights(
-    *,
-    label: str,
-    panel,
-    weights,
-    contract,
-    validation_end,
-    total_cost_bps: float,
-    visible_splits,
-    turnover_penalty: float,
-    missing_weight_penalty: float,
-) -> dict[str, Any]:
-    portfolio, _ = portfolio_from_weights(panel, weights, total_cost_bps, contract)
-    portfolio = portfolio.loc[portfolio["DlyCalDt"] <= validation_end].copy()
-    metrics = {
-        split.name: split_metrics(
-            portfolio,
-            split.name,
-            split.start,
-            split.end,
-            turnover_penalty=turnover_penalty,
-            missing_weight_penalty=missing_weight_penalty,
-        )
-        for split in visible_splits
-    }
-    if portfolio.empty:
-        metrics["search_sample"] = split_metrics(
-            portfolio,
-            "search_sample",
-            validation_end,
-            validation_end,
-            turnover_penalty=turnover_penalty,
-            missing_weight_penalty=missing_weight_penalty,
-        )
-    else:
-        metrics["search_sample"] = split_metrics(
-            portfolio,
-            "search_sample",
-            portfolio["DlyCalDt"].min(),
-            portfolio["DlyCalDt"].max(),
-            turnover_penalty=turnover_penalty,
-            missing_weight_penalty=missing_weight_penalty,
-        )
-    return {"label": label, "metrics": metrics}
-
-
-def flatten_baseline_rows(records: list[dict[str, Any]]):
-    import pandas as pd
-
-    rows = []
-    for record in records:
-        for split, metrics in record["metrics"].items():
-            for metric, value in metrics.items():
-                rows.append(
-                    {
-                        "baseline": record["label"],
-                        "split": split,
-                        "metric": metric,
-                        "value": value,
-                    }
-                )
-    return pd.DataFrame(rows)
-
-
-def summarize_baselines(baseline_rows, seed_metrics: dict[str, dict[str, float]]) -> dict[str, Any]:
-    if baseline_rows.empty:
-        return {}
-    summary: dict[str, Any] = {}
-    for metric in ["sharpe", "annualized_return", "turnover", "turnover_aware_score"]:
-        part = baseline_rows[
-            (baseline_rows["split"] == "search_sample")
-            & (baseline_rows["metric"] == metric)
-            & (baseline_rows["baseline"].str.startswith("random_"))
-        ]["value"].dropna()
-        if len(part):
-            summary[f"random_search_sample_{metric}"] = {
-                "count": int(len(part)),
-                "mean": float(part.mean()),
-                "median": float(part.median()),
-                "min": float(part.min()),
-                "max": float(part.max()),
-                "seed_value": seed_metrics["search_sample"].get(metric),
-            }
-    sign_flip = baseline_rows[
-        (baseline_rows["split"] == "search_sample")
-        & (baseline_rows["baseline"] == "sign_flip")
-        & (baseline_rows["metric"].isin(["sharpe", "annualized_return", "turnover_aware_score"]))
-    ]
-    if not sign_flip.empty:
-        summary["sign_flip_search_sample"] = {
-            str(row["metric"]): float(row["value"]) for _, row in sign_flip.iterrows()
-        }
-    return summary
-
-
-def scorecard_from_metrics(program_id: str, metrics: dict[str, dict[str, float]], splits) -> Any:
-    import pandas as pd
-
-    rows = []
-    split_dates = {split.name: split for split in splits}
-    for split_name, values in metrics.items():
-        split = split_dates.get(split_name)
-        for metric, value in values.items():
-            rows.append(
-                {
-                    "program_id": program_id,
-                    "split": split_name,
-                    "start_date": split.start.date().isoformat() if split else "",
-                    "end_date": split.end.date().isoformat() if split else "",
-                    "metric": metric,
-                    "value": value,
-                }
-            )
-    return pd.DataFrame(rows)
-
-
 def main() -> int:
     _ensure_repo_import()
     import pandas as pd
 
+    from research.alphaevolve_lite.artifact_io import clean_json, write_json
     from research.alphaevolve_lite.daily_stock_contract import CONTRACT, eligibility_query_description
     from research.alphaevolve_lite.daily_stock_loader import (
         apply_duplicate_policy,
@@ -514,6 +165,18 @@ def main() -> int:
         load_daily_stock_window,
     )
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
+    from research.alphaevolve_lite.sample_eval_baselines import (
+        build_baseline_records,
+        flatten_baseline_rows,
+        summarize_baselines,
+    )
+    from research.alphaevolve_lite.sample_eval_metrics import (
+        build_forward_returns,
+        cost_sensitivity_rows,
+        portfolio_from_weights,
+        scorecard_from_metrics,
+        split_metrics,
+    )
     from research.alphaevolve_lite.splits import build_chronological_splits, write_split_manifest
     from research.alphaevolve_lite.universe import (
         UNIVERSE_POLICY_ID,
@@ -600,34 +263,17 @@ def main() -> int:
             missing_weight_penalty=args.missing_weight_penalty,
         )
 
-        baseline_records = [
-            baseline_metrics_for_weights(
-                label="sign_flip",
-                panel=eval_panel,
-                weights=-weights,
-                contract=CONTRACT,
-                validation_end=validation_end,
-                total_cost_bps=args.total_cost_bps,
-                visible_splits=visible_splits,
-                turnover_penalty=args.turnover_penalty,
-                missing_weight_penalty=args.missing_weight_penalty,
-            )
-        ]
-        for seed in range(args.null_seeds):
-            random_weights = random_baseline_weights(eval_panel, weights, CONTRACT, seed)
-            baseline_records.append(
-                baseline_metrics_for_weights(
-                    label=f"random_{seed}",
-                    panel=eval_panel,
-                    weights=random_weights,
-                    contract=CONTRACT,
-                    validation_end=validation_end,
-                    total_cost_bps=args.total_cost_bps,
-                    visible_splits=visible_splits,
-                    turnover_penalty=args.turnover_penalty,
-                    missing_weight_penalty=args.missing_weight_penalty,
-                )
-            )
+        baseline_records = build_baseline_records(
+            panel=eval_panel,
+            reference_weights=weights,
+            contract=CONTRACT,
+            validation_end=validation_end,
+            total_cost_bps=args.total_cost_bps,
+            visible_splits=visible_splits,
+            null_seeds=args.null_seeds,
+            turnover_penalty=args.turnover_penalty,
+            missing_weight_penalty=args.missing_weight_penalty,
+        )
         baseline_rows = flatten_baseline_rows(baseline_records)
         baseline_rows.to_csv(out_dir / "null_baselines.csv", index=False)
         baseline_summary = summarize_baselines(baseline_rows, metrics)
@@ -648,27 +294,12 @@ def main() -> int:
         decision = "sample_pass" if all(hard_gates.values()) else "sample_review"
 
         scorecard = scorecard_from_metrics(args.program_id, metrics, visible_splits)
-        cost_rows = []
-        for cost in costs:
-            cost_portfolio = portfolio.copy()
-            cost_portfolio["net_return"] = cost_portfolio["gross_return"] - cost_portfolio["turnover"] * (cost / 10000.0)
-            cost_metrics = split_metrics(
-                cost_portfolio,
-                "all",
-                cost_portfolio["DlyCalDt"].min(),
-                cost_portfolio["DlyCalDt"].max(),
-                turnover_penalty=args.turnover_penalty,
-                missing_weight_penalty=args.missing_weight_penalty,
-            )
-            cost_rows.append(
-                {
-                    "total_cost_bps": cost,
-                    "annualized_return": cost_metrics["annualized_return"],
-                    "sharpe": cost_metrics["sharpe"],
-                    "turnover": cost_metrics["turnover"],
-                    "turnover_aware_score": cost_metrics["turnover_aware_score"],
-                }
-            )
+        cost_rows = cost_sensitivity_rows(
+            portfolio,
+            costs,
+            turnover_penalty=args.turnover_penalty,
+            missing_weight_penalty=args.missing_weight_penalty,
+        )
 
         write_universe_artifacts(out_dir, membership, universe_summary)
         write_split_manifest(

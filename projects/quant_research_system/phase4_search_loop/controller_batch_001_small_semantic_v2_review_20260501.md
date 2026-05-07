@@ -1,7 +1,7 @@
 ---
 title: Phase 4 Controller Batch 001 Small Semantic V2 Review
 type: project
-status: active
+status: archived
 updated: 2026-05-01
 tags:
   - project
@@ -12,8 +12,11 @@ tags:
 sources:
   - "controller_batch_001_small_repair_v1_review_20260430.md"
   - "controller_child_dry_run_20260430.md"
+superseded_by: "current_state.md"
 ---
 # Phase 4 Controller Batch 001 Small Semantic V2 Review
+
+> Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for the semantic-gated controller batches.
 
 ## Artifact
 

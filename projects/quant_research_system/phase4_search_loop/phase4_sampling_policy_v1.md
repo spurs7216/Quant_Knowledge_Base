@@ -18,6 +18,7 @@ sources:
   - "evaluator_contract.md"
   - "dataset_context.md"
   - "AlphaEvolve - A coding agent for scientific and algorithmic discovery.pdf"
+  - "Illuminating search spaces by mapping elites (MAP-elite).pdf"
 ---
 # Phase 4 Sampling Policy V1
 
@@ -293,6 +294,46 @@ The prompt sampler should include compact prompt-cards, not full artifact bundle
 ## MAP-Elites Descriptors
 
 Store many descriptors, but use only 3 or 4 active dimensions per island.
+
+### Controller-static translation
+
+The MAP-Elites paper separates three objects:
+
+- a candidate solution or program;
+- a performance measure;
+- a user-defined feature descriptor that maps the candidate into a discretized cell.
+
+For this Phase 4 loop, that means diversity cannot be only a natural-language prompt instruction. The controller must compute cells and record them.
+
+At `controller_static`, historical performance is not available yet. Therefore the temporary controller-stage MAP uses:
+
+```yaml
+controller_static_map:
+  candidate: generated child program
+  performance_proxy:
+    - all deterministic gates pass
+    - repair-free preferred over repaired when comparing otherwise similar children
+  feature_descriptor:
+    - target_surface
+    - patch_intent
+    - net_exposure_bucket
+    - gross_exposure_bucket
+    - concentration_bucket
+    - book_activity_bucket
+  duplicate_policy:
+    exact_child_hash: retry_once_then_reject
+    normalized_patch_fingerprint: retry_once_then_reject
+    occupied_map_cell: record_as_cell_collision_not_hard_reject_yet
+```
+
+After `remote_sample_eval` exists for children, the same MAP cell can keep the best child by `selection_score`. Until then, filling new behavior cells is more useful than repeatedly accepting the same sign flip or equal-weight refactor.
+
+The controller prompt sampler should therefore:
+
+- choose a target behavior cell before each generation;
+- include already occupied same-surface cells in the prompt;
+- include duplicate patches as negative examples during retry;
+- report `map_cell_count`, `map_cell_duplicate_count`, `duplicate_retry_attempt_rate`, and `duplicate_retry_success_rate` in batch summaries.
 
 ### Global descriptors
 

@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import Any, Iterable
 
+from .artifact_io import write_json
 from .paths import utc_now_iso
 
 
@@ -710,7 +711,7 @@ def write_memory_update(out_dir: str | Path, update: dict[str, Any]) -> dict[str
     path.mkdir(parents=True, exist_ok=True)
     json_path = path / "reasoning_memory_update.json"
     md_path = path / "reasoning_memory_update.md"
-    json_path.write_text(json.dumps(update, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(json_path, update)
     md_path.write_text(_render_memory_update_markdown(update), encoding="utf-8")
     return {"json": str(json_path), "markdown": str(md_path)}
 

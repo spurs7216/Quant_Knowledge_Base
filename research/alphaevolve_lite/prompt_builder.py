@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .artifact_io import write_json
 from .diversity import DiversityTarget, format_diversity_target
 from .evolve_blocks import END_MARKER, START_MARKER
 
@@ -385,7 +386,7 @@ def write_prompt_artifact(out_dir: str | Path, messages: dict[str, str]) -> dict
     path.mkdir(parents=True, exist_ok=True)
     json_path = path / "prompt.json"
     md_path = path / "prompt.md"
-    json_path.write_text(json.dumps(messages, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_json(json_path, messages)
     md_path.write_text(
         "\n".join(
             [

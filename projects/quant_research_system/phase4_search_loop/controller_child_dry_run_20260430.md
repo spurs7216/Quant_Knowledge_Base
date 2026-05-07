@@ -1,7 +1,7 @@
 ---
 title: Phase 4 Controller Child Dry Run
 type: project
-status: active
+status: archived
 updated: 2026-04-30
 tags:
   - project
@@ -13,8 +13,11 @@ sources:
   - "task_004_seed_strategy_program.md"
   - "prompt_contracts.md"
   - "remote_sample_eval_hardening_20260430.md"
+superseded_by: "current_state.md"
 ---
 # Phase 4 Controller Child Dry Run
+
+> Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for the first child dry-run protocol.
 
 ## Purpose
 

@@ -2,16 +2,11 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import Any
 
+from .artifact_io import write_json
 from .paths import write_text
-
-
-def _write_json(path: Path, payload: dict[str, Any]) -> Path:
-    text = json.dumps(payload, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    return write_text(path, text)
 
 
 def render_prompt_card(
@@ -45,7 +40,7 @@ def render_prompt_card(
         "inspiration_programs": inspiration_programs,
         "strict_output_contract": strict_output_contract,
     }
-    json_path = _write_json(out / "prompt_card.json", payload)
+    json_path = write_json(out / "prompt_card.json", payload, ensure_ascii=False)
     md = [
         f"# Program Card: {program_id}",
         "",
@@ -108,7 +103,7 @@ def render_evaluator_summary(
         "next_prompt_hint": next_prompt_hint,
         "artifact_paths": artifact_paths,
     }
-    json_path = _write_json(out / "evaluator_summary.json", payload)
+    json_path = write_json(out / "evaluator_summary.json", payload, ensure_ascii=False)
     md = [
         f"# Evaluator Summary: {program_id}",
         "",

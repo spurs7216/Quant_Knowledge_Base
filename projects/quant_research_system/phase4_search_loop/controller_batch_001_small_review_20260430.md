@@ -1,7 +1,7 @@
 ---
 title: Phase 4 Controller Batch 001 Small Review
 type: project
-status: active
+status: archived
 updated: 2026-04-30
 tags:
   - project
@@ -12,8 +12,11 @@ tags:
 sources:
   - "controller_child_dry_run_20260430.md"
   - "prompt_contracts.md"
+superseded_by: "current_state.md"
 ---
 # Phase 4 Controller Batch 001 Small Review
+
+> Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for the first failed controller batch.
 
 ## Artifact
 

@@ -1,7 +1,7 @@
 ---
 title: Phase 4 Readthrough
 type: project
-status: active
+status: archived
 updated: 2026-04-29
 tags:
   - project
@@ -12,8 +12,11 @@ sources:
   - "README.md"
   - "CHANGELOG.md"
   - "../phase4_codex_clarifications.md"
+superseded_by: "current_state.md"
 ---
 # Phase 4 Readthrough
+
+> Current compact state: [current_state.md](current_state.md). This dated readthrough is retained as the old-plan comparison and adoption record.
 
 ## Bottom Line
 

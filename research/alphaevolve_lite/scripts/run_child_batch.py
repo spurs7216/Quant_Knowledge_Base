@@ -72,245 +72,20 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def clean_json(obj: Any) -> Any:
-    if isinstance(obj, dict):
-        return {str(k): clean_json(v) for k, v in obj.items()}
-    if isinstance(obj, list):
-        return [clean_json(v) for v in obj]
-    if isinstance(obj, float):
-        if obj != obj or obj in {float("inf"), float("-inf")}:
-            return None
-    return obj
-
-
-def write_json(path: Path, payload: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(clean_json(payload), indent=2, sort_keys=True) + "\n", encoding="utf-8")
-
-
-def write_messages(path: Path, title: str, messages: dict[str, str]) -> None:
-    write_json(path.with_suffix(".json"), messages)
-    path.with_suffix(".md").write_text(
-        "\n".join(
-            [
-                f"# {title}",
-                "",
-                "## System",
-                "",
-                "```text",
-                messages["system"],
-                "```",
-                "",
-                "## User",
-                "",
-                "```text",
-                messages["user"],
-                "```",
-                "",
-            ]
-        ),
-        encoding="utf-8",
-    )
-
-
-def mock_patch(parent_text: str, mode: str, target_surface: str = "signal") -> str:
-    if mode == "no_valid_patch":
-        return "NO_VALID_PATCH"
-    if mode == "sign_flip":
-        search = "        signal = signal / rolling_vol.clip(lower=1e-4)\n"
-        if search not in parent_text:
-            raise RuntimeError("mock sign_flip SEARCH text not found")
-        return (
-            "<<<<<<< SEARCH\n"
-            f"{search}"
-            "=======\n"
-            "        signal = -signal / rolling_vol.clip(lower=1e-4)\n"
-            ">>>>>>> REPLACE\n"
-        )
-    if mode == "marker_oversize":
-        search = (
-            "    # EVOLVE-BLOCK-START: signal\n"
-            "    q = float(cfg[\"kalman_q\"])\n"
-            "    r = float(cfg[\"kalman_r\"])\n"
-            "    min_history = int(cfg[\"min_history\"])\n"
-        )
-        if search not in parent_text:
-            raise RuntimeError("mock marker_oversize SEARCH text not found")
-        replace = search + "    # mock oversized patch touched marker lines\n"
-        return f"<<<<<<< SEARCH\n{search}=======\n{replace}>>>>>>> REPLACE\n"
-    if mode == "portfolio_long_only":
-        search = (
-            "        weights.loc[longs] = 0.5 * gross / len(longs)\n"
-            "        weights.loc[shorts] = -0.5 * gross / len(shorts)\n"
-        )
-        if search not in parent_text:
-            raise RuntimeError("mock portfolio_long_only SEARCH text not found")
-        return (
-            "<<<<<<< SEARCH\n"
-            f"{search}"
-            "=======\n"
-            "        weights.loc[longs] = 0.5 * gross * valid.loc[longs, \"signal\"] / valid.loc[longs, \"signal\"].sum()\n"
-            "        weights.loc[shorts] = -0.5 * gross * valid.loc[shorts, \"signal\"] / valid.loc[shorts, \"signal\"].abs().sum()\n"
-            ">>>>>>> REPLACE\n"
-        )
-    raise RuntimeError(f"unknown mock patch mode: {mode}")
-
-
-def mock_repair_patch(parent_text: str, mode: str) -> str:
-    if mode == "marker_oversize":
-        return mock_patch(parent_text, "sign_flip")
-    return "NO_VALID_PATCH"
-
-
-REPAIRABLE_FAILURE_CATEGORIES = {
-    "malformed_search_replace",
-    "exact_search_not_found",
-    "outside_evolve_block",
-    "evolve_marker_error",
-    "vector_smoke_failed",
-    "portfolio_semantic_failed",
-}
-
-
-def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
-    total = len(attempts)
-
-    def final_rate(gate: str) -> float:
-        if total == 0:
-            return 0.0
-        return sum(1 for item in attempts if item.get("hard_gates", {}).get(gate)) / total
-
-    def initial_rate(gate: str) -> float:
-        if total == 0:
-            return 0.0
-        return sum(
-            1
-            for item in attempts
-            if item.get("initial_hard_gates", item.get("hard_gates", {})).get(gate)
-        ) / total
-
-    passed = [item for item in attempts if item.get("decision") == "pass"]
-    repair_attempts = [item for item in attempts if item.get("repair_attempted")]
-    repair_successes = [item for item in repair_attempts if item.get("repair_succeeded")]
-    empty_retries = [item for item in attempts if item.get("empty_retry_count", 0) > 0]
-    empty_retry_successes = [item for item in empty_retries if item.get("empty_retry_succeeded")]
-    duplicate_retries = [item for item in attempts if item.get("duplicate_retry_attempted")]
-    duplicate_retry_successes = [item for item in duplicate_retries if item.get("duplicate_retry_succeeded")]
-    map_cells = {
-        item.get("map_cell_key")
-        for item in attempts
-        if item.get("decision") == "pass" and item.get("map_cell_key")
-    }
-    reasoning_only_empty = [
-        item
-        for item in attempts
-        if item.get("initial_response_content_length", 0) == 0
-        and item.get("initial_response_reasoning_length", 0) > 0
-    ]
-    return {
-        "attempt_count": total,
-        "pass_count": len(passed),
-        "raw_parse_pass_rate": initial_rate("parse_search_replace"),
-        "repair_attempt_rate": len(repair_attempts) / total if total else 0.0,
-        "repair_success_rate": len(repair_successes) / len(repair_attempts) if repair_attempts else 0.0,
-        "empty_retry_rate": len(empty_retries) / total if total else 0.0,
-        "empty_retry_success_rate": len(empty_retry_successes) / len(empty_retries) if empty_retries else 0.0,
-        "reasoning_only_empty_count": len(reasoning_only_empty),
-        "max_initial_response_reasoning_length": max(
-            [int(item.get("initial_response_reasoning_length", 0)) for item in attempts] or [0]
-        ),
-        "exact_search_match_rate": final_rate("exact_search_match"),
-        "evolve_block_safe_rate": final_rate("evolve_block_safe"),
-        "apply_pass_rate": final_rate("apply_patch"),
-        "compile_pass_rate": final_rate("compile_pass"),
-        "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
-        "portfolio_semantic_pass_rate": final_rate("portfolio_semantic_pass"),
-        "unique_child_pass_rate": final_rate("unique_child"),
-        "db_insert_pass_rate": sum(1 for item in attempts if item.get("db_inserted")) / total if total else 0.0,
-        "duplicate_child_count": sum(1 for item in attempts if item.get("failure_category") == "duplicate_child"),
-        "duplicate_patch_fingerprint_count": sum(
-            1 for item in attempts if item.get("failure_category") == "duplicate_patch_fingerprint"
-        ),
-        "duplicate_retry_attempt_rate": len(duplicate_retries) / total if total else 0.0,
-        "duplicate_retry_success_rate": (
-            len(duplicate_retry_successes) / len(duplicate_retries) if duplicate_retries else 0.0
-        ),
-        "map_cell_count": len(map_cells),
-        "map_cell_duplicate_count": sum(1 for item in attempts if item.get("map_cell_already_occupied")),
-        "failure_categories": {
-            str(category): sum(1 for item in attempts if item.get("failure_category") == category)
-            for category in sorted({item.get("failure_category") for item in attempts if item.get("failure_category")})
-        },
-    }
-
-
-def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
-    lines = [
-        "# Controller Batch Summary",
-        "",
-        f"- attempt_count: `{summary['attempt_count']}`",
-        f"- pass_count: `{summary['pass_count']}`",
-        f"- raw_parse_pass_rate: `{summary['raw_parse_pass_rate']}`",
-        f"- repair_attempt_rate: `{summary['repair_attempt_rate']}`",
-        f"- repair_success_rate: `{summary['repair_success_rate']}`",
-        f"- empty_retry_rate: `{summary['empty_retry_rate']}`",
-        f"- empty_retry_success_rate: `{summary['empty_retry_success_rate']}`",
-        f"- reasoning_only_empty_count: `{summary['reasoning_only_empty_count']}`",
-        f"- max_initial_response_reasoning_length: `{summary['max_initial_response_reasoning_length']}`",
-        f"- exact_search_match_rate: `{summary['exact_search_match_rate']}`",
-        f"- evolve_block_safe_rate: `{summary['evolve_block_safe_rate']}`",
-        f"- apply_pass_rate: `{summary['apply_pass_rate']}`",
-        f"- compile_pass_rate: `{summary['compile_pass_rate']}`",
-        f"- vector_smoke_pass_rate: `{summary['vector_smoke_pass_rate']}`",
-        f"- portfolio_semantic_pass_rate: `{summary['portfolio_semantic_pass_rate']}`",
-        f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
-        f"- duplicate_child_count: `{summary['duplicate_child_count']}`",
-        f"- duplicate_patch_fingerprint_count: `{summary['duplicate_patch_fingerprint_count']}`",
-        f"- duplicate_retry_attempt_rate: `{summary['duplicate_retry_attempt_rate']}`",
-        f"- duplicate_retry_success_rate: `{summary['duplicate_retry_success_rate']}`",
-        f"- map_cell_count: `{summary['map_cell_count']}`",
-        f"- map_cell_duplicate_count: `{summary['map_cell_duplicate_count']}`",
-        f"- db_insert_pass_rate: `{summary['db_insert_pass_rate']}`",
-    ]
-    if "reasoning_memory_enabled" in summary:
-        lines.extend(
-            [
-                f"- reasoning_memory_enabled: `{summary['reasoning_memory_enabled']}`",
-                f"- reasoning_memory_item_count: `{summary.get('reasoning_memory_item_count')}`",
-                f"- retrieved_reasoning_memory_ids: `{summary.get('retrieved_reasoning_memory_ids')}`",
-                f"- reasoning_memory_update_json: `{summary.get('reasoning_memory_update_json')}`",
-                f"- reasoning_memory_update_log: `{summary.get('reasoning_memory_update_log')}`",
-            ]
-        )
-    if "skill_library_enabled" in summary:
-        lines.extend(
-            [
-                f"- skill_library_enabled: `{summary['skill_library_enabled']}`",
-                f"- skill_library_item_count: `{summary.get('skill_library_item_count')}`",
-                f"- retrieved_skill_ids: `{summary.get('retrieved_skill_ids')}`",
-                f"- skill_update_json: `{summary.get('skill_update_json')}`",
-                f"- skill_update_log: `{summary.get('skill_update_log')}`",
-            ]
-        )
-    if "evaluator_diagnostic_report_json" in summary:
-        lines.extend(
-            [
-                f"- evaluator_diagnostic_report_json: `{summary.get('evaluator_diagnostic_report_json')}`",
-                f"- controller_diagnostic_report_json: `{summary.get('controller_diagnostic_report_json')}`",
-            ]
-        )
-    lines.extend(["", "## Failure Categories", ""])
-    if summary["failure_categories"]:
-        for category, count in summary["failure_categories"].items():
-            lines.append(f"- {category}: `{count}`")
-    else:
-        lines.append("- none")
-    lines.append("")
-    path.write_text("\n".join(lines), encoding="utf-8")
-
-
 def main() -> int:
     _ensure_repo_import()
+    from research.alphaevolve_lite.controller_batch_artifacts import (
+        summarize_attempts,
+        write_json,
+        write_messages,
+        write_summary_markdown,
+    )
+    from research.alphaevolve_lite.controller_batch_filter import (
+        PatchFilterConfig,
+        filter_patch_with_optional_repair,
+    )
+    from research.alphaevolve_lite.controller_batch_mocks import mock_patch
+    from research.alphaevolve_lite.controller_prompt_context import build_controller_prompt_context
     from research.alphaevolve_lite.diversity import (
         choose_diversity_target,
         patch_diversity_descriptor,
@@ -318,16 +93,12 @@ def main() -> int:
     from research.alphaevolve_lite.diagnostic_analyzer import (
         build_controller_diagnostic_report,
         build_evaluator_diagnostic_report,
-        render_diagnostic_cards,
-        retrieve_diagnostic_cards,
         write_diagnostic_report,
     )
-    from research.alphaevolve_lite.micro_filter import run_micro_filter
     from research.alphaevolve_lite.model_router import chat_completion
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
     from research.alphaevolve_lite.prompt_builder import (
         build_child_generation_prompt,
-        build_patch_repair_prompt,
         choose_target_surface,
         load_json_if_exists,
         write_prompt_artifact,
@@ -336,16 +107,12 @@ def main() -> int:
         append_memory_update,
         bootstrap_default_memory_bank,
         build_controller_batch_memory_update,
-        render_memory_cards,
-        retrieve_memory_items,
         write_memory_update,
     )
     from research.alphaevolve_lite.skill_library import (
         append_skill_update,
         bootstrap_default_skill_library,
         build_controller_batch_skill_update,
-        render_skill_cards,
-        retrieve_skill_items,
         write_skill_update,
     )
 
@@ -406,84 +173,12 @@ def main() -> int:
                 "skill_ids": [item.get("skill_id") for item in skill_items],
             },
         )
-
-    def filter_patch_with_optional_repair(
-        *,
-        attempt_dir: Path,
-        generated_text: str,
-        raw_output_path: Path,
-        target_surface: str,
-        attempt: int,
-        artifact_prefix: str = "",
-    ) -> dict[str, Any]:
-        result = run_micro_filter(parent_text, generated_text, target_surface=target_surface)
-        initial_result_record = result.to_record()
-        write_json(attempt_dir / f"{artifact_prefix}micro_filter_initial_result.json", initial_result_record)
-
-        repair_attempted = False
-        repair_succeeded = False
-        repair_record: dict[str, Any] | None = None
-        final_diff_text = generated_text
-        final_diff_path = raw_output_path
-        repair_response_path: Path | None = None
-
-        if (
-            not args.no_repair
-            and result.decision != "pass"
-            and result.failure_category in REPAIRABLE_FAILURE_CATEGORIES
-        ):
-            repair_attempted = True
-            repair_messages = build_patch_repair_prompt(
-                parent_code=parent_text,
-                unsafe_patch=generated_text,
-                failure_reason=result.failure_reason or result.failure_category or "unknown",
-                attempt_index=attempt,
-                target_surface=target_surface,
-            )
-            write_messages(attempt_dir / f"{artifact_prefix}repair_prompt", "Patch Repair Prompt", repair_messages)
-            if args.mock_patch_mode == "none":
-                repair_record = chat_completion(
-                    role="critic_repair",
-                    system_prompt=repair_messages["system"],
-                    user_prompt=repair_messages["user"],
-                    temperature=0.0,
-                    max_tokens=args.max_tokens,
-                    verify=True,
-                )
-                repair_text = repair_record["content"]
-            else:
-                repair_text = mock_repair_patch(parent_text, args.mock_patch_mode)
-                repair_record = {
-                    "role": "mock_repair",
-                    "served_model_name": "mock",
-                    "temperature": 0.0,
-                    "content": repair_text,
-                }
-            repair_output_path = attempt_dir / f"{artifact_prefix}repair_output.txt"
-            repair_response_path = attempt_dir / f"{artifact_prefix}repair_response.json"
-            repair_output_path.write_text(repair_text, encoding="utf-8")
-            write_json(repair_response_path, repair_record)
-            repair_result = run_micro_filter(parent_text, repair_text, target_surface=target_surface)
-            write_json(
-                attempt_dir / f"{artifact_prefix}repair_micro_filter_result.json",
-                repair_result.to_record(),
-            )
-            if repair_result.decision == "pass":
-                result = repair_result
-                repair_succeeded = True
-                final_diff_text = repair_text
-                final_diff_path = repair_output_path
-
-        return {
-            "result": result,
-            "initial_result_record": initial_result_record,
-            "repair_attempted": repair_attempted,
-            "repair_succeeded": repair_succeeded,
-            "repair_response_path": repair_response_path,
-            "final_diff_text": final_diff_text,
-            "final_diff_path": final_diff_path,
-            "repair_record": repair_record,
-        }
+    patch_filter_config = PatchFilterConfig(
+        parent_text=parent_text,
+        no_repair=args.no_repair,
+        mock_patch_mode=args.mock_patch_mode,
+        max_tokens=args.max_tokens,
+    )
 
     def describe_pass_candidate(
         *,
@@ -532,55 +227,25 @@ def main() -> int:
         occupied_same_surface_cells = [
             cell for cell in sorted(occupied_map_cells) if f"surface={target_surface}" in cell
         ]
-        memory_query = " ".join(
-            [
+        prompt_context = build_controller_prompt_context(
+            reasoning_memory_items=reasoning_memory_items,
+            evaluator_diagnostic_cards=evaluator_diagnostic_report.get("diagnostic_cards", []),
+            skill_items=skill_items,
+            target_surface=target_surface,
+            query_parts=[
                 target_surface,
                 diversity_target.cell_label if diversity_target else "",
                 diversity_target.instruction if diversity_target else "",
-            ]
+            ],
+            memory_card_limit=args.memory_card_limit,
+            diagnostic_card_limit=args.diagnostic_card_limit,
+            skill_card_limit=args.skill_card_limit,
         )
-        retrieved_memory_items = retrieve_memory_items(
-            reasoning_memory_items,
-            source_stage="controller_static",
-            target_surface=target_surface,
-            data_stage="stage_0_daily_stock",
-            query=memory_query,
-            limit=max(0, args.memory_card_limit),
-        )
-        retrieved_memory_item_ids = [
-            str(item.get("memory_item_id")) for item in retrieved_memory_items if item.get("memory_item_id")
-        ]
+        retrieved_memory_item_ids = prompt_context.reasoning_memory_item_ids
         retrieved_memory_ids_seen.update(retrieved_memory_item_ids)
-        reasoning_memory_text = render_memory_cards(retrieved_memory_items)
-        diagnostic_cards = retrieve_diagnostic_cards(
-            evaluator_diagnostic_report.get("diagnostic_cards", []),
-            target_surface=target_surface,
-            limit=max(0, args.diagnostic_card_limit),
-        )
-        diagnostic_text = render_diagnostic_cards(diagnostic_cards)
-        diagnostic_card_ids = [
-            str(card.get("diagnostic_id")) for card in diagnostic_cards if card.get("diagnostic_id")
-        ]
-        skill_query = " ".join(
-            [
-                memory_query,
-                diagnostic_text,
-                " ".join(diagnostic_card_ids),
-            ]
-        )
-        retrieved_skill_items = retrieve_skill_items(
-            skill_items,
-            source_stage="controller_static",
-            target_surface=target_surface,
-            data_stage="stage_0_daily_stock",
-            query=skill_query,
-            limit=max(0, args.skill_card_limit),
-        )
-        retrieved_skill_ids = [
-            str(item.get("skill_id")) for item in retrieved_skill_items if item.get("skill_id")
-        ]
+        diagnostic_card_ids = prompt_context.diagnostic_card_ids
+        retrieved_skill_ids = prompt_context.skill_ids
         retrieved_skill_ids_seen.update(retrieved_skill_ids)
-        skill_text = render_skill_cards(retrieved_skill_items)
         messages = build_child_generation_prompt(
             parent_code=parent_text,
             evaluator_summary=evaluator_summary,
@@ -589,9 +254,9 @@ def main() -> int:
             previous_accepted_patches=accepted_patches_by_surface.get(target_surface, [])[-3:],
             diversity_target=diversity_target,
             occupied_map_cells=occupied_same_surface_cells,
-            reasoning_memory_text=reasoning_memory_text,
-            diagnostic_text=diagnostic_text,
-            skill_text=skill_text,
+            reasoning_memory_text=prompt_context.reasoning_memory_text,
+            diagnostic_text=prompt_context.diagnostic_text,
+            skill_text=prompt_context.skill_text,
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -654,6 +319,7 @@ def main() -> int:
                 break
 
         filter_record = filter_patch_with_optional_repair(
+            config=patch_filter_config,
             attempt_dir=attempt_dir,
             generated_text=generated_text,
             raw_output_path=attempt_dir / "raw_output.txt",
@@ -713,44 +379,26 @@ def main() -> int:
                         attempt + args.attempts + retry_index,
                         occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
                     )
-                    retry_memory_query = " ".join(
-                        [
+                    retry_prompt_context = build_controller_prompt_context(
+                        reasoning_memory_items=reasoning_memory_items,
+                        evaluator_diagnostic_cards=evaluator_diagnostic_report.get("diagnostic_cards", []),
+                        skill_items=skill_items,
+                        target_surface=target_surface,
+                        query_parts=[
                             target_surface,
                             "duplicate retry",
                             duplicate_retry_reason or "",
                             retry_target.cell_label if retry_target else "",
                             retry_target.instruction if retry_target else "",
-                        ]
+                        ],
+                        memory_card_limit=args.memory_card_limit,
+                        diagnostic_card_limit=args.diagnostic_card_limit,
+                        skill_card_limit=args.skill_card_limit,
+                        include_diagnostic_card_ids_in_skill_query=False,
                     )
-                    retry_memory_items = retrieve_memory_items(
-                        reasoning_memory_items,
-                        source_stage="controller_static",
-                        target_surface=target_surface,
-                        data_stage="stage_0_daily_stock",
-                        query=retry_memory_query,
-                        limit=max(0, args.memory_card_limit),
-                    )
-                    retry_memory_ids = [
-                        str(item.get("memory_item_id")) for item in retry_memory_items if item.get("memory_item_id")
-                    ]
+                    retry_memory_ids = retry_prompt_context.reasoning_memory_item_ids
                     retrieved_memory_ids_seen.update(retry_memory_ids)
-                    retry_diagnostic_cards = retrieve_diagnostic_cards(
-                        evaluator_diagnostic_report.get("diagnostic_cards", []),
-                        target_surface=target_surface,
-                        limit=max(0, args.diagnostic_card_limit),
-                    )
-                    retry_diagnostic_text = render_diagnostic_cards(retry_diagnostic_cards)
-                    retry_skill_items = retrieve_skill_items(
-                        skill_items,
-                        source_stage="controller_static",
-                        target_surface=target_surface,
-                        data_stage="stage_0_daily_stock",
-                        query=retry_memory_query + " " + retry_diagnostic_text,
-                        limit=max(0, args.skill_card_limit),
-                    )
-                    retry_skill_ids = [
-                        str(item.get("skill_id")) for item in retry_skill_items if item.get("skill_id")
-                    ]
+                    retry_skill_ids = retry_prompt_context.skill_ids
                     retrieved_skill_ids_seen.update(retry_skill_ids)
                     retry_messages = build_child_generation_prompt(
                         parent_code=parent_text,
@@ -762,9 +410,9 @@ def main() -> int:
                         occupied_map_cells=occupied_same_surface_cells,
                         forbidden_patches=forbidden_patches,
                         duplicate_retry_reason=duplicate_retry_reason,
-                        reasoning_memory_text=render_memory_cards(retry_memory_items),
-                        diagnostic_text=retry_diagnostic_text,
-                        skill_text=render_skill_cards(retry_skill_items),
+                        reasoning_memory_text=retry_prompt_context.reasoning_memory_text,
+                        diagnostic_text=retry_prompt_context.diagnostic_text,
+                        skill_text=retry_prompt_context.skill_text,
                     )
                     write_messages(
                         attempt_dir / f"duplicate_retry_{retry_index}_prompt",
@@ -793,6 +441,7 @@ def main() -> int:
                     retry_output_path.write_text(retry_text, encoding="utf-8")
                     write_json(attempt_dir / f"duplicate_retry_{retry_index}_response.json", retry_response_record)
                     retry_filter_record = filter_patch_with_optional_repair(
+                        config=patch_filter_config,
                         attempt_dir=attempt_dir,
                         generated_text=retry_text,
                         raw_output_path=retry_output_path,

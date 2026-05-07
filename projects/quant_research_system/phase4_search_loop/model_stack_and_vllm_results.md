@@ -131,9 +131,9 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-9B \
   --port 8001 \
   --api-key "${AE_VLLM_API_KEY}" \
   --tensor-parallel-size 1 \
-  --max-model-len 8192 \
+  --max-model-len 32768 \
   --gpu-memory-utilization 0.55 \
-  --max-num-seqs 2 \
+  --max-num-seqs 1 \
   --enforce-eager \
   --reasoning-parser qwen3 \
   --language-model-only
@@ -191,11 +191,12 @@ The NCCL workaround is a performance/stability deployment setting, not a model-q
 runtime_policy:
   inner_loop:
     model: Qwen3.5-9B
-    max_tokens: 4096
+    max_tokens: 8192
     temperature_grid: [0.0, 0.2, 0.5]
 
   repair:
     model: Qwen3.5-9B
+    max_tokens: 8192
     max_attempts: 1
     temperature: 0.0
 

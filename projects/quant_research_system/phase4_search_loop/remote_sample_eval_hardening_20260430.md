@@ -1,16 +1,19 @@
 ---
 title: Phase 4 Remote Sample Eval Hardening 2026-04-30
 type: project
-status: active
+status: archived
 updated: 2026-04-30
 tags: [phase4, alphaevolve, evaluator, hardening]
 sources:
   - "daily_stock_contract_v1.md"
   - "remote_csv_execution_policy.md"
   - "task_004_seed_strategy_program.md"
+superseded_by: "current_state.md"
 ---
 
 # Phase 4 Remote Sample Eval Hardening 2026-04-30
+
+> Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for evaluator hardening before child generation.
 
 ## Why
 

@@ -1,16 +1,19 @@
 ---
 title: Phase 4 Remote Evidence Review 2026-04-30
 type: project
-status: active
+status: archived
 updated: 2026-04-30
 tags: [phase4, alphaevolve, remote-evidence, daily-stock, qwen]
 sources:
   - "artifacts/phase4_alphaevolve.zip"
   - "remote_qwen_vllm_config.md"
   - "remote_csv_execution_policy.md"
+superseded_by: "current_state.md"
 ---
 
 # Phase 4 Remote Evidence Review 2026-04-30
+
+> Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for the remote schema/model/controller evidence milestone.
 
 ## Reviewed Bundle
 
