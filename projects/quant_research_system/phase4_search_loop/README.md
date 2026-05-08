@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-04
+updated: 2026-05-08
 tags:
   - project
   - phase4
@@ -133,6 +133,7 @@ New implementation-policy files:
 - [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md): Dr. RTL transfer note for group-relative sibling comparison and skill learning.
 - [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md): implementation note for the deterministic analyzer role and explicit skill-library layer.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
+- [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 
 Existing policy files included for completeness:
 
@@ -152,6 +153,8 @@ Dated review records retained as evidence, not active plans:
 - [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md): repair-enabled small child batch review.
 - [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md): semantic-gated small batch review.
 - [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md): no-thinking and larger-token-budget small batch review.
+- [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md): duplicate-retry and MAP-cell small batch review.
+- [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md): 50-attempt controller-only remote handoff.
 
 ## Search Principle
 

@@ -105,7 +105,7 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-9B \
   --language-model-only
 ```
 
-The inner-loop controller requests up to `8192` completion tokens. Because vLLM counts prompt tokens and completion tokens inside `--max-model-len`, the 9B server should be launched with a larger context window than the requested completion budget. Keep `--max-model-len 32768` for the next small rerun if memory allows; if it OOMs, fall back to `--max-model-len 16384` while keeping the completion budget at `8192`.
+The inner-loop controller requests up to `8192` completion tokens. Because vLLM counts prompt tokens and completion tokens inside `--max-model-len`, the 9B server should be launched with a larger context window than the requested completion budget. Keep `--max-model-len 32768` for controller batches if memory allows; if it OOMs, fall back to `--max-model-len 16384` while keeping the completion budget at `8192`.
 
 ## Qwen3.5-27B-FP8 medium reviewer
 

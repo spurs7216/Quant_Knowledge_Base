@@ -2,7 +2,7 @@
 title: Phase 4 Codex Implementation Tasks
 type: project
 status: active
-updated: 2026-05-04
+updated: 2026-05-08
 tags:
   - project
   - phase4
@@ -198,17 +198,17 @@ Do not require 27B/35B for first milestone.
 
 First run 5 to 10 child attempts on the remote server through the remote controller and Qwen3.5-9B. This is a controller-static dry run only. It must not launch child `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, or test-set evaluation.
 
-Status as of 2026-05-04: no-thinking routing removed the null-content failure in `controller_batch_001_small_semantic_v3`, but the run produced only 7 unique children out of 10 because three attempts were duplicates. MAP-Elites-style diversity targeting, duplicate-retry hardening, the C1 ReasoningBank-style memory scaffold, Dr. RTL-style group-relative controller reporting, deterministic diagnostic cards, and the explicit skill-library scaffold are now implemented. The next small rerun should keep reasoning memory and skill-library prompts enabled and should not launch child `remote_sample_eval`.
+Status as of 2026-05-08: `controller_batch_001_small_semantic_v4` passed the small controller-static gate. It produced 10 controller-pass children from 10 attempts, with no empty/reasoning-only outputs, no duplicate child hashes, duplicate retry success rate 1.0, all parse/apply/compile/vector/semantic gates at 1.0, and 8 occupied MAP cells. This was still controller-static evidence only; no child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation has run.
 
-Recommended next small command:
+Recommended next command:
 
 ```bash
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
-  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4 \
+  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 10 \
+  --attempts 50 \
   --model-role fast_generator \
   --max-tokens 8192 \
   --memory-card-limit 3 \
@@ -220,30 +220,26 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/reasoning_memory_update.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/reasoning_memory_update.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/evaluator_diagnostic_report.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/controller_diagnostic_report.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/skill_update.md
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/skill_update.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/repair_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4/attempt_*/empty_retry_*_response.json
+artifacts/phase4_alphaevolve/controller_batch_001/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001/reasoning_memory_update.md
+artifacts/phase4_alphaevolve/controller_batch_001/reasoning_memory_update.json
+artifacts/phase4_alphaevolve/controller_batch_001/evaluator_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001/controller_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001/skill_update.md
+artifacts/phase4_alphaevolve/controller_batch_001/skill_update.json
+artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/empty_retry_*_response.json
 ```
 
-Compare against the `semantic_v3` baseline, especially `duplicate_child_count`, `duplicate_retry_success_rate`, `map_cell_count`, `unique_child_pass_rate`, and `reasoning_only_empty_count`.
+Compare against the `semantic_v4` baseline, especially `unique_child_pass_rate`, `duplicate_retry_success_rate`, `map_cell_count`, `map_cell_duplicate_count`, `reasoning_only_empty_count`, and failure categories.
 
 Also inspect `reasoning_memory_update.md` for `Group-Relative Controller Report`. This report ranks sibling attempts from the same parent by controller validity, uniqueness, repair burden, and MAP-cell diversity. It is not a market-alpha score.
 
 Inspect `evaluator_diagnostic_report.md` and `controller_diagnostic_report.md` as the Dr. RTL-style analyzer output. Inspect `skill_update.md` as candidate skill evidence only; do not promote a new market skill from one controller-static run.
-
-If the small dry run shows the controller path is healthy, then run the larger batch:
-
-Run 50 child attempts on the remote server through the remote controller and Qwen3.5-9B.
 
 Track:
 
@@ -276,6 +272,19 @@ Write:
 ```text
 artifacts/phase4_alphaevolve/controller_batch_001/summary.md
 artifacts/phase4_alphaevolve/controller_batch_001/summary.json
+```
+
+Pass target for this controller-only milestone:
+
+```yaml
+controller_batch_001_target:
+  attempt_count: 50
+  unique_semantic_pass_children: ">= 40"
+  empty_output_rate: 0
+  reasoning_only_empty_count: 0
+  db_insert_pass_rate: "near 1.0"
+  remote_sample_eval_launched: false
+  full_validation_launched: false
 ```
 
 ## Task K. Do Not Run Remote Data Evaluation Yet Unless Controller Batch Passes

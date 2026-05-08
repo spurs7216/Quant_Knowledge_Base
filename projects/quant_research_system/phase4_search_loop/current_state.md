@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-04
+updated: 2026-05-08
 tags:
   - project
   - phase4
@@ -18,8 +18,11 @@ sources:
   - "controller_batch_001_small_review_20260430.md"
   - "controller_batch_001_small_repair_v1_review_20260430.md"
   - "controller_batch_001_small_semantic_v2_review_20260501.md"
+  - "controller_batch_001_small_semantic_v3_review_20260501.md"
+  - "controller_batch_001_small_semantic_v4_review_20260508.md"
   - "reasoning_memory_layer_design.md"
   - "diagnostic_analyzer_and_skill_library_20260504.md"
+  - "controller_batch_001_remote_instructions_20260508.md"
 ---
 # Phase 4 Current State
 
@@ -45,10 +48,20 @@ test_set_use: forbidden until branch freeze
 The current remote milestone is still controller-static child generation, not child historical evaluation. The latest reviewed artifact is:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v3/
+artifacts/controller_batch_001_small_semantic_v4.zip
 ```
 
-`semantic_v3` fixed the null-content / reasoning-only failure, but reached only 7 unique semantic-pass children out of 10 because three attempts were duplicates. Do not run child `remote_sample_eval` yet. The next controller improvement is duplicate-retry or stronger diversity prompting, then another small controller batch.
+`semantic_v4` passed the small-batch controller gate: 10 attempts, 10 controller-static passes, no empty/reasoning-only outputs, no duplicate child hashes, duplicate retry success rate 1.0, and 8 MAP cells occupied. This is still not market evaluation and not a completed AlphaEvolve evolution round. Do not run child `remote_sample_eval` yet. The next action is a 50-attempt controller-only remote batch.
+
+Current evolution status:
+
+```yaml
+child_generation_done: true
+controller_static_small_batch_passed: true
+child_market_evaluation_done: false
+iterative_evolution_round_done: false
+next_stage: controller_batch_001_50_attempts
+```
 
 ## AlphaEvolve Modules In This Project
 
@@ -117,6 +130,7 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `controller_batch_001_small_repair_v1` | 5/5 pass, but duplicates and one semantically invalid portfolio appeared. | Syntax, compile, and vector smoke are not enough. Add portfolio semantic gates and duplicate child hashes. |
 | `controller_batch_001_small_semantic_v2` | Two 10-attempt runs each produced 6 unique semantic-pass children. Failures were empty/reasoning-only output, portfolio semantic errors, and vector/API mistakes. | Add top-level no-thinking routing, final-content retry, semantic/vector repair, and stronger surface-specific guidance. |
 | `controller_batch_001_small_semantic_v3` | 7/10 pass, parse/apply/compile/vector/semantic all 1.0, no empty output, no reasoning-only output, DB insert 1.0, three duplicate-child rejects. | No-thinking routing worked. Duplicate generation is now the controller bottleneck. |
+| `controller_batch_001_small_semantic_v4` | 10/10 pass, all controller-static gates 1.0, no empty output, no reasoning-only output, DB insert 1.0, duplicate child count 0, duplicate retry success 1.0, 8 MAP cells occupied. | Duplicate-retry hardening and MAP-style targeting are sufficient to scale to a 50-attempt controller-only batch. Controller pass is not market alpha. |
 
 ## Failure Memory
 
@@ -148,17 +162,17 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-After `controller_batch_001_small_semantic_v3`, the local controller changes now implemented are MAP-Elites-style duplicate hardening, the C1 reasoning-memory scaffold, Dr. RTL-style group-relative sibling reporting, deterministic diagnostic analyzer cards, and an explicit skill-library layer. The next action is the small remote rerun with memory, diagnostic, and skill cards enabled, then remote Qwen self-contrast extraction from the new batch's `reasoning_memory_update.json`, `skill_update.json`, and attempt artifacts.
+After `controller_batch_001_small_semantic_v4`, the small controller-static gate is passed. The next action is the first larger controller-only batch: 50 Qwen3.5-9B child attempts with reasoning-memory, diagnostic, skill-library, duplicate-retry, and MAP-cell reporting enabled.
 
-Expected rerun command after duplicate-retry hardening:
+Expected remote command:
 
 ```bash
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
-  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_small_semantic_v4 \
+  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 10 \
+  --attempts 50 \
   --model-role fast_generator \
   --max-tokens 8192 \
   --memory-card-limit 3 \
@@ -170,12 +184,13 @@ python research/alphaevolve_lite/scripts/run_child_batch.py \
 Review gates:
 
 ```yaml
-target_small_batch:
-  unique_semantic_pass_children: "at least 8 of 10"
+target_controller_batch_001:
+  attempt_count: 50
+  unique_semantic_pass_children: "at least 40 of 50"
   empty_output_rate: 0
   reasoning_only_empty_count: 0
   duplicate_retry_success_rate: "reported"
-  map_cell_count: "reported"
+  map_cell_count: "at least 12 if feasible under current descriptors"
   reasoning_memory_enabled: true
   reasoning_memory_update_written: true
   group_relative_controller_report_written: true
@@ -188,7 +203,7 @@ target_small_batch:
   full_validation_launched: false
 ```
 
-If the run fails, inspect `summary.json`, raw/repair outputs, response metadata, and micro-filter result files before changing prompts or gates.
+If the run fails, inspect `summary.json`, raw/repair outputs, response metadata, and micro-filter result files before changing prompts or gates. If it passes, do not evaluate all 50 children on market data. First select a smaller diverse set of nontrivial children for `remote_sample_eval`.
 
 ## Main Links
 
@@ -197,5 +212,6 @@ If the run fails, inspect `summary.json`, raw/repair outputs, response metadata,
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
-- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md)
+- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md)
+- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md)

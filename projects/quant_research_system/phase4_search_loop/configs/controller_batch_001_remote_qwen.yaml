@@ -1,0 +1,74 @@
+# Phase 4 controller_batch_001 remote run preset.
+# This file is a project-control preset; the current runner is the CLI command
+# in controller_batch_001_remote_instructions_20260508.md.
+
+run:
+  run_id: controller_batch_001
+  stage: controller_static
+  execution_location: remote_linux_gpu_data_server
+  attempts: 50
+  child_market_evaluation_allowed: false
+  remote_sample_eval_launched: false
+  full_validation_launched: false
+  test_set_use_allowed: false
+
+inputs:
+  program_path: research/alphaevolve_lite/seeds/kalman_reversal_seed.py
+  evaluator_summary_primary: artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json
+  evaluator_summary_fallback: artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2/evaluator_summary.json
+  db_path: artifacts/phase4_alphaevolve/program_database.sqlite
+  out_dir: artifacts/phase4_alphaevolve/controller_batch_001
+
+qwen:
+  model_role: fast_generator
+  model_id: Qwen/Qwen3.5-9B
+  served_model_name: qwen35-9b-fast
+  base_url: http://127.0.0.1:8001/v1
+  max_completion_tokens: 8192
+  enable_thinking: false
+  required_server_preflight:
+    - open_dedicated_terminal_or_tmux_for_vllm
+    - launch_qwen35_9b_fast
+    - keep_vllm_process_running
+    - verify_health_from_separate_terminal
+    - verify_models_from_separate_terminal
+
+prompt_context:
+  memory_card_limit: 3
+  diagnostic_card_limit: 4
+  skill_card_limit: 3
+  reasoning_memory_enabled: true
+  skill_library_enabled: true
+
+controller:
+  duplicate_retry_attempts: 1
+  repair_attempts: 1
+  required_gates:
+    - parse_search_replace
+    - exact_search_match
+    - evolve_block_safe
+    - apply_patch
+    - compile_pass
+    - vector_smoke_pass
+    - portfolio_semantic_pass
+    - unique_child
+    - db_inserted
+
+review_targets:
+  attempt_count: 50
+  raw_parse_pass_rate: ">= 0.90"
+  exact_search_match_rate: ">= 0.90"
+  evolve_block_safe_rate: ">= 0.90"
+  apply_pass_rate: ">= 0.90"
+  compile_pass_rate: ">= 0.90"
+  vector_smoke_pass_rate: ">= 0.85"
+  portfolio_semantic_pass_rate: ">= 0.85"
+  unique_child_pass_rate: ">= 0.80"
+  db_insert_pass_rate: "near 1.0"
+  reasoning_only_empty_count: 0
+  map_cell_count: ">= 12 if descriptor space permits"
+
+post_run_policy:
+  if_passes: select_diverse_children_for_remote_sample_eval_review
+  if_fails: inspect_failure_categories_before_prompt_or_gate_changes
+  do_not_promote_skills_from_controller_static_alone: true

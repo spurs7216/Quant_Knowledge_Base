@@ -235,7 +235,7 @@ Implemented in `research/alphaevolve_lite/micro_filter.py` for first-pass contro
 
 ### 7. First Remote Controller Dry Run
 
-Run a small remote controller batch first:
+The small remote controller batch has now passed in `controller_batch_001_small_semantic_v4`. The historical small-run command was:
 
 ```bash
 python research/alphaevolve_lite/scripts/run_child_batch.py \
@@ -258,7 +258,7 @@ Purpose:
 - inspect raw proposals before increasing search pressure;
 - avoid evaluating child programs on remote historical data until the controller output is auditable.
 
-The first run, `controller_batch_001_small`, proved the Qwen/router/database path but rejected all children at the evolve-block boundary. The repair-enabled rerun, `controller_batch_001_small_repair_v1`, proved prompt slicing but exposed duplicate children and one semantically bad long-only portfolio mutation. The semantic-gated reruns, `controller_batch_001_small_semantic_v2` and `controller_batch_001_small_semantic_v2_verify_20260501`, each produced six unique semantic-pass children but exposed reasoning-only empty outputs and repairable vector/semantic patch mistakes. The no-thinking rerun, `controller_batch_001_small_semantic_v3`, fixed null-content output and passed all parse/apply/compile/vector/semantic gates, but only produced seven unique children because three attempts were duplicates. The next small rerun should use controller-stage MAP-Elites behavior cells, duplicate retry, reasoning-memory cards, diagnostic analyzer cards, and explicit skill-library cards before deciding whether to scale to 50 controller attempts.
+The first run, `controller_batch_001_small`, proved the Qwen/router/database path but rejected all children at the evolve-block boundary. The repair-enabled rerun, `controller_batch_001_small_repair_v1`, proved prompt slicing but exposed duplicate children and one semantically bad long-only portfolio mutation. The semantic-gated reruns, `controller_batch_001_small_semantic_v2` and `controller_batch_001_small_semantic_v2_verify_20260501`, each produced six unique semantic-pass children but exposed reasoning-only empty outputs and repairable vector/semantic patch mistakes. The no-thinking rerun, `controller_batch_001_small_semantic_v3`, fixed null-content output and passed all parse/apply/compile/vector/semantic gates, but only produced seven unique children because three attempts were duplicates. The duplicate-hardened rerun, `controller_batch_001_small_semantic_v4`, produced 10 controller-pass children from 10 attempts, no empty/reasoning-only outputs, no duplicate child hashes, duplicate retry success rate 1.0, and 8 occupied MAP cells. The next controller milestone is the 50-attempt `controller_batch_001` remote run.
 
 Review these additional Dr. RTL transfer artifacts:
 
@@ -275,10 +275,21 @@ This first dry run must not launch child `remote_sample_eval`, stage-0 evaluatio
 
 ### 8. First 50 Remote Controller Attempts
 
-Run:
+Run 50 Qwen3.5-9B child attempts:
 
-```text
-50 Qwen3.5-9B child attempts
+```bash
+python research/alphaevolve_lite/scripts/run_child_batch.py \
+  --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
+  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001 \
+  --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
+  --attempts 50 \
+  --model-role fast_generator \
+  --max-tokens 8192 \
+  --memory-card-limit 3 \
+  --diagnostic-card-limit 4 \
+  --skill-card-limit 3 \
+  --duplicate-retry-attempts 1
 ```
 
 This batch runs on the remote server. It is called a controller batch, not a local batch.
@@ -297,7 +308,7 @@ Track:
 - vector-smoke pass;
 - program database insertion pass.
 
-Only run this 50-attempt controller batch after the small dry run shows that patches are well formed, exact-match failures are understood, and the program database records every attempt.
+This remains a controller-only batch. It must not launch child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation.
 
 ### 9. First Child Sample Evaluation
 
@@ -308,7 +319,7 @@ Use:
 ```bash
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
-  --program-path artifacts/phase4_alphaevolve/controller_batch_002_50/attempt_NNN/child_program.py \
+  --program-path artifacts/phase4_alphaevolve/controller_batch_001/attempt_NNN/child_program.py \
   --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_child_NNN \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --program-id PROG-20260430-CHILD-NNNN \
@@ -326,7 +337,7 @@ Do not run full remote validation until:
 - null and cost outputs exist;
 - `evaluator_summary.json` is prompt-ready.
 
-For the immediate next milestone, this sample evaluation applies only after a duplicate-hardened controller rerun improves on `controller_batch_001_small_semantic_v3`. The `semantic_v3` run fixed null-content output but produced only 7 unique children out of 10 because three attempts were duplicates. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
+For the immediate next milestone, this sample evaluation applies only after the 50-attempt `controller_batch_001` run is reviewed. `controller_batch_001_small_semantic_v4` passed the small controller gate, but no generated child has been market-evaluated yet. The child generation script writes `remote_sample_eval_launched: false` and `full_validation_launched: false` in its summary by design.
 
 ## Acceptance Criteria
 
