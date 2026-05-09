@@ -35,6 +35,8 @@ Rules:
 - Do not introduce new imports, new global names, file I/O, data loading, or undeclared dependencies.
 - Do not change train/validation/test split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
 - Do not add broker, IBKR, TWS, account, position, order, or credential logic.
+- If the prompt provides a Target behavior cell, implement that intended patch intent. Do not substitute an easier patch intent.
+- Do not use a sign or direction flip unless the intended patch intent is direction_flip.
 - If no valid change is possible, output exactly: NO_VALID_PATCH.
 """
 
@@ -90,14 +92,15 @@ Return exactly one SEARCH/REPLACE patch.
 
 SURFACE_GUIDANCE = {
     "signal": (
-        "Edit only the signal EVOLVE-BLOCK. Suitable changes include flipping the signal after volatility "
-        "scaling, adding bounded nonlinear damping, changing causal smoothing inside the existing group loop, "
-        "or attenuating noisy short-history observations. Avoid hard saturation such as tanh if it can create "
-        "many tied signals and imbalanced long/short books."
+        "Edit only the signal EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
+        "only when the target intent requests direction_flip; otherwise use the requested bounded damping, "
+        "history-confidence, volatility-scaling, or causal-smoothing family. Avoid hard saturation such as tanh "
+        "if it can create many tied signals and imbalanced long/short books."
     ),
     "ranking": (
-        "Edit only the ranking EVOLVE-BLOCK. Suitable changes include flipping ranked direction, robust "
-        "winsorization choices, monotone transforms, or stronger cross-sectional shrinkage."
+        "Edit only the ranking EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
+        "only when the target intent requests direction_flip; otherwise use the requested robust center/scale, "
+        "rank/percentile transform, winsorization, monotone transform, or cross-sectional shrinkage family."
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
@@ -144,10 +147,17 @@ def compact_evaluator_context(summary: dict[str, Any]) -> str:
     return json.dumps(fields, indent=2, sort_keys=True)
 
 
-def choose_target_surface(attempt_index: int) -> str:
-    """Deterministically rotate target mutation surfaces across attempts."""
+def choose_target_surface(
+    attempt_index: int,
+    *,
+    surface_schedule: tuple[str, ...] | list[str] | None = None,
+) -> str:
+    """Deterministically choose the target mutation surface for an attempt."""
 
-    return SURFACE_ORDER[attempt_index % len(SURFACE_ORDER)]
+    schedule = tuple(surface_schedule or SURFACE_ORDER)
+    if not schedule:
+        raise ValueError("surface schedule must not be empty")
+    return schedule[attempt_index % len(schedule)]
 
 
 def extract_evolve_block_bodies(parent_code: str) -> dict[str, str]:
@@ -196,12 +206,15 @@ def build_child_generation_prompt(
     parent_code: str,
     evaluator_summary: dict[str, Any] | None = None,
     attempt_index: int = 0,
+    parent_id: str | None = None,
+    prompt_card_id: str | None = None,
     target_surface: str | None = None,
     previous_accepted_patches: list[str] | None = None,
     diversity_target: DiversityTarget | None = None,
     occupied_map_cells: list[str] | None = None,
     forbidden_patches: list[str] | None = None,
     duplicate_retry_reason: str | None = None,
+    population_policy_text: str | None = None,
     reasoning_memory_text: str | None = None,
     diagnostic_text: str | None = None,
     skill_text: str | None = None,
@@ -234,11 +247,18 @@ def build_child_generation_prompt(
             "This is a duplicate-retry generation attempt. The previous patch passed safety gates "
             f"but was rejected for diversity: {duplicate_retry_reason}"
         )
+    policy_text = (
+        population_policy_text.strip()
+        if population_policy_text and population_policy_text.strip()
+        else "No population-policy context supplied."
+    )
     memory_text = reasoning_memory_text.strip() if reasoning_memory_text and reasoning_memory_text.strip() else "None."
     diagnostics = diagnostic_text.strip() if diagnostic_text and diagnostic_text.strip() else "None."
     skills = skill_text.strip() if skill_text and skill_text.strip() else "None."
     user_prompt = f"""Task type: controller_static_child_dry_run
 Attempt index: {attempt_index}
+Parent program id: {parent_id or "PROG-20260430-000000"}
+Prompt card id: {prompt_card_id or "controller_static:unknown"}
 Target mutation surface: {surface}
 Allowed mutation surface: {surface} only
 Data scope: daily_stock_only
@@ -284,12 +304,21 @@ MAP-Elites controller diversity:
 - MAP-Elites separates a program's performance from user-defined behavior descriptors.
 - At this controller-static stage, the behavior cell is based on target surface, patch intent, and portfolio-shape smoke metrics.
 - The goal of this attempt is to pass all deterministic gates while filling a distinct behavior cell.
+- The intended_patch_intent in the target behavior cell is mandatory; do not substitute a familiar easier intent.
 - Do not use the same patch intent or same semantic change as an already occupied same-surface cell.
+- Do not use a sign or direction flip unless the intended_patch_intent is direction_flip.
 
 Group-relative sibling role:
 - This attempt is one sibling in a matched batch from the same parent, evaluator context, data contract, and prompt policy.
 - Future skill extraction compares siblings by controller validity, uniqueness, repair burden, and MAP-cell diversity.
 - Make one focused semantic change with one clear intent; do not bundle unrelated ideas just to appear novel.
+
+Controller population policy:
+```text
+{policy_text}
+```
+
+Use the population policy as search-control evidence. Avoid duplicate-heavy target intents and near-duplicate edit signatures. The patch still must obey the target behavior cell below.
 
 Target behavior cell:
 ```text
