@@ -23,6 +23,8 @@ PROMPT_FITNESS_POLICY_VERSION = "prompt_fitness_and_lazy_score_v1"
 DEFAULT_PARENT_PROGRAM_ID = "PROG-20260430-000000"
 NEAR_DUPLICATE_FAILURE_CATEGORY = "near_duplicate_patch"
 PASS_CONTROLLER_SEARCH_SCORE = 1.0
+TARGET_INTENT_MISMATCH_CONTROLLER_SCORE = 0.35
+TARGET_INTENT_MISMATCH_LAZY_PENALTY = -0.15
 DEFAULT_REJECT_LAZY_PENALTY = -0.20
 LAZY_PENALTY_BY_FAILURE_CATEGORY = {
     "empty_output": -0.40,
@@ -164,10 +166,12 @@ class PopulationPolicyState:
             self.prompt_card_duplicate_counts[prompt_card_id] += 1
 
         if attempt_record.get("decision") == "pass":
+            target_intent_match = attempt_record.get("target_intent_match") is not False
             self.parent_offspring_counts[parent_id] += 1
             self.surface_pass_counts[surface] += 1
             self.intent_pass_counts[intent_key] += 1
-            self.prompt_card_pass_counts[prompt_card_id] += 1
+            if target_intent_match:
+                self.prompt_card_pass_counts[prompt_card_id] += 1
             if final_diff_text:
                 self.add_patch_signature(
                     program_id=str(attempt_record.get("program_id") or "unknown_program"),
@@ -274,6 +278,8 @@ def lazy_penalty_for_attempt(attempt_record: dict[str, Any]) -> float:
     """Return deterministic negative evidence for lazy or invalid outputs."""
 
     if attempt_record.get("decision") == "pass":
+        if attempt_record.get("target_intent_match") is False:
+            return TARGET_INTENT_MISMATCH_LAZY_PENALTY
         return 0.0
     failure_category = str(attempt_record.get("failure_category") or "")
     return float(LAZY_PENALTY_BY_FAILURE_CATEGORY.get(failure_category, DEFAULT_REJECT_LAZY_PENALTY))
@@ -283,6 +289,8 @@ def controller_search_score_for_attempt(attempt_record: dict[str, Any]) -> float
     """Return the controller-stage score used for prompt-card fitness."""
 
     if attempt_record.get("decision") == "pass":
+        if attempt_record.get("target_intent_match") is False:
+            return TARGET_INTENT_MISMATCH_CONTROLLER_SCORE
         return PASS_CONTROLLER_SEARCH_SCORE
     return lazy_penalty_for_attempt(attempt_record)
 
@@ -562,6 +570,8 @@ __all__ = [
     "PASS_CONTROLLER_SEARCH_SCORE",
     "POPULATION_POLICY_VERSION",
     "PROMPT_FITNESS_POLICY_VERSION",
+    "TARGET_INTENT_MISMATCH_CONTROLLER_SCORE",
+    "TARGET_INTENT_MISMATCH_LAZY_PENALTY",
     "NoveltyDecision",
     "PopulationPolicyState",
     "check_patch_novelty",

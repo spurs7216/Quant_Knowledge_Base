@@ -192,6 +192,84 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-04T00:00:00+00:00",
     },
+    {
+        "source_run_id": "controller_batch_001_diversity_topup_review_20260509",
+        "source_stage": "controller_static",
+        "source_outcome": "mixed",
+        "memory_type": "failure_guardrail",
+        "title": "Target intent is binding evidence",
+        "description": "Use when a MAP target cell is supplied to child generation.",
+        "content": (
+            "A controller-safe off-target child can still be stored under its actual behavior descriptor, "
+            "but it should not count as full success for the sampled prompt card. Penalize target-intent "
+            "mismatches so generic evaluator guidance does not overpower MAP-cell coverage."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+            "island": "any",
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+            "failure_categories": ["target_intent_mismatch"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "controller_batch_001_diversity_topup_review_20260509",
+        "source_stage": "controller_static",
+        "source_outcome": "failure",
+        "memory_type": "repair_pattern",
+        "title": "Align pandas boolean masks before assignment",
+        "description": "Use for portfolio sparse or no-trade-band patches.",
+        "content": (
+            "Boolean Series indexers must align with the object being indexed. For portfolio weights, "
+            "derive index labels such as valid.index[mask], longs[mask], or shorts[mask] before assigning "
+            "into weights; do not pass a boolean Series indexed by a filtered frame directly to weights.loc."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+            "island": "repair_near_miss",
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+            "failure_categories": ["vector_smoke_failed"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "controller_batch_001_diversity_topup_review_20260509",
+        "source_stage": "controller_static",
+        "source_outcome": "failure",
+        "memory_type": "failure_guardrail",
+        "title": "Do not substitute dampening for time smoothing",
+        "description": "Use for signal time_smoothing target cells.",
+        "content": (
+            "For a time_smoothing target, make a causal rolling, EWM, or lagged smoothing change. "
+            "Nonlinear magnitude dampeners such as signal * exp(-abs(signal) / c) are different intents "
+            "and can reorder signals enough to violate portfolio sign semantics."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal"],
+            "island": "repair_near_miss",
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+            "failure_categories": ["portfolio_semantic_failed"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
 ]
 
 

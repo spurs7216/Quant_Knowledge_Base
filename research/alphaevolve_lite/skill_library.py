@@ -148,6 +148,72 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
         },
         "created_at": "2026-05-04T00:00:00+00:00",
     },
+    {
+        "skill_name": "Target intent must match actual patch intent",
+        "skill_type": "diagnostic_rule",
+        "confidence": "high",
+        "status": "active",
+        "pattern": "A generated child passes controller gates but implements a different intent from the sampled MAP target.",
+        "strategy": "Store the child by its actual descriptor, but lower prompt-card fitness and retry future prompts toward the requested intent.",
+        "prompt_rule": "Implement the intended_patch_intent directly; do not substitute an easier or more familiar edit.",
+        "applicability": {
+            "source_stage": "controller_static",
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 1,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Align pandas mask indexes before weight assignment",
+        "skill_type": "repair_pattern",
+        "confidence": "high",
+        "status": "active",
+        "pattern": "A sparse portfolio patch uses a boolean Series indexed by valid rows directly against weights.loc.",
+        "strategy": "Convert masks to labels on the same index before assignment, for example valid.index[mask] or side_index[side_mask].",
+        "prompt_rule": "For boolean filtering, assign weights with aligned index labels, not a boolean Series from another object.",
+        "applicability": {
+            "source_stage": "controller_static",
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 1,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Time smoothing means causal smoothing",
+        "skill_type": "failure_guardrail",
+        "confidence": "medium",
+        "status": "active",
+        "pattern": "A signal/time_smoothing prompt produces a nonlinear magnitude dampener instead of rolling or EWM smoothing.",
+        "strategy": "For time smoothing, use causal rolling, EWM, or lagged smoothing on the signal and keep the sign contract intact.",
+        "prompt_rule": "Do not replace a time_smoothing target with magnitude dampening.",
+        "applicability": {
+            "source_stage": "controller_static",
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 3,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_batch_001_diversity_topup_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
 ]
 
 

@@ -71,6 +71,9 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         for item in attempts
         if item.get("decision") == "pass" and item.get("map_cell_key")
     }
+    target_intent_matches = [
+        item for item in passed if item.get("target_intent_match") is not False
+    ]
     reasoning_only_empty = [
         item
         for item in attempts
@@ -105,6 +108,10 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
         "portfolio_semantic_pass_rate": final_rate("portfolio_semantic_pass"),
         "unique_child_pass_rate": final_rate("unique_child"),
+        "target_intent_match_rate": (
+            len(target_intent_matches) / len(passed) if passed else 0.0
+        ),
+        "target_intent_mismatch_pass_count": len(passed) - len(target_intent_matches),
         "db_insert_pass_rate": sum(1 for item in attempts if item.get("db_inserted")) / total if total else 0.0,
         "duplicate_child_count": sum(1 for item in attempts if item.get("failure_category") == "duplicate_child"),
         "duplicate_patch_fingerprint_count": sum(
@@ -153,6 +160,8 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- vector_smoke_pass_rate: `{summary['vector_smoke_pass_rate']}`",
         f"- portfolio_semantic_pass_rate: `{summary['portfolio_semantic_pass_rate']}`",
         f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
+        f"- target_intent_match_rate: `{summary['target_intent_match_rate']}`",
+        f"- target_intent_mismatch_pass_count: `{summary['target_intent_mismatch_pass_count']}`",
         f"- duplicate_child_count: `{summary['duplicate_child_count']}`",
         f"- duplicate_patch_fingerprint_count: `{summary['duplicate_patch_fingerprint_count']}`",
         f"- near_duplicate_patch_count: `{summary['near_duplicate_patch_count']}`",

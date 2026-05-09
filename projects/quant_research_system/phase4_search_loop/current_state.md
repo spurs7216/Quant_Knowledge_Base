@@ -21,11 +21,13 @@ sources:
   - "controller_batch_001_small_semantic_v3_review_20260501.md"
   - "controller_batch_001_small_semantic_v4_review_20260508.md"
   - "controller_batch_001_review_20260509.md"
+  - "controller_batch_001_diversity_topup_review_20260509.md"
   - "reasoning_memory_layer_design.md"
   - "diagnostic_analyzer_and_skill_library_20260504.md"
   - "alphaevolve_extension_methods_20260509.md"
   - "controller_batch_001_remote_instructions_20260508.md"
   - "controller_batch_001_diversity_topup_remote_instructions_20260509.md"
+  - "controller_batch_001_curated_sample_eval_remote_instructions_20260509.md"
 ---
 # Phase 4 Current State
 
@@ -48,25 +50,27 @@ controller_gate: controller_static before any data-backed child evaluation
 test_set_use: forbidden until branch freeze
 ```
 
-The current remote milestone is still controller-static child generation, not child historical evaluation. The latest reviewed artifact is:
+The controller-static population gate is now satisfied. The latest reviewed artifact is:
 
 ```text
-artifacts/controller_batch_001.zip
+artifacts/controller_batch_001_diversity_topup.zip
 ```
 
-`controller_batch_001` proved the controller mechanics at 50 attempts but did not meet the uniqueness gate: 35/50 controller-static passes, 15 duplicate-child rejects, all parse/apply/compile/vector/semantic gates at 1.0, no empty/reasoning-only outputs, database insertion at 1.0, and 12 MAP cells occupied. Duplicates were concentrated in `ranking/direction_flip`. This is still not market evaluation and not a completed AlphaEvolve evolution round. Do not run child `remote_sample_eval` yet. The next action is a 20-attempt controller-only diversity top-up using prior-summary duplicate seeding.
+`controller_batch_001` produced 35/50 unique controller-static pass children but missed the uniqueness gate because 15 attempts were duplicate rejects, mostly in `ranking/direction_flip`. The follow-up `controller_batch_001_diversity_topup` used prior-summary duplicate seeding and added 13/20 unique controller-static pass children, bringing the aggregate unique controller-static population to 48. The top-up met the aggregate controller population gate and reduced duplicate concentration, but exposed localized signal/portfolio repair lessons and a MAP-intent accounting bug now patched locally.
 
-The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that this duplicate issue should be treated as a population/database policy problem, not only a prompt wording problem. `controller_population_policy_v2` is now implemented for the next top-up: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate outputs, and edit-signature near duplicates before market evaluation.
+This is still not market evaluation and not a completed AlphaEvolve improvement round. The next action is a curated first `remote_sample_eval` over a small diverse subset of controller-static pass children after the local descriptor/accounting patch is synchronized.
+
+The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
 Current evolution status:
 
 ```yaml
-child_generation_done: partial
+child_generation_done: controller_population_ready
 controller_static_small_batch_passed: true
-controller_static_50_batch_passed: false_due_to_duplicate_generation
+controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: false
 iterative_evolution_round_done: false
-next_stage: controller_batch_001_diversity_topup
+next_stage: curated_remote_sample_eval
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -138,6 +142,7 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `controller_batch_001_small_semantic_v3` | 7/10 pass, parse/apply/compile/vector/semantic all 1.0, no empty output, no reasoning-only output, DB insert 1.0, three duplicate-child rejects. | No-thinking routing worked. Duplicate generation is now the controller bottleneck. |
 | `controller_batch_001_small_semantic_v4` | 10/10 pass, all controller-static gates 1.0, no empty output, no reasoning-only output, DB insert 1.0, duplicate child count 0, duplicate retry success 1.0, 8 MAP cells occupied. | Duplicate-retry hardening and MAP-style targeting are sufficient to scale to a 50-attempt controller-only batch. Controller pass is not market alpha. |
 | `controller_batch_001` | 35/50 pass, all controller mechanics healthy, no empty/reasoning-only outputs, no semantic failures, DB insert 1.0, 12 MAP cells occupied, but 15 duplicate-child rejects. Ranking produced only 3/13 pass because 10 attempts fell into duplicate-heavy ranking changes, mostly `direction_flip`. | Do not launch market evaluation yet. Patch prompt intent specificity, seed prior duplicate/MAP state into top-up runs, and run a 20-attempt controller-only diversity top-up. |
+| `controller_batch_001_diversity_topup` | 13/20 pass with prior 35 pass children seeded, aggregate unique controller-static children 48, duplicate-style rejects reduced to 3, no empty/reasoning-only output, DB insert 1.0. Failures concentrated in `signal/time_smoothing` portfolio semantic rejects and one pandas boolean-index vector-smoke reject. | Controller population gate is satisfied. Patch intent classification/accounting, then run curated `remote_sample_eval` on a small diverse subset rather than evaluating all children. |
 
 ## Failure Memory
 
@@ -158,6 +163,10 @@ Keep these lessons in future prompt and controller design:
 - Controller population policy v2 plus `prompt_fitness_and_lazy_score_v1` is the active deterministic translation of those lessons. It does not use embeddings, LLM novelty judges, reward shaping, or RL; it only changes controller-local selection, prompt context, duplicate/near-duplicate accounting, prompt-card fitness, lazy penalties, and artifacts.
 - A 16,384 completion-token budget appears in ShinkaEvolve and ThetaEvolve experiments, but Phase 4 should change token budgets based on artifacts. The prior null-content issue was solved by no-thinking routing, not by token budget alone.
 - API mistakes such as pandas `.clip(max=...)` instead of `.clip(upper=...)` belong in repairable vector-smoke failure memory.
+- MAP descriptor classification must use changed replacement lines, not the whole replacement block. Unchanged context can otherwise mislabel EWM smoothing as `history_confidence_weighting`, risk dampening as `side_renormalization`, or scale-shrinkage as `ranking_other`.
+- A controller-safe off-target patch can enter the database under its actual behavior descriptor, but it should not count as a full prompt-card success for the sampled target intent.
+- For portfolio sparsity/no-trade-band patches, convert boolean masks to aligned index labels before assigning into `weights`; a boolean Series from a filtered frame can trigger an unalignable-index vector-smoke failure.
+- For `signal/time_smoothing`, require causal rolling, EWM, or lagged smoothing. Do not substitute nonlinear magnitude dampeners; they can reorder ranked signals enough to violate portfolio sign semantics.
 
 ## Reasoning Memory Layer
 
@@ -174,66 +183,37 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-After `controller_batch_001`, controller mechanics are healthy but the uniqueness gate is not met. The next action is a 20-attempt controller-only diversity top-up after pulling the local prompt/scheduler/prior-summary patch.
+The controller-static population gate is satisfied after `controller_batch_001_diversity_topup`. The next action is to synchronize the local descriptor/accounting patch, then run the first curated `remote_sample_eval`.
 
-Expected remote command:
+Do not evaluate all 48 controller-static children blindly. Select a small diverse subset that is target-compliant, nontrivial, and not merely a cosmetic exposure reduction.
 
-```bash
-python research/alphaevolve_lite/scripts/run_child_batch.py \
-  --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
-  --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup \
-  --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 20 \
-  --model-role fast_generator \
-  --max-tokens 8192 \
-  --memory-card-limit 3 \
-  --diagnostic-card-limit 4 \
-  --skill-card-limit 3 \
-  --duplicate-retry-attempts 2 \
-  --population-policy-version v2 \
-  --near-duplicate-threshold 0.88 \
-  --surface-schedule ranking,signal,portfolio,risk \
-  --prior-summary artifacts/phase4_alphaevolve/controller_batch_001/summary.json
-```
-
-Review gates:
+Initial top-up candidates:
 
 ```yaml
-target_controller_batch_001_diversity_topup:
-  attempt_count: 20
-  prior_summary_loaded: true
-  prior_pass_count: 35
-  unique_semantic_pass_children: "at least 12 of 20"
-  aggregate_unique_controller_pass_children: "at least 45 across controller_batch_001 plus top-up"
-  empty_output_rate: 0
-  reasoning_only_empty_count: 0
-  duplicate_child_count: "target <= 5 of 20"
-  ranking_direction_flip_duplicate_pocket: "reduced"
-  duplicate_retry_success_rate: "reported"
-  map_cell_count: "reported"
-  population_policy_version: "controller_population_policy_v2"
-  near_duplicate_patch_count: "reported"
-  prompt_card_duplicate_counts: "reported"
-  prompt_fitness_policy_version: "prompt_fitness_and_lazy_score_v1"
-  prompt_card_fitness: "reported"
-  prompt_card_lazy_penalty_sums: "reported"
-  controller_search_score_mean: "reported"
-  lazy_penalty_attempt_count: "reported"
-  low_prompt_card_fitness_diagnostic: "reported if triggered"
-  reasoning_memory_enabled: true
-  reasoning_memory_update_written: true
-  group_relative_controller_report_written: true
-  evaluator_diagnostic_report_written: true
-  controller_diagnostic_report_written: true
-  skill_library_enabled: true
-  skill_update_written: true
-  db_insert_pass_rate: "near 1.0"
-  remote_sample_eval_launched: false
-  full_validation_launched: false
+controller_batch_001_diversity_topup_candidates:
+  - attempt_000: "ranking / robust_center_scale: median absolute deviation scale"
+  - attempt_004: "ranking / shrinkage_transform: divide by scale + 0.01"
+  - attempt_010: "portfolio / no_trade_band_or_sparsity: repaired sparse signal-weighted sides"
+  - attempt_011: "risk / small_book_guard: damp small long/short books"
+  - attempt_017: "signal / time_smoothing: causal EWM smoothing"
 ```
 
-If the top-up fails, inspect target-intent compliance in the ranking prompts before changing evaluator gates. If it passes, do not evaluate all generated children on market data. First select a smaller diverse set of nontrivial children for `remote_sample_eval`.
+Remote evaluation rules:
+
+```yaml
+next_remote_stage: curated_remote_sample_eval
+evaluate_all_children: false
+test_set_used: false
+validation_stage: search_sample_or_stage_0_only
+include_seed_baseline: true
+include_random_matched_baselines: true
+preserve_cost_policy: true
+record_turnover_and_cost_drag: true
+record_max_weight_and_missing_held_weight: true
+record_validation_exposure: true
+```
+
+Controller smoke-test Sharpe must not be used as alpha evidence. It is only an invariant smoke metric.
 
 ## Main Links
 
@@ -242,6 +222,6 @@ If the top-up fails, inspect target-intent compliance in the ranking prompts bef
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
-- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md)
-- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md)
+- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

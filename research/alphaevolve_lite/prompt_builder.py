@@ -95,7 +95,8 @@ SURFACE_GUIDANCE = {
         "Edit only the signal EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
         "only when the target intent requests direction_flip; otherwise use the requested bounded damping, "
         "history-confidence, volatility-scaling, or causal-smoothing family. Avoid hard saturation such as tanh "
-        "if it can create many tied signals and imbalanced long/short books."
+        "if it can create many tied signals and imbalanced long/short books. For time_smoothing targets, use "
+        "causal rolling, EWM, or lagged smoothing; do not substitute a nonlinear magnitude dampener."
     ),
     "ranking": (
         "Edit only the ranking EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
@@ -106,7 +107,8 @@ SURFACE_GUIDANCE = {
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
         "or bounded gross exposure use through local logic. If you weight by signal strength, compute positive "
         "long-side magnitudes and positive short-side magnitudes separately, then assign negative weights to "
-        "shorts; preserve both long and short exposure and keep net exposure near zero."
+        "shorts; preserve both long and short exposure and keep net exposure near zero. If you use a boolean "
+        "selection mask, convert it to index labels aligned to the target Series before assigning weights."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
@@ -307,6 +309,7 @@ MAP-Elites controller diversity:
 - The intended_patch_intent in the target behavior cell is mandatory; do not substitute a familiar easier intent.
 - Do not use the same patch intent or same semantic change as an already occupied same-surface cell.
 - Do not use a sign or direction flip unless the intended_patch_intent is direction_flip.
+- A controller-safe off-target patch is still weak evidence for the sampled prompt card; implement the target intent directly.
 
 Group-relative sibling role:
 - This attempt is one sibling in a matched batch from the same parent, evaluator context, data contract, and prompt policy.
@@ -402,7 +405,7 @@ Reason rejected:
 {failure_reason}
 
 Repair instruction:
-Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
+Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake; for pandas boolean indexers, assign with index labels aligned to the target Series, not with a boolean Series from a different index. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
 """
     return {
         "system": REPAIR_SYSTEM_PROMPT,

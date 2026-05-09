@@ -744,7 +744,18 @@ def main() -> int:
             result.hard_gates["unique_child"] = False
             result.hard_gates["novel_patch"] = False
 
+        patch_intent_value = str(diversity_descriptor.get("patch_intent") or "")
+        target_intent_match = None
+        if result.decision == "pass":
+            target_intent_match = patch_intent_value == str(target_intent)
+
         result_record = result.to_record()
+        result_record.update(
+            {
+                "patch_intent": patch_intent_value or None,
+                "target_intent_match": target_intent_match,
+            }
+        )
         lazy_penalty_score = lazy_penalty_for_attempt(result_record)
         controller_search_score = controller_search_score_for_attempt(result_record)
         program_id = f"{args.program_id_prefix}-{attempt:04d}"
@@ -785,6 +796,7 @@ def main() -> int:
                             "parent_id": parent_id,
                             "target_surface": target_surface,
                             "target_intent": target_intent,
+                            "target_intent_match": target_intent_match,
                             "target_cell_label": diversity_target.cell_label if diversity_target else None,
                             "prompt_card_id": prompt_card_id,
                             **population_policy_snapshot,

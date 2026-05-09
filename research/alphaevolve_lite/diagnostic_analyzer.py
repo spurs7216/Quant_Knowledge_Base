@@ -314,6 +314,28 @@ def build_controller_diagnostic_report(
                 avoid_actions=["do not count duplicate children as search progress"],
             )
         )
+    if int(summary.get("target_intent_mismatch_pass_count", 0) or 0):
+        cards.append(
+            _card(
+                diagnostic_id="diag_target_intent_mismatch",
+                bottleneck="target_intent_mismatch",
+                severity="medium",
+                evidence={
+                    "target_intent_mismatch_pass_count": summary.get("target_intent_mismatch_pass_count"),
+                    "target_intent_match_rate": summary.get("target_intent_match_rate"),
+                },
+                likely_causes=[
+                    "model substituted an easier patch intent for the sampled MAP target",
+                    "generic evaluator guidance overpowered target-cell instructions",
+                ],
+                target_surfaces=["signal", "ranking", "portfolio", "risk"],
+                prompt_instruction=(
+                    "Treat the intended_patch_intent as binding; a safe off-target child may still enter "
+                    "the database, but it should lower prompt-card fitness."
+                ),
+                avoid_actions=["do not reward off-target patches as full target-cell successes"],
+            )
+        )
     weak_prompt_cards = _weak_prompt_card_rows(summary, limit=3)
     if weak_prompt_cards:
         cards.append(

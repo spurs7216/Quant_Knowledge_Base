@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -166,13 +167,19 @@ def choose_diversity_target(
 def format_diversity_target(target: DiversityTarget | None) -> str:
     if target is None:
         return "No explicit target cell supplied."
-    return "\n".join(
-        [
-            f"cell_label: {target.cell_label}",
-            f"intended_patch_intent: {target.intent}",
-            f"instruction: {target.instruction}",
-        ]
-    )
+    lines = [
+        f"cell_label: {target.cell_label}",
+        f"intended_patch_intent: {target.intent}",
+        f"instruction: {target.instruction}",
+        "intent_contract:",
+        "- Implement this intended_patch_intent, not a different easier intent.",
+        "- A controller-safe patch that lands in an already occupied intent is still a failed search step.",
+    ]
+    if target.intent == "direction_flip":
+        lines.append("- Because direction_flip is requested, make the sign or ranking direction change explicit.")
+    else:
+        lines.append("- Do not use a sign or direction flip as the main change for this target.")
+    return "\n".join(lines)
 
 
 def _replacement_text(diff_text: str) -> str:
@@ -191,6 +198,28 @@ def _normalized_code(text: str) -> str:
     return "\n".join(lines)
 
 
+def _changed_replacement_text(diff_text: str) -> str:
+    """Return normalized replacement lines that are not copied from SEARCH."""
+
+    try:
+        blocks = parse_search_replace_blocks(diff_text)
+    except DiffBlockError:
+        return _normalized_code(diff_text)
+
+    changed_lines: list[str] = []
+    for block in blocks:
+        search_counts = Counter(_normalized_code(block.search).splitlines())
+        replacement_lines = _normalized_code(block.replace).splitlines()
+        block_changed: list[str] = []
+        for line in replacement_lines:
+            if search_counts[line] > 0:
+                search_counts[line] -= 1
+            else:
+                block_changed.append(line)
+        changed_lines.extend(block_changed)
+    return "\n".join(changed_lines)
+
+
 def patch_fingerprint(diff_text: str) -> str:
     """Hash the normalized replacement code for semantic duplicate detection."""
 
@@ -201,23 +230,23 @@ def patch_fingerprint(diff_text: str) -> str:
 def classify_patch_intent(diff_text: str, target_surface: str) -> str:
     """Classify a patch into a coarse behavior cell descriptor."""
 
-    replace = _replacement_text(diff_text)
+    replace = _changed_replacement_text(diff_text) or _normalized_code(_replacement_text(diff_text))
     lower = replace.lower()
     compact = re.sub(r"\s+", "", lower)
 
     if target_surface == "signal":
         if "signal=-" in compact or "signal=-signal" in compact:
             return "direction_flip"
-        if "tanh" in lower:
-            return "bounded_tanh_dampening"
-        if "np.sign" in lower or "sign(" in lower or "minimum(" in lower:
-            return "clipped_magnitude_dampening"
+        if "rolling(" in lower or "ewm(" in lower or ".shift(" in lower:
+            return "time_smoothing"
         if "history" in lower or "min_history" in lower:
             return "history_confidence_weighting"
         if "rolling_vol" in lower or "clip(lower=" in lower:
             return "volatility_floor_or_scaling"
-        if "rolling(" in lower or "ewm(" in lower or ".shift(" in lower:
-            return "time_smoothing"
+        if "tanh" in lower:
+            return "bounded_tanh_dampening"
+        if "np.sign" in lower or "sign(" in lower or "minimum(" in lower:
+            return "clipped_magnitude_dampening"
         return "signal_other"
 
     if target_surface == "ranking":
@@ -229,34 +258,36 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
             return "robust_center_scale"
         if ".rank(" in lower or "pct=true" in compact:
             return "rank_transform"
-        if "clip" in lower or "where" in lower or "shrink" in lower:
+        if "clip" in lower or "where" in lower or "shrink" in lower or "scale+" in compact:
             return "shrinkage_transform"
         return "ranking_other"
 
     if target_surface == "portfolio":
         if "long_quantile" in lower or "short_quantile" in lower or "quantile" in lower:
             return "selection_threshold_change"
+        if "band" in lower or "sparse" in lower or "threshold" in lower or "=0.0" in compact:
+            return "no_trade_band_or_sparsity"
         if "abs()" in lower and "weights.loc[shorts]" in lower:
             return "signal_weighted_sides"
-        if "gross" in lower and ("0.5" in lower or "len(longs)" in lower or "len(shorts)" in lower):
+        if "damp" in lower or "gross=" in compact:
+            return "gross_exposure_control"
+        if "long_weight" in lower or "short_weight" in lower or "base_weight" in lower:
             return "equal_side_weight_refactor"
         if "gross" in lower:
             return "gross_exposure_control"
-        if "band" in lower or "sparse" in lower:
-            return "no_trade_band_or_sparsity"
         return "portfolio_other"
 
     if target_surface == "risk":
-        if "long_sum" in lower or "short_sum" in lower:
-            return "side_renormalization"
         if "max_weight" in lower and ("*" in lower or "min(" in lower or "max(" in lower):
             return "max_weight_tightening"
-        if "len(" in lower or "sum()" in lower:
+        if "len(" in lower:
             return "small_book_guard"
-        if "0.5" in lower or "dampen" in lower:
+        if "damp" in lower or "0.5" in lower:
             return "exposure_dampening"
         if "clip" in lower:
             return "cap_shape_change"
+        if "long_sum" in lower or "short_sum" in lower:
+            return "side_renormalization"
         return "risk_other"
 
     return f"{target_surface}_other"

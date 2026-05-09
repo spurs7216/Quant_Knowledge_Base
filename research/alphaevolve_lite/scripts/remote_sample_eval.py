@@ -32,7 +32,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-input-rows", type=int)
     parser.add_argument("--top-n", type=int, default=500)
     parser.add_argument("--total-cost-bps", type=float, default=2.5)
-    parser.add_argument("--cost-grid-bps", default="0,1,2.5,5")
+    parser.add_argument("--cost-grid-bps", default="0,1,2.5,5,10")
     parser.add_argument("--null-seeds", type=int, default=5)
     parser.add_argument("--turnover-penalty", type=float, default=0.25)
     parser.add_argument("--missing-weight-penalty", type=float, default=5.0)
