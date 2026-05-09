@@ -26,6 +26,8 @@ Controller batch refactor notes:
 - `controller_batch_artifacts.py` owns prompt-message artifacts and controller summary rendering.
 - `controller_batch_filter.py` owns controller-static micro-filter execution plus the bounded one-shot repair path.
 - `controller_batch_mocks.py` owns deterministic mock patches used by local smoke tests.
+- `controller_batch_state.py` owns prior-summary seeding, duplicate state, MAP-cell state, and explicit surface schedules for controller top-up runs.
+- `controller_population_policy.py` owns controller population-policy v2: parent offspring counts, surface/intent saturation counters, prompt-card productivity/fitness counters, deterministic lazy penalties for invalid or duplicate outputs, prompt-facing population context, and deterministic edit-signature near-duplicate checks.
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
 

@@ -32,6 +32,23 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--model-role", default="fast_generator")
     parser.add_argument("--temperature-grid", default="0.0,0.2,0.5")
     parser.add_argument(
+        "--surface-schedule",
+        default="signal,ranking,portfolio,risk",
+        help=(
+            "Comma-separated target-surface schedule. Use this for diversity top-up "
+            "runs without changing seed code or prompt contracts."
+        ),
+    )
+    parser.add_argument(
+        "--prior-summary",
+        action="append",
+        default=[],
+        help=(
+            "Prior controller summary.json used to seed duplicate hashes, patch "
+            "fingerprints, occupied MAP cells, and accepted patch examples. May be repeated."
+        ),
+    )
+    parser.add_argument(
         "--max-tokens",
         type=int,
         default=DEFAULT_MAX_COMPLETION_TOKENS,
@@ -46,6 +63,26 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         help="Retry once when a controller-pass child duplicates an earlier child or patch fingerprint.",
+    )
+    parser.add_argument(
+        "--population-policy-version",
+        choices=["v1", "v2"],
+        default="v2",
+        help=(
+            "v2 enables deterministic population-policy context, intent de-saturation, "
+            "prompt-card counters, and near-duplicate edit-signature checks."
+        ),
+    )
+    parser.add_argument(
+        "--near-duplicate-threshold",
+        type=float,
+        default=0.88,
+        help="Jaccard threshold for deterministic edit-signature near-duplicate rejection under policy v2.",
+    )
+    parser.add_argument(
+        "--disable-near-duplicate-check",
+        action="store_true",
+        help="Disable policy-v2 near-duplicate edit-signature rejection while keeping policy context.",
     )
     parser.add_argument(
         "--memory-path",
@@ -85,6 +122,24 @@ def main() -> int:
         filter_patch_with_optional_repair,
     )
     from research.alphaevolve_lite.controller_batch_mocks import mock_patch
+    from research.alphaevolve_lite.controller_batch_state import (
+        load_prior_attempts,
+        parse_surface_schedule,
+        seed_controller_search_state,
+    )
+    from research.alphaevolve_lite.controller_population_policy import (
+        DEFAULT_PARENT_PROGRAM_ID,
+        NEAR_DUPLICATE_FAILURE_CATEGORY,
+        POPULATION_POLICY_VERSION,
+        PROMPT_FITNESS_POLICY_VERSION,
+        check_patch_novelty,
+        choose_population_diversity_target,
+        controller_search_score_for_attempt,
+        format_population_policy_context,
+        lazy_penalty_for_attempt,
+        prompt_card_id_for,
+        seed_population_policy_state,
+    )
     from research.alphaevolve_lite.controller_prompt_context import build_controller_prompt_context
     from research.alphaevolve_lite.diversity import (
         choose_diversity_target,
@@ -100,6 +155,7 @@ def main() -> int:
     from research.alphaevolve_lite.prompt_builder import (
         build_child_generation_prompt,
         choose_target_surface,
+        extract_evolve_block_bodies,
         load_json_if_exists,
         write_prompt_artifact,
     )
@@ -120,12 +176,23 @@ def main() -> int:
     if args.attempts <= 0:
         print("--attempts must be positive", file=sys.stderr)
         return 2
+    if not 0.0 < args.near_duplicate_threshold <= 1.0:
+        print("--near-duplicate-threshold must be in (0, 1]", file=sys.stderr)
+        return 2
 
     program_path = Path(args.program_path)
     if not program_path.exists():
         print(f"program path does not exist: {program_path}", file=sys.stderr)
         return 2
     parent_text = program_path.read_text(encoding="utf-8")
+    try:
+        surface_schedule = parse_surface_schedule(
+            args.surface_schedule,
+            available_surfaces=extract_evolve_block_bodies(parent_text),
+        )
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 2
     evaluator_summary = load_json_if_exists(args.evaluator_summary)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -208,22 +275,73 @@ def main() -> int:
             "map_cell_key": diversity_descriptor.get("map_cell_key"),
         }
 
+    try:
+        prior_attempt_records = load_prior_attempts(args.prior_summary)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        print(f"failed to load prior summary: {exc}", file=sys.stderr)
+        return 2
+    search_state = seed_controller_search_state(prior_attempt_records)
+    population_policy_enabled = args.population_policy_version == "v2"
+    near_duplicate_check_enabled = population_policy_enabled and not args.disable_near_duplicate_check
+    population_policy_state = seed_population_policy_state(
+        prior_attempt_records,
+        default_parent_id=DEFAULT_PARENT_PROGRAM_ID,
+    )
+
     attempt_records: list[dict[str, Any]] = []
-    seen_child_hashes: dict[str, str] = {}
-    seen_patch_fingerprints: dict[str, str] = {}
-    occupied_map_cells: dict[str, str] = {}
-    occupied_target_labels_by_surface: dict[str, set[str]] = {}
-    accepted_patches_by_surface: dict[str, list[str]] = {}
+    seen_child_hashes = search_state.seen_child_hashes
+    seen_patch_fingerprints = search_state.seen_patch_fingerprints
+    occupied_map_cells = search_state.occupied_map_cells
+    occupied_target_labels_by_surface = search_state.occupied_target_labels_by_surface
+    accepted_patches_by_surface = search_state.accepted_patches_by_surface
+    prior_seen_child_hash_count = len(seen_child_hashes)
     for attempt in range(args.attempts):
         attempt_dir = out_dir / f"attempt_{attempt:03d}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         temperature = temperatures[attempt % len(temperatures)]
-        target_surface = choose_target_surface(attempt)
-        diversity_target = choose_diversity_target(
-            target_surface,
-            attempt,
-            occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
-        )
+        parent_id = DEFAULT_PARENT_PROGRAM_ID
+        target_surface = choose_target_surface(attempt, surface_schedule=surface_schedule)
+        if population_policy_enabled:
+            diversity_target = choose_population_diversity_target(
+                population_policy_state,
+                target_surface,
+                attempt,
+                occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+            )
+        else:
+            diversity_target = choose_diversity_target(
+                target_surface,
+                attempt,
+                occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+            )
+        target_intent = diversity_target.intent if diversity_target else "other"
+        prompt_card_id = prompt_card_id_for(target_surface, target_intent)
+        if population_policy_enabled:
+            population_policy_snapshot = population_policy_state.target_snapshot(
+                parent_id=parent_id,
+                surface=target_surface,
+                target=diversity_target,
+                prompt_card_id=prompt_card_id,
+            )
+            population_policy_text = format_population_policy_context(
+                population_policy_state,
+                parent_id=parent_id,
+                surface=target_surface,
+                target=diversity_target,
+                prompt_card_id=prompt_card_id,
+                near_duplicate_threshold=args.near_duplicate_threshold,
+            )
+        else:
+            population_policy_snapshot = {
+                "population_policy_version": "v1",
+                "parent_id": parent_id,
+                "parent_offspring_count": 0,
+                "target_surface": target_surface,
+                "target_intent": target_intent,
+                "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                "prompt_card_id": prompt_card_id,
+            }
+            population_policy_text = "Population policy v2 is disabled; using explicit surface schedule only."
         occupied_same_surface_cells = [
             cell for cell in sorted(occupied_map_cells) if f"surface={target_surface}" in cell
         ]
@@ -250,10 +368,13 @@ def main() -> int:
             parent_code=parent_text,
             evaluator_summary=evaluator_summary,
             attempt_index=attempt,
+            parent_id=parent_id,
+            prompt_card_id=prompt_card_id,
             target_surface=target_surface,
             previous_accepted_patches=accepted_patches_by_surface.get(target_surface, [])[-3:],
             diversity_target=diversity_target,
             occupied_map_cells=occupied_same_surface_cells,
+            population_policy_text=population_policy_text,
             reasoning_memory_text=prompt_context.reasoning_memory_text,
             diagnostic_text=prompt_context.diagnostic_text,
             skill_text=prompt_context.skill_text,
@@ -341,6 +462,16 @@ def main() -> int:
         duplicate_retry_succeeded = False
         duplicate_retry_count = 0
         duplicate_retry_reason = None
+        near_duplicate_of_program_id = None
+        near_duplicate_similarity = 0.0
+        novelty_decision_record: dict[str, Any] = {
+            "decision": "not_checked",
+            "reason": None,
+            "similarity": 0.0,
+            "matched_program_id": None,
+            "matched_patch_intent": None,
+            "signature_token_count": 0,
+        }
         diversity_descriptor: dict[str, Any] = {}
         patch_fingerprint = None
         map_cell_key_value = None
@@ -368,17 +499,52 @@ def main() -> int:
                     "duplicate normalized patch fingerprint already seen for "
                     f"{duplicate_patch_fingerprint_of_program_id}"
                 )
+            elif near_duplicate_check_enabled:
+                novelty_decision = check_patch_novelty(
+                    population_policy_state,
+                    surface=target_surface,
+                    diff_text=final_diff_text,
+                    threshold=args.near_duplicate_threshold,
+                )
+                novelty_decision_record = novelty_decision.to_record()
+                if novelty_decision.is_near_duplicate:
+                    near_duplicate_of_program_id = novelty_decision.matched_program_id
+                    near_duplicate_similarity = novelty_decision.similarity
+                    duplicate_retry_reason = novelty_decision.reason
 
             if duplicate_retry_reason and args.duplicate_retry_attempts > 0:
                 duplicate_retry_attempted = True
                 forbidden_patches = [final_diff_text] + accepted_patches_by_surface.get(target_surface, [])[-2:]
                 for retry_index in range(1, max(0, args.duplicate_retry_attempts) + 1):
                     duplicate_retry_count += 1
-                    retry_target = choose_diversity_target(
-                        target_surface,
-                        attempt + args.attempts + retry_index,
-                        occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
-                    )
+                    if population_policy_enabled:
+                        retry_target = choose_population_diversity_target(
+                            population_policy_state,
+                            target_surface,
+                            attempt + args.attempts + retry_index,
+                            occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+                        )
+                    else:
+                        retry_target = choose_diversity_target(
+                            target_surface,
+                            attempt + args.attempts + retry_index,
+                            occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+                        )
+                    retry_target_intent = retry_target.intent if retry_target else "other"
+                    retry_prompt_card_id = prompt_card_id_for(target_surface, retry_target_intent)
+                    if population_policy_enabled:
+                        retry_population_policy_text = format_population_policy_context(
+                            population_policy_state,
+                            parent_id=parent_id,
+                            surface=target_surface,
+                            target=retry_target,
+                            prompt_card_id=retry_prompt_card_id,
+                            near_duplicate_threshold=args.near_duplicate_threshold,
+                        )
+                    else:
+                        retry_population_policy_text = (
+                            "Population policy v2 is disabled; using explicit surface schedule only."
+                        )
                     retry_prompt_context = build_controller_prompt_context(
                         reasoning_memory_items=reasoning_memory_items,
                         evaluator_diagnostic_cards=evaluator_diagnostic_report.get("diagnostic_cards", []),
@@ -404,12 +570,15 @@ def main() -> int:
                         parent_code=parent_text,
                         evaluator_summary=evaluator_summary,
                         attempt_index=attempt,
+                        parent_id=parent_id,
+                        prompt_card_id=retry_prompt_card_id,
                         target_surface=target_surface,
                         previous_accepted_patches=accepted_patches_by_surface.get(target_surface, [])[-3:],
                         diversity_target=retry_target,
                         occupied_map_cells=occupied_same_surface_cells,
                         forbidden_patches=forbidden_patches,
                         duplicate_retry_reason=duplicate_retry_reason,
+                        population_policy_text=retry_population_policy_text,
                         reasoning_memory_text=retry_prompt_context.reasoning_memory_text,
                         diagnostic_text=retry_prompt_context.diagnostic_text,
                         skill_text=retry_prompt_context.skill_text,
@@ -458,6 +627,16 @@ def main() -> int:
                     retry_child_hash = retry_identity["child_hash"]
                     retry_patch_fingerprint = retry_identity["patch_fingerprint"]
                     retry_duplicate_reason = None
+                    retry_near_duplicate_of_program_id = None
+                    retry_near_duplicate_similarity = 0.0
+                    retry_novelty_decision_record = {
+                        "decision": "not_checked",
+                        "reason": None,
+                        "similarity": 0.0,
+                        "matched_program_id": None,
+                        "matched_patch_intent": None,
+                        "signature_token_count": 0,
+                    }
                     if retry_result.decision == "pass" and retry_child_hash in seen_child_hashes:
                         retry_duplicate_reason = (
                             "duplicate child program hash already seen for "
@@ -468,6 +647,18 @@ def main() -> int:
                             "duplicate normalized patch fingerprint already seen for "
                             f"{seen_patch_fingerprints[str(retry_patch_fingerprint)]}"
                         )
+                    elif retry_result.decision == "pass" and near_duplicate_check_enabled:
+                        retry_novelty_decision = check_patch_novelty(
+                            population_policy_state,
+                            surface=target_surface,
+                            diff_text=str(retry_filter_record["final_diff_text"]),
+                            threshold=args.near_duplicate_threshold,
+                        )
+                        retry_novelty_decision_record = retry_novelty_decision.to_record()
+                        if retry_novelty_decision.is_near_duplicate:
+                            retry_near_duplicate_of_program_id = retry_novelty_decision.matched_program_id
+                            retry_near_duplicate_similarity = retry_novelty_decision.similarity
+                            retry_duplicate_reason = retry_novelty_decision.reason
                     write_json(
                         attempt_dir / f"duplicate_retry_{retry_index}_duplicate_check.json",
                         {
@@ -476,6 +667,9 @@ def main() -> int:
                             "child_sha256": retry_child_hash,
                             "patch_fingerprint": retry_patch_fingerprint,
                             "map_cell_key": retry_identity["map_cell_key"],
+                            "near_duplicate_of_program_id": retry_near_duplicate_of_program_id,
+                            "near_duplicate_similarity": retry_near_duplicate_similarity,
+                            "novelty_decision": retry_novelty_decision_record,
                         },
                     )
                     if retry_result.decision == "pass" and retry_duplicate_reason is None:
@@ -490,8 +684,31 @@ def main() -> int:
                         diversity_descriptor = retry_identity["diversity_descriptor"]
                         patch_fingerprint = retry_patch_fingerprint
                         map_cell_key_value = retry_identity["map_cell_key"]
+                        diversity_target = retry_target
+                        target_intent = retry_target_intent
+                        prompt_card_id = retry_prompt_card_id
+                        if population_policy_enabled:
+                            population_policy_snapshot = population_policy_state.target_snapshot(
+                                parent_id=parent_id,
+                                surface=target_surface,
+                                target=diversity_target,
+                                prompt_card_id=prompt_card_id,
+                            )
+                        else:
+                            population_policy_snapshot = {
+                                "population_policy_version": "v1",
+                                "parent_id": parent_id,
+                                "parent_offspring_count": 0,
+                                "target_surface": target_surface,
+                                "target_intent": target_intent,
+                                "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                                "prompt_card_id": prompt_card_id,
+                            }
                         duplicate_of_program_id = None
                         duplicate_patch_fingerprint_of_program_id = None
+                        near_duplicate_of_program_id = None
+                        near_duplicate_similarity = 0.0
+                        novelty_decision_record = retry_novelty_decision_record
                         duplicate_retry_succeeded = True
                         duplicate_retry_reason = None
                         break
@@ -499,13 +716,17 @@ def main() -> int:
             if duplicate_retry_reason:
                 if duplicate_of_program_id:
                     result.failure_category = "duplicate_child"
-                else:
+                elif duplicate_patch_fingerprint_of_program_id:
                     result.failure_category = "duplicate_patch_fingerprint"
+                else:
+                    result.failure_category = NEAR_DUPLICATE_FAILURE_CATEGORY
                 result.decision = "reject"
                 result.failure_reason = duplicate_retry_reason
                 result.hard_gates["unique_child"] = False
+                result.hard_gates["novel_patch"] = False
             elif child_hash is not None:
                 result.hard_gates["unique_child"] = True
+                result.hard_gates["novel_patch"] = True
                 program_id_for_seen = f"{args.program_id_prefix}-{attempt:04d}"
                 seen_child_hashes[child_hash] = program_id_for_seen
                 if patch_fingerprint is not None:
@@ -521,8 +742,11 @@ def main() -> int:
                 accepted_patches_by_surface.setdefault(target_surface, []).append(final_diff_text)
         else:
             result.hard_gates["unique_child"] = False
+            result.hard_gates["novel_patch"] = False
 
         result_record = result.to_record()
+        lazy_penalty_score = lazy_penalty_for_attempt(result_record)
+        controller_search_score = controller_search_score_for_attempt(result_record)
         program_id = f"{args.program_id_prefix}-{attempt:04d}"
         child_path = None
         if result.decision == "pass" and result.child_text is not None:
@@ -550,12 +774,26 @@ def main() -> int:
                         "evaluator_summary_path": None,
                         "metrics": result.vector_smoke_metrics,
                         "descriptors": {
+                            "population_policy_version": (
+                                POPULATION_POLICY_VERSION if population_policy_enabled else "v1"
+                            ),
+                            "prompt_fitness_policy_version": PROMPT_FITNESS_POLICY_VERSION,
+                            "lazy_penalty_score": lazy_penalty_score,
+                            "controller_search_score": controller_search_score,
                             "model_role": args.model_role,
                             "temperature": temperature,
+                            "parent_id": parent_id,
                             "target_surface": target_surface,
+                            "target_intent": target_intent,
+                            "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                            "prompt_card_id": prompt_card_id,
+                            **population_policy_snapshot,
                             "child_sha256": child_hash,
                             "duplicate_of_program_id": duplicate_of_program_id,
                             "duplicate_patch_fingerprint_of_program_id": duplicate_patch_fingerprint_of_program_id,
+                            "near_duplicate_of_program_id": near_duplicate_of_program_id,
+                            "near_duplicate_similarity": near_duplicate_similarity,
+                            "novelty_decision": novelty_decision_record,
                             "duplicate_retry_attempted": duplicate_retry_attempted,
                             "duplicate_retry_succeeded": duplicate_retry_succeeded,
                             "duplicate_retry_count": duplicate_retry_count,
@@ -591,13 +829,25 @@ def main() -> int:
             {
                 "attempt": attempt,
                 "program_id": program_id,
+                "parent_id": parent_id,
+                "population_policy_version": POPULATION_POLICY_VERSION if population_policy_enabled else "v1",
+                "prompt_fitness_policy_version": PROMPT_FITNESS_POLICY_VERSION,
+                "lazy_penalty_score": lazy_penalty_score,
+                "controller_search_score": controller_search_score,
                 "target_surface": target_surface,
+                "target_intent": target_intent,
+                "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                "prompt_card_id": prompt_card_id,
+                **population_policy_snapshot,
                 "temperature": temperature,
                 "db_inserted": db_inserted,
                 "child_program_path": str(child_path) if child_path else None,
                 "child_sha256": child_hash,
                 "duplicate_of_program_id": duplicate_of_program_id,
                 "duplicate_patch_fingerprint_of_program_id": duplicate_patch_fingerprint_of_program_id,
+                "near_duplicate_of_program_id": near_duplicate_of_program_id,
+                "near_duplicate_similarity": near_duplicate_similarity,
+                "novelty_decision": novelty_decision_record,
                 "duplicate_retry_attempted": duplicate_retry_attempted,
                 "duplicate_retry_succeeded": duplicate_retry_succeeded,
                 "duplicate_retry_count": duplicate_retry_count,
@@ -629,14 +879,44 @@ def main() -> int:
             }
         )
         write_json(attempt_dir / "micro_filter_result.json", result_record)
+        if population_policy_enabled:
+            population_policy_state.record_attempt(result_record, final_diff_text=final_diff_text)
         attempt_records.append(result_record)
 
     summary = summarize_attempts(attempt_records)
+    population_policy_summary = population_policy_state.to_summary()
+    population_policy_state_path = write_json(
+        out_dir / "population_policy_state.json",
+        population_policy_summary,
+    )
     summary.update(
         {
             "program_path": str(program_path),
             "evaluator_summary": args.evaluator_summary,
             "model_role": args.model_role,
+            "population_policy_version": POPULATION_POLICY_VERSION if population_policy_enabled else "v1",
+            "prompt_fitness_policy_version": PROMPT_FITNESS_POLICY_VERSION,
+            "population_policy_enabled": population_policy_enabled,
+            "population_policy_state_json": str(population_policy_state_path),
+            "near_duplicate_check_enabled": near_duplicate_check_enabled,
+            "near_duplicate_threshold": args.near_duplicate_threshold,
+            "parent_offspring_counts": population_policy_summary["parent_offspring_counts"],
+            "surface_attempt_counts": population_policy_summary["surface_attempt_counts"],
+            "surface_duplicate_counts": population_policy_summary["surface_duplicate_counts"],
+            "intent_attempt_counts": population_policy_summary["intent_attempt_counts"],
+            "intent_duplicate_counts": population_policy_summary["intent_duplicate_counts"],
+            "prompt_card_attempt_counts": population_policy_summary["prompt_card_attempt_counts"],
+            "prompt_card_duplicate_counts": population_policy_summary["prompt_card_duplicate_counts"],
+            "prompt_card_score_sums": population_policy_summary["prompt_card_score_sums"],
+            "prompt_card_lazy_penalty_sums": population_policy_summary["prompt_card_lazy_penalty_sums"],
+            "prompt_card_best_scores": population_policy_summary["prompt_card_best_scores"],
+            "prompt_card_fitness": population_policy_summary["prompt_card_fitness"],
+            "duplicate_heavy_intents": population_policy_summary["duplicate_heavy_intents"],
+            "surface_schedule": list(surface_schedule),
+            "prior_summary_paths": [str(path) for path in args.prior_summary],
+            "prior_attempt_count": search_state.prior_attempt_count,
+            "prior_pass_count": search_state.prior_pass_count,
+            "prior_seen_child_hash_count": prior_seen_child_hash_count,
             "mock_patch_mode": args.mock_patch_mode,
             "remote_sample_eval_launched": False,
             "full_validation_launched": False,

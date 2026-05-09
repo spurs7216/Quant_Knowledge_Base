@@ -2,7 +2,7 @@
 title: AlphaEvolve Lite Quant Search Workflow
 type: method
 status: active
-updated: 2026-05-04
+updated: 2026-05-09
 tags:
   - method
   - alphaevolve
@@ -11,6 +11,10 @@ tags:
   - program-database
 sources:
   - "../sources/papers/AlphaEvolve - A coding agent for scientific and algorithmic discovery.md"
+  - "../sources/papers/CodeEvolve - An Open-Source Evolutionary Framework for Algorithmic Discovery and Optimization.md"
+  - "../sources/papers/ShinkaEvolve - Towards Open-Ended and Sample-Efficient Program Evolution.md"
+  - "../sources/papers/ThetaEvolve - Test-time Learning on Open Problems.md"
+  - "AlphaEvolve Extension Methods for Quant Search.md"
   - "../../projects/quant_research_system/phase4_search_loop/current_state.md"
   - "../../projects/quant_research_system/phase4_search_loop/task_001_search_design.md"
   - "../../projects/quant_research_system/phase4_search_loop/alphaevolve_method_translation.md"
@@ -70,6 +74,22 @@ status: candidate | active | superseded | rejected
 ```
 
 In quant search, these layers must stay subordinate to deterministic gates. A diagnostic card is not proof of alpha, and a skill should not become active from one noisy backtest.
+
+## Extension Methods
+
+CodeEvolve, ShinkaEvolve, and ThetaEvolve sharpen the base loop in ways that matter for Phase 4.
+
+The shared message is that the program database is an active search-control object, not only a result archive. It should track prompt productivity, parent offspring counts, occupied MAP cells, duplicate fingerprints, surface/intent saturation, and failure categories.
+
+Practical additions:
+
+- CodeEvolve supports island search, prompt fitness, inspiration crossover, plateau-triggered exploration, and MAP-Elites/CVT-MAP-Elites diversity pressure.
+- ShinkaEvolve supports weighted parent sampling, offspring-count penalties, novelty rejection, adaptive model selection, and periodic meta-scratchpad summaries.
+- ThetaEvolve supports single-model simplification, large program databases, batch sampling on remote inference engines, explicit lazy penalties for no-op or duplicate outputs, and reward shaping only after score distributions are known.
+
+For the current quant loop, these ideas should first strengthen duplicate and novelty control. They should not be used to launch RL, full-program rewrites, or automatic dataset expansion before the controller and sample evaluator are stable.
+
+The active controller translation is `controller_population_policy_v2` plus `prompt_fitness_and_lazy_score_v1`: deterministic parent offspring counts, surface/intent saturation counters, prompt-card duplicate counters, prompt-card fitness, lazy invalid-output penalties, and edit-signature near-duplicate checks. This is still controller-local; it does not use embeddings, LLM novelty judges, market reward shaping, or model fine-tuning.
 
 ## Module Translation
 
@@ -133,6 +153,7 @@ The first Phase 4 controller batches produced reusable operating lessons:
 - exposing the full seed program caused marker copying and helper edits, so prompts now expose only one target evolve-block body;
 - syntax, exact SEARCH matching, compile, and vector smoke did not catch one-sided portfolios, so portfolio semantic gates are mandatory;
 - duplicate simple sign flips can look like multiple successes unless child program hashes are tracked;
+- prompt cards that repeatedly produce invalid, lazy, duplicate, or near-duplicate patches should receive negative controller evidence before expensive market evaluation;
 - signal-proportional portfolio weighting must use positive magnitudes for each side and assign negative weights to shorts explicitly;
 - hard signal saturation can preserve signs but still imbalance exposure;
 - Qwen-style reasoning modes can return `message.content = null`, so serving/routing must disable thinking in the actual HTTP payload and record reasoning-only failures;
@@ -156,6 +177,10 @@ Minimum setup before search:
 
 - [AlphaEvolve source note](../sources/papers/AlphaEvolve%20-%20A%20coding%20agent%20for%20scientific%20and%20algorithmic%20discovery.md)
 - [ReasoningBank source note](../sources/papers/ReasoningBank%20-%20Scaling%20Agent%20Self-Evolving%20with%20Reasoning%20Memory.md)
+- [CodeEvolve source note](../sources/papers/CodeEvolve%20-%20An%20Open-Source%20Evolutionary%20Framework%20for%20Algorithmic%20Discovery%20and%20Optimization.md)
+- [ShinkaEvolve source note](../sources/papers/ShinkaEvolve%20-%20Towards%20Open-Ended%20and%20Sample-Efficient%20Program%20Evolution.md)
+- [ThetaEvolve source note](../sources/papers/ThetaEvolve%20-%20Test-time%20Learning%20on%20Open%20Problems.md)
+- [AlphaEvolve Extension Methods for Quant Search](AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
 - [Reasoning Memory for AlphaEvolve Search](Reasoning%20Memory%20for%20AlphaEvolve%20Search.md)
 - [Phase 4 Current State](../../projects/quant_research_system/phase4_search_loop/current_state.md)
 - [Backtest Overfitting](../concepts/Backtest%20Overfitting.md)

@@ -2,12 +2,57 @@
 title: Wiki Log
 type: log
 status: active
-updated: 2026-05-04
+updated: 2026-05-09
 tags:
   - log
   - wiki
 ---
 # Wiki Log
+
+## 2026-05-09 | implementation | prompt fitness and lazy score policy
+
+- Added `prompt_fitness_and_lazy_score_v1` to the controller population policy so prompt cards now accumulate controller search scores, duplicate rates, nonduplicate pass rates, and lazy penalties for empty, malformed, invalid, duplicate, or near-duplicate outputs.
+- Updated controller batch artifacts so `summary.json`, `summary.md`, per-attempt `micro_filter_result.json`, and `population_policy_state.json` expose prompt-card fitness and lazy/search-score evidence.
+- Updated the Phase 4 current-state, top-up remote instructions, and AlphaEvolve method notes so the next remote controller run reviews prompt fitness before deciding whether heavier novelty or plateau-scheduler upgrades are needed.
+
+## 2026-05-09 | source ingest | alphaevolve extension methods
+
+- Added [[CodeEvolve - An Open-Source Evolutionary Framework for Algorithmic Discovery and Optimization]], [[ShinkaEvolve - Towards Open-Ended and Sample-Efficient Program Evolution]], and [[ThetaEvolve - Test-time Learning on Open Problems]] after section-by-section readthrough of the raw PDFs in `raw/Alpha_evolve/`.
+- Promoted the reusable synthesis into [[AlphaEvolve Extension Methods for Quant Search]], focused on duplicate control as population policy, prompt fitness, parent offspring-count penalties, novelty rejection, MAP-cell occupancy, lazy penalties, and deferred reward shaping/RL.
+- Added `projects/quant_research_system/phase4_search_loop/alphaevolve_extension_methods_20260509.md` and connected it to the Phase 4 current-state note so the next duplicate-control decisions are grounded in the extension papers.
+- Updated the `raw/Alpha_evolve/README.md` shelf statuses for CodeEvolve, ShinkaEvolve, and ThetaEvolve to `DONE`.
+
+## 2026-05-09 | implementation | controller population policy v2
+
+- Added `research/alphaevolve_lite/controller_population_policy.py` so controller duplicate prevention is an explicit sampler/database policy rather than only prompt wording.
+- Patched `run_child_batch.py` to emit parent offspring counts, surface/intent saturation counters, prompt-card duplicate counters, deterministic edit-signature novelty decisions, `population_policy_state.json`, and `near_duplicate_patch_count`.
+- Updated the Phase 4 remote top-up handoff so the next controller-only run uses `--population-policy-version v2` and reports near-duplicate and prompt-card diagnostics before any market evaluation.
+
+## 2026-05-09 | project | phase4 controller diversity top-up
+
+- Reviewed `artifacts/controller_batch_001.zip`: controller mechanics passed at 50 attempts, but unique child rate was 35/50 because duplicate generation concentrated in `ranking/direction_flip`.
+- Added `controller_batch_001_review_20260509.md` and a diversity top-up remote handoff note for a 20-attempt controller-only run before any child market evaluation.
+- Patched the AlphaEvolve-lite controller scaffold so top-up runs can use explicit surface schedules, mandatory target-intent prompt wording, and prior-summary duplicate/MAP seeding.
+
+## 2026-05-09 | govern | README and GitHub push troubleshooting
+
+- Rewrote the root `README.md` as a vault and project introduction instead of an internal contributor memo.
+- Added GitHub synchronization troubleshooting to `agent/operations.md`, including the May 2026 credential and `safe.directory` failure pattern where the root cause was Windows identity and repository ownership rather than a bad token alone.
+- Updated `AGENTS.md` to point failed push attempts toward the operations troubleshooting notes before credential rotation.
+
+## 2026-05-06 | govern | raw paper shelves and paper ingest
+
+- Moved the loose raw journal-paper PDFs into domain shelves: ML asset-pricing papers into `raw/machine_learning/`, anomaly and return-predictability papers into `raw/quantitative_finance/`, VaR/ES backtesting into `raw/econometrics/`, and order-book/HFT prediction papers into `raw/finance_microstructure/`.
+- Added local `README.md` shelf inventories across the raw subfolders and updated `raw/README.md` so raw-root source files should be filed into domain shelves.
+- Updated `agent/operations.md` with an explicit `paper_source` class, paper-adapted three-pass ingest workflow, empirical/theoretical paper checklists, and `wiki/sources/papers/` storage rules.
+- Updated `.gitignore` so raw shelf README files can be tracked without tracking the raw source PDFs.
+
+## 2026-05-05 | source ingest | coding principles for quant system code
+
+- Added [[A Philosophy of Software Design]], [[A Philosophy of Software Design Selected Excerpts]], and [[The Pragmatic Programmer]] after chapter-by-chapter scan of the `raw/coding_principal/` shelf.
+- Promoted the reusable synthesis into [[Coding Principles for Quant Research Systems]], focused on deep modules, information hiding, explicit quant research contracts, precise names, comments as design tools, and focused verification.
+- Added `agent/coding_principles.md` and updated `AGENTS.md` so future implementation, refactoring, controller/evaluator work, prompt-contract code, dataset-contract code, and tooling changes must consult the coding-principles layer first.
+- No implementation code was refactored in this pass.
 
 ## 2026-05-04 | source ingest | dr rtl group-relative skill transfer
 

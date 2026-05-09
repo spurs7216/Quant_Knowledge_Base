@@ -10,6 +10,12 @@ tags:
 ---
 # Phase 4 Markdown Package Changelog
 
+## 2026-05-09 Controller Search Policy Update
+
+- Added `controller_population_policy_v2` and `prompt_fitness_and_lazy_score_v1` as the active controller-only duplicate/novelty policy before remote sample evaluation.
+- Updated the diversity top-up handoff to review prompt-card fitness, controller search scores, lazy penalties, near-duplicate patch counts, and prior-summary seeded duplicate state.
+- Kept the next milestone as a controller-only remote top-up; no child market evaluation or full validation is authorized until the uniqueness gate is met.
+
 ## 2026-04-27 Update
 
 This package updates the prior Phase 4 markdown zip using the latest project decisions.

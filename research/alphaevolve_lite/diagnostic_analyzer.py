@@ -314,6 +314,26 @@ def build_controller_diagnostic_report(
                 avoid_actions=["do not count duplicate children as search progress"],
             )
         )
+    weak_prompt_cards = _weak_prompt_card_rows(summary, limit=3)
+    if weak_prompt_cards:
+        cards.append(
+            _card(
+                diagnostic_id="diag_low_prompt_card_fitness",
+                bottleneck="low_prompt_card_fitness",
+                severity="medium",
+                evidence={"weak_prompt_cards": weak_prompt_cards},
+                likely_causes=[
+                    "prompt card is associated with duplicate or invalid outputs",
+                    "target intent may be too easy to satisfy with a repeated patch",
+                ],
+                target_surfaces=_target_surfaces_from_prompt_cards(weak_prompt_cards),
+                prompt_instruction=(
+                    "Treat low-fitness prompt cards as negative evidence and require a more specific "
+                    "nonduplicate edit for the requested target intent."
+                ),
+                avoid_actions=["do not keep sampling a prompt card only because one prior child passed"],
+            )
+        )
     if int(failure_categories.get("portfolio_semantic_failed", 0) or 0):
         cards.append(
             _card(
@@ -371,6 +391,63 @@ def build_controller_diagnostic_report(
             )
         )
     return _report("controller_diagnostics", cards, source_path=source_path, attempts=attempts)
+
+
+def _weak_prompt_card_rows(summary: dict[str, Any], *, limit: int) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    prompt_card_fitness = summary.get("prompt_card_fitness", {})
+    if not isinstance(prompt_card_fitness, dict):
+        return rows
+    attempt_counts = summary.get("prompt_card_attempt_counts", {})
+    duplicate_counts = summary.get("prompt_card_duplicate_counts", {})
+    for prompt_card_id, fitness in prompt_card_fitness.items():
+        if not isinstance(fitness, dict):
+            continue
+        attempt_count_value = attempt_counts.get(str(prompt_card_id)) if isinstance(attempt_counts, dict) else None
+        attempts = int(_as_float(attempt_count_value) or 0)
+        if attempts <= 0:
+            continue
+        fitness_score = _as_float(fitness.get("prompt_card_fitness_score"))
+        duplicate_rate = _as_float(fitness.get("prompt_card_duplicate_rate"))
+        lazy_penalty_sum = _as_float(fitness.get("prompt_card_lazy_penalty_sum"))
+        hard_gate_risk = _as_float(fitness.get("prompt_card_hard_gate_risk"))
+        duplicate_count_value = (
+            duplicate_counts.get(str(prompt_card_id)) if isinstance(duplicate_counts, dict) else None
+        )
+        duplicate_count = int(_as_float(duplicate_count_value) or 0)
+        if (
+            (fitness_score is not None and fitness_score < 0.0)
+            or (duplicate_rate is not None and duplicate_rate >= 0.5)
+            or (lazy_penalty_sum is not None and lazy_penalty_sum < 0.0)
+        ):
+            rows.append(
+                {
+                    "prompt_card_id": str(prompt_card_id),
+                    "attempt_count": attempts,
+                    "duplicate_count": duplicate_count,
+                    "fitness_score": fitness_score,
+                    "duplicate_rate": duplicate_rate,
+                    "lazy_penalty_sum": lazy_penalty_sum,
+                    "hard_gate_risk": hard_gate_risk,
+                }
+            )
+    rows.sort(
+        key=lambda item: (
+            item["fitness_score"] if item["fitness_score"] is not None else 0.0,
+            -item["duplicate_count"],
+            item["prompt_card_id"],
+        )
+    )
+    return rows[: max(0, limit)]
+
+
+def _target_surfaces_from_prompt_cards(rows: list[dict[str, Any]]) -> list[str]:
+    surfaces: set[str] = set()
+    for row in rows:
+        parts = str(row.get("prompt_card_id") or "").split(":")
+        if len(parts) >= 3 and parts[1]:
+            surfaces.add(parts[1])
+    return sorted(surfaces) or ["signal", "ranking", "portfolio", "risk"]
 
 
 def _report(

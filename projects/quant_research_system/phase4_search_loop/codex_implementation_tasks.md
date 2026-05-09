@@ -198,7 +198,7 @@ Do not require 27B/35B for first milestone.
 
 First run 5 to 10 child attempts on the remote server through the remote controller and Qwen3.5-9B. This is a controller-static dry run only. It must not launch child `remote_sample_eval`, `remote_stage0_eval`, `remote_full_validation`, or test-set evaluation.
 
-Status as of 2026-05-08: `controller_batch_001_small_semantic_v4` passed the small controller-static gate. It produced 10 controller-pass children from 10 attempts, with no empty/reasoning-only outputs, no duplicate child hashes, duplicate retry success rate 1.0, all parse/apply/compile/vector/semantic gates at 1.0, and 8 occupied MAP cells. This was still controller-static evidence only; no child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation has run.
+Status as of 2026-05-09: `controller_batch_001` ran 50 controller-only attempts. It proved the controller mechanics at scale: no empty/reasoning-only outputs, all parse/apply/compile/vector/semantic gates at 1.0, DB insertion at 1.0, and 12 MAP cells occupied. It did not meet the uniqueness gate: 35/50 unique controller-static pass children versus the target of at least 40, with 15 duplicate-child rejects concentrated in `ranking/direction_flip`. No child `remote_sample_eval`, stage-0 evaluation, full validation, or test-set evaluation has run. `controller_population_policy_v2` and `prompt_fitness_and_lazy_score_v1` are now implemented to make duplicate prevention, prompt-card fitness, and lazy invalid-output penalties deterministic sampler/database policy before the next top-up.
 
 Recommended next command:
 
@@ -206,36 +206,43 @@ Recommended next command:
 python research/alphaevolve_lite/scripts/run_child_batch.py \
   --program-path research/alphaevolve_lite/seeds/kalman_reversal_seed.py \
   --evaluator-summary artifacts/phase4_alphaevolve/remote_sample_eval_refactor_smoke_20260507/evaluator_summary.json \
-  --out-dir artifacts/phase4_alphaevolve/controller_batch_001 \
+  --out-dir artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --attempts 50 \
+  --attempts 20 \
   --model-role fast_generator \
   --max-tokens 8192 \
   --memory-card-limit 3 \
   --diagnostic-card-limit 4 \
   --skill-card-limit 3 \
-  --duplicate-retry-attempts 1
+  --duplicate-retry-attempts 2 \
+  --population-policy-version v2 \
+  --near-duplicate-threshold 0.88 \
+  --surface-schedule ranking,signal,portfolio,risk \
+  --prior-summary artifacts/phase4_alphaevolve/controller_batch_001/summary.json
 ```
 
 Review:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001/summary.json
-artifacts/phase4_alphaevolve/controller_batch_001/reasoning_memory_update.md
-artifacts/phase4_alphaevolve/controller_batch_001/reasoning_memory_update.json
-artifacts/phase4_alphaevolve/controller_batch_001/evaluator_diagnostic_report.md
-artifacts/phase4_alphaevolve/controller_batch_001/controller_diagnostic_report.md
-artifacts/phase4_alphaevolve/controller_batch_001/skill_update.md
-artifacts/phase4_alphaevolve/controller_batch_001/skill_update.json
-artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/micro_filter_initial_result.json
-artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/micro_filter_result.json
-artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/raw_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/repair_output.txt
-artifacts/phase4_alphaevolve/controller_batch_001/attempt_*/empty_retry_*_response.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/reasoning_memory_update.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/reasoning_memory_update.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/evaluator_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/controller_diagnostic_report.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/skill_update.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/skill_update.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/population_policy_state.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/attempt_*/micro_filter_initial_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/attempt_*/micro_filter_result.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/attempt_*/raw_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/attempt_*/repair_output.txt
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/attempt_*/duplicate_retry_*_response.json
 ```
 
-Compare against the `semantic_v4` baseline, especially `unique_child_pass_rate`, `duplicate_retry_success_rate`, `map_cell_count`, `map_cell_duplicate_count`, `reasoning_only_empty_count`, and failure categories.
+Compare against `controller_batch_001`, especially `unique_child_pass_rate`, `duplicate_retry_success_rate`, `duplicate_child_count`, `near_duplicate_patch_count`, ranking intent compliance, `map_cell_count`, `map_cell_duplicate_count`, `prompt_card_duplicate_counts`, `intent_duplicate_counts`, `reasoning_only_empty_count`, and failure categories.
+
+Also inspect `prompt_card_fitness`, `prompt_card_score_sums`, `prompt_card_lazy_penalty_sums`, `controller_search_score_mean`, and `lazy_penalty_attempt_count`. These are controller-stage search-quality signals only; they are not market-alpha scores.
 
 Also inspect `reasoning_memory_update.md` for `Group-Relative Controller Report`. This report ranks sibling attempts from the same parent by controller validity, uniqueness, repair burden, and MAP-cell diversity. It is not a market-alpha score.
 
@@ -260,26 +267,45 @@ metrics:
   unique_child_pass_rate:
   duplicate_child_count:
   duplicate_patch_fingerprint_count:
+  near_duplicate_patch_count:
   duplicate_retry_attempt_rate:
   duplicate_retry_success_rate:
   map_cell_count:
   map_cell_duplicate_count:
+  population_policy_version:
+  prompt_fitness_policy_version:
+  prompt_card_duplicate_counts:
+  prompt_card_fitness:
+  prompt_card_score_sums:
+  prompt_card_lazy_penalty_sums:
+  controller_search_score_mean:
+  lazy_penalty_attempt_count:
+  intent_duplicate_counts:
   db_insert_pass_rate:
 ```
 
 Write:
 
 ```text
-artifacts/phase4_alphaevolve/controller_batch_001/summary.md
-artifacts/phase4_alphaevolve/controller_batch_001/summary.json
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/summary.md
+artifacts/phase4_alphaevolve/controller_batch_001_diversity_topup/summary.json
 ```
 
 Pass target for this controller-only milestone:
 
 ```yaml
-controller_batch_001_target:
-  attempt_count: 50
-  unique_semantic_pass_children: ">= 40"
+controller_batch_001_diversity_topup_target:
+  attempt_count: 20
+  prior_pass_count: 35
+  unique_semantic_pass_children: ">= 12"
+  aggregate_unique_semantic_pass_children: ">= 45 across controller_batch_001 plus top-up"
+  duplicate_child_count: "<= 5 preferred"
+  near_duplicate_patch_count: "reported"
+  population_policy_version: "controller_population_policy_v2"
+  prompt_fitness_policy_version: "prompt_fitness_and_lazy_score_v1"
+  prompt_card_fitness: "reported"
+  controller_search_score_mean: "reported"
+  lazy_penalty_attempt_count: "reported"
   empty_output_rate: 0
   reasoning_only_empty_count: 0
   db_insert_pass_rate: "near 1.0"
@@ -297,6 +323,8 @@ controller_thresholds:
   apply_pass_rate: ">= 0.80"
   compile_pass_rate: ">= 0.80"
   vector_smoke_pass_rate: ">= 0.70"
+  aggregate_unique_controller_static_children: ">= 45 after controller_batch_001 plus diversity top-up"
+  remote_sample_eval_launched_during_controller_batches: false
 ```
 
 Even if thresholds pass, run `remote_sample_eval` before `remote_stage0_eval` or `remote_full_validation`.

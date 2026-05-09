@@ -54,6 +54,11 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
             if item.get("initial_hard_gates", item.get("hard_gates", {})).get(gate)
         ) / total
 
+    def as_float(value: Any) -> float:
+        if value is None:
+            return 0.0
+        return float(value)
+
     passed = [item for item in attempts if item.get("decision") == "pass"]
     repair_attempts = [item for item in attempts if item.get("repair_attempted")]
     repair_successes = [item for item in repair_attempts if item.get("repair_succeeded")]
@@ -72,9 +77,18 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         if item.get("initial_response_content_length", 0) == 0
         and item.get("initial_response_reasoning_length", 0) > 0
     ]
+    controller_search_scores = [as_float(item.get("controller_search_score")) for item in attempts]
+    lazy_penalty_scores = [as_float(item.get("lazy_penalty_score")) for item in attempts]
     return {
         "attempt_count": total,
         "pass_count": len(passed),
+        "controller_search_score_sum": sum(controller_search_scores),
+        "controller_search_score_mean": (
+            sum(controller_search_scores) / len(controller_search_scores) if controller_search_scores else 0.0
+        ),
+        "controller_search_score_best": max(controller_search_scores or [0.0]),
+        "lazy_penalty_score_sum": sum(lazy_penalty_scores),
+        "lazy_penalty_attempt_count": sum(1 for score in lazy_penalty_scores if score < 0.0),
         "raw_parse_pass_rate": initial_rate("parse_search_replace"),
         "repair_attempt_rate": len(repair_attempts) / total if total else 0.0,
         "repair_success_rate": len(repair_successes) / len(repair_attempts) if repair_attempts else 0.0,
@@ -95,6 +109,9 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "duplicate_child_count": sum(1 for item in attempts if item.get("failure_category") == "duplicate_child"),
         "duplicate_patch_fingerprint_count": sum(
             1 for item in attempts if item.get("failure_category") == "duplicate_patch_fingerprint"
+        ),
+        "near_duplicate_patch_count": sum(
+            1 for item in attempts if item.get("failure_category") == "near_duplicate_patch"
         ),
         "duplicate_retry_attempt_rate": len(duplicate_retries) / total if total else 0.0,
         "duplicate_retry_success_rate": (
@@ -117,6 +134,11 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         "",
         f"- attempt_count: `{summary['attempt_count']}`",
         f"- pass_count: `{summary['pass_count']}`",
+        f"- controller_search_score_sum: `{summary['controller_search_score_sum']}`",
+        f"- controller_search_score_mean: `{summary['controller_search_score_mean']}`",
+        f"- controller_search_score_best: `{summary['controller_search_score_best']}`",
+        f"- lazy_penalty_score_sum: `{summary['lazy_penalty_score_sum']}`",
+        f"- lazy_penalty_attempt_count: `{summary['lazy_penalty_attempt_count']}`",
         f"- raw_parse_pass_rate: `{summary['raw_parse_pass_rate']}`",
         f"- repair_attempt_rate: `{summary['repair_attempt_rate']}`",
         f"- repair_success_rate: `{summary['repair_success_rate']}`",
@@ -133,12 +155,28 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
         f"- duplicate_child_count: `{summary['duplicate_child_count']}`",
         f"- duplicate_patch_fingerprint_count: `{summary['duplicate_patch_fingerprint_count']}`",
+        f"- near_duplicate_patch_count: `{summary['near_duplicate_patch_count']}`",
         f"- duplicate_retry_attempt_rate: `{summary['duplicate_retry_attempt_rate']}`",
         f"- duplicate_retry_success_rate: `{summary['duplicate_retry_success_rate']}`",
         f"- map_cell_count: `{summary['map_cell_count']}`",
         f"- map_cell_duplicate_count: `{summary['map_cell_duplicate_count']}`",
         f"- db_insert_pass_rate: `{summary['db_insert_pass_rate']}`",
     ]
+    if "surface_schedule" in summary:
+        lines.extend(
+            [
+                f"- surface_schedule: `{summary.get('surface_schedule')}`",
+                f"- prior_summary_paths: `{summary.get('prior_summary_paths', [])}`",
+                f"- prior_attempt_count: `{summary.get('prior_attempt_count', 0)}`",
+                f"- prior_pass_count: `{summary.get('prior_pass_count', 0)}`",
+                f"- prior_seen_child_hash_count: `{summary.get('prior_seen_child_hash_count', 0)}`",
+                f"- population_policy_version: `{summary.get('population_policy_version')}`",
+                f"- prompt_fitness_policy_version: `{summary.get('prompt_fitness_policy_version')}`",
+                f"- near_duplicate_threshold: `{summary.get('near_duplicate_threshold')}`",
+                f"- prompt_card_score_sums: `{summary.get('prompt_card_score_sums', {})}`",
+                f"- prompt_card_lazy_penalty_sums: `{summary.get('prompt_card_lazy_penalty_sums', {})}`",
+            ]
+        )
     if "reasoning_memory_enabled" in summary:
         lines.extend(
             [
