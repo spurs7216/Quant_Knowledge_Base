@@ -428,6 +428,28 @@ def build_controller_diagnostic_report(
                 avoid_actions=["do not use negative signal values as positive short-side denominators"],
             )
         )
+    if int(failure_categories.get("behavioral_noop", 0) or 0):
+        cards.append(
+            _card(
+                diagnostic_id="diag_behavioral_noop_children",
+                bottleneck="behavioral_noop_children",
+                severity="medium",
+                evidence={
+                    "behavioral_noop_count": failure_categories.get("behavioral_noop"),
+                    "behavior_delta_pass_rate": summary.get("behavior_delta_pass_rate"),
+                },
+                likely_causes=[
+                    "patch changed code on a branch not active in the smoke panel",
+                    "patch was absorbed by ranking, selection, or risk controls",
+                ],
+                target_surfaces=["signal", "ranking", "portfolio", "risk"],
+                prompt_instruction=(
+                    "Make the intended behavior observable after signal, ranking, portfolio construction, "
+                    "and risk controls on the controller smoke panel."
+                ),
+                avoid_actions=["do not submit cosmetic or threshold-absorbed edits as search progress"],
+            )
+        )
     if int(summary.get("reasoning_only_empty_count", 0) or 0):
         cards.append(
             _card(

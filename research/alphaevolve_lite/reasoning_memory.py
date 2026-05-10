@@ -700,8 +700,10 @@ def build_controller_batch_memory_update(
             "attempt_count": summary.get("attempt_count"),
             "pass_count": summary.get("pass_count"),
             "unique_child_pass_rate": summary.get("unique_child_pass_rate"),
+            "behavior_delta_pass_rate": summary.get("behavior_delta_pass_rate"),
             "duplicate_child_count": summary.get("duplicate_child_count"),
             "duplicate_patch_fingerprint_count": summary.get("duplicate_patch_fingerprint_count"),
+            "behavioral_noop_count": summary.get("behavioral_noop_count"),
             "map_cell_count": summary.get("map_cell_count"),
             "failure_categories": failure_categories,
         },
@@ -820,6 +822,7 @@ def _controller_quality_score(item: dict[str, Any]) -> float:
         "vector_smoke_failed": 0.35,
         "duplicate_child": 0.30,
         "duplicate_patch_fingerprint": 0.30,
+        "behavioral_noop": 0.30,
         "exact_search_not_found": 0.30,
         "outside_evolve_block": 0.45,
         "evolve_marker_error": 0.45,
@@ -894,6 +897,10 @@ def _failure_category_lesson(category: str, count: Any) -> str:
         "duplicate_child": "Duplicate child hashes remain a diversity bottleneck; use retry and distinct MAP cells.",
         "duplicate_patch_fingerprint": (
             "Duplicate normalized patch fingerprints remain a diversity bottleneck; forbid the repeated patch text."
+        ),
+        "behavioral_noop": (
+            "A controller-safe code edit produced the same smoke-panel signal, ranking, and weights as its parent; "
+            "treat it as lazy search evidence and ask for a behavior change that survives downstream controls."
         ),
         "vector_smoke_failed": "Vector-smoke failures should become repair-pattern candidates if the API mistake is local.",
         "exact_search_not_found": "Exact SEARCH mismatch means the prompt or repair must copy from the editable body only.",

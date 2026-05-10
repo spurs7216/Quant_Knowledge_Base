@@ -352,6 +352,7 @@ def main() -> int:
             "git_status_recorded": (out_dir / "git_status.txt").exists(),
             "null_baselines_written": (out_dir / "null_baselines.csv").exists(),
             "turnover_aware_score_reported": "turnover_aware_score" in metrics["search_sample"],
+            "exposure_diagnostics_reported": "mean_gross_exposure" in metrics["search_sample"],
         }
         if reference_summary:
             hard_gates["not_metric_equivalent_to_reference"] = not bool(
@@ -438,6 +439,9 @@ def main() -> int:
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
                     "portfolio_day_coverage": portfolio_coverage["portfolio_day_coverage"],
+                    "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
+                    "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
+                    "max_abs_net_exposure": metrics["search_sample"].get("max_abs_net_exposure"),
                     "git_dirty": git_status["git_dirty"],
                 },
                 "next_prompt_hint": "If sample_pass, compare against seed, null baselines, and sibling children before any stage-0/full validation. Do not use test metrics for prompt sampling.",
@@ -492,6 +496,9 @@ def main() -> int:
                 f"- search_sample_sharpe: `{metrics['search_sample']['sharpe']}`",
                 f"- turnover_aware_score: `{metrics['search_sample']['turnover_aware_score']}`",
                 f"- max_weight: `{metrics['search_sample']['max_weight']}`",
+                f"- mean_gross_exposure: `{metrics['search_sample']['mean_gross_exposure']}`",
+                f"- max_gross_exposure: `{metrics['search_sample']['max_gross_exposure']}`",
+                f"- max_abs_net_exposure: `{metrics['search_sample']['max_abs_net_exposure']}`",
                 f"- max_missing_held_weight: `{metrics['search_sample']['max_missing_held_weight']}`",
                 f"- duplicate_groups_with_conflicts: `{duplicate_summary['duplicate_groups_with_conflicts']}`",
                 f"- git_dirty: `{git_status['git_dirty']}`",
@@ -524,6 +531,9 @@ def main() -> int:
                         "daily_stock_contract": CONTRACT.contract_id,
                         "program_path": str(resolved_program_path),
                         "portfolio_coverage": portfolio_coverage,
+                        "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
+                        "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
+                        "max_abs_net_exposure": metrics["search_sample"].get("max_abs_net_exposure"),
                     },
                     "hard_gates": hard_gates,
                     "validation_exposure": {

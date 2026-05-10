@@ -17,9 +17,17 @@ EMPTY_SPLIT_METRICS = {
     "hit_rate": float("nan"),
     "beta_to_vwretd": float("nan"),
     "mean_daily_n_names": float("nan"),
+    "mean_daily_long_count": float("nan"),
+    "mean_daily_short_count": float("nan"),
     "mean_missing_held_weight": float("nan"),
     "max_missing_held_weight": float("nan"),
     "max_weight": float("nan"),
+    "mean_gross_exposure": float("nan"),
+    "max_gross_exposure": float("nan"),
+    "mean_abs_net_exposure": float("nan"),
+    "max_abs_net_exposure": float("nan"),
+    "mean_long_exposure": float("nan"),
+    "mean_short_exposure": float("nan"),
     "turnover_aware_score": float("nan"),
 }
 
@@ -35,9 +43,17 @@ REFERENCE_COMPARISON_METRICS = [
     "hit_rate",
     "beta_to_vwretd",
     "mean_daily_n_names",
+    "mean_daily_long_count",
+    "mean_daily_short_count",
     "mean_missing_held_weight",
     "max_missing_held_weight",
     "max_weight",
+    "mean_gross_exposure",
+    "max_gross_exposure",
+    "mean_abs_net_exposure",
+    "max_abs_net_exposure",
+    "mean_long_exposure",
+    "mean_short_exposure",
     "turnover_aware_score",
 ]
 
@@ -91,18 +107,21 @@ def compare_search_sample_to_reference(
         current_value = _finite_float(current.get(name))
         reference_value = _finite_float(reference.get(name))
         if current_value is None or reference_value is None:
-            equivalent = current_value is None and reference_value is None
             delta = None
+            comparable = False
+            equivalent = True
         else:
             comparable_count += 1
             delta = float(current_value - reference_value)
             max_abs_delta = max(max_abs_delta, abs(delta))
+            comparable = True
             equivalent = abs(delta) <= tolerance
         all_equivalent = all_equivalent and equivalent
         rows[name] = {
             "current": current_value,
             "reference": reference_value,
             "delta": delta,
+            "comparable": bool(comparable),
             "equivalent": bool(equivalent),
         }
 
@@ -180,6 +199,7 @@ def split_metrics(
     sharpe = float(rets.mean() / vol * math.sqrt(ann)) if vol and vol > 0 else float("nan")
     turnover = float(part["turnover"].mean())
     max_missing = float(part["missing_held_weight"].max())
+    net_exposure = part["net_exposure"] if "net_exposure" in part else None
     return {
         "annualized_return": float(rets.mean() * ann),
         "annualized_volatility": float(vol * math.sqrt(ann)) if np.isfinite(vol) else float("nan"),
@@ -195,9 +215,17 @@ def split_metrics(
         "hit_rate": float((rets > 0).mean()),
         "beta_to_vwretd": beta_to_market(rets, market),
         "mean_daily_n_names": float(part["n_names"].mean()),
+        "mean_daily_long_count": float(part["long_count"].mean()),
+        "mean_daily_short_count": float(part["short_count"].mean()),
         "mean_missing_held_weight": float(part["missing_held_weight"].mean()),
         "max_missing_held_weight": max_missing,
         "max_weight": float(part["max_weight"].max()),
+        "mean_gross_exposure": float(part["gross_exposure"].mean()),
+        "max_gross_exposure": float(part["gross_exposure"].max()),
+        "mean_abs_net_exposure": float(net_exposure.abs().mean()) if net_exposure is not None else float("nan"),
+        "max_abs_net_exposure": float(net_exposure.abs().max()) if net_exposure is not None else float("nan"),
+        "mean_long_exposure": float(part["long_exposure"].mean()),
+        "mean_short_exposure": float(part["short_exposure"].mean()),
         "turnover_aware_score": turnover_aware_score(
             sharpe=sharpe,
             turnover=turnover,
@@ -301,8 +329,14 @@ def portfolio_from_weights(panel: Any, weights: Any, total_cost_bps: float, cont
                 "net_return",
                 "turnover",
                 "n_names",
+                "long_count",
+                "short_count",
                 "missing_held_weight",
                 "max_weight",
+                "gross_exposure",
+                "net_exposure",
+                "long_exposure",
+                "short_exposure",
                 "vwretd",
             ]
         ), data
@@ -326,6 +360,12 @@ def portfolio_from_weights(panel: Any, weights: Any, total_cost_bps: float, cont
             )
         prev_weights = w
 
+        long_weights = group.loc[group["weight"] > 0.0, "weight"]
+        short_weights = group.loc[group["weight"] < 0.0, "weight"]
+        gross_exposure = float(group["weight"].abs().sum())
+        net_exposure = float(group["weight"].sum())
+        long_exposure = float(long_weights.sum())
+        short_exposure = float(-short_weights.sum())
         valid = group["one_day_forward"].fillna(False) & group["fwd_ret"].notna()
         missing_held_weight = float(group.loc[~valid, "weight"].abs().sum())
         available = group.loc[valid].copy()
@@ -345,8 +385,14 @@ def portfolio_from_weights(panel: Any, weights: Any, total_cost_bps: float, cont
                 "net_return": gross_return - turnover * cost_rate if math.isfinite(gross_return) else float("nan"),
                 "turnover": turnover,
                 "n_names": int(len(group)),
+                "long_count": int((group["weight"] > 0.0).sum()),
+                "short_count": int((group["weight"] < 0.0).sum()),
                 "missing_held_weight": missing_held_weight,
                 "max_weight": float(group["weight"].abs().max()),
+                "gross_exposure": gross_exposure,
+                "net_exposure": net_exposure,
+                "long_exposure": long_exposure,
+                "short_exposure": short_exposure,
                 "vwretd": market_return,
             }
         )

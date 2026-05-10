@@ -61,6 +61,7 @@ class MicroFilterResult:
     parsed_block_count: int = 0
     child_text: str | None = None
     vector_smoke_metrics: dict[str, float] = field(default_factory=dict)
+    behavior_delta_metrics: dict[str, float] = field(default_factory=dict)
 
     def to_record(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -77,6 +78,7 @@ def _fail(
     reason: str,
     parsed_block_count: int = 0,
     vector_smoke_metrics: dict[str, float] | None = None,
+    behavior_delta_metrics: dict[str, float] | None = None,
 ) -> MicroFilterResult:
     return MicroFilterResult(
         decision="reject",
@@ -85,6 +87,7 @@ def _fail(
         failure_reason=reason,
         parsed_block_count=parsed_block_count,
         vector_smoke_metrics=vector_smoke_metrics or {},
+        behavior_delta_metrics=behavior_delta_metrics or {},
     )
 
 
@@ -213,9 +216,9 @@ def _make_smoke_panel() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _vector_smoke(child_text: str) -> dict[str, float]:
+def _strategy_smoke_outputs(program_text: str) -> dict[str, Any]:
     namespace: dict[str, Any] = {"__name__": "_alphaevolve_child_smoke", "__file__": "<child>"}
-    exec(compile(child_text, "<child>", "exec"), namespace)
+    exec(compile(program_text, "<child>", "exec"), namespace)
     panel = _make_smoke_panel()
     params = dict(namespace["DEFAULT_PARAMS"])
     signal = namespace["compute_signal"](panel, params)
@@ -223,6 +226,24 @@ def _vector_smoke(child_text: str) -> dict[str, float]:
     weights = namespace["construct_portfolio"](ranked, panel, params)
     weights = namespace["apply_risk_controls"](weights, panel, params)
     metrics = namespace["evaluate"]({"panel": panel, "params": params})
+    return {
+        "panel": panel,
+        "params": params,
+        "signal": signal,
+        "ranked": ranked,
+        "weights": weights,
+        "metrics": metrics,
+    }
+
+
+def _vector_smoke(child_text: str) -> dict[str, float]:
+    outputs = _strategy_smoke_outputs(child_text)
+    panel = outputs["panel"]
+    params = outputs["params"]
+    signal = outputs["signal"]
+    ranked = outputs["ranked"]
+    weights = outputs["weights"]
+    metrics = outputs["metrics"]
 
     for name, series in {"signal": signal, "ranked": ranked, "weights": weights}.items():
         if len(series) != len(panel):
@@ -306,6 +327,90 @@ def _vector_smoke(child_text: str) -> dict[str, float]:
     return output
 
 
+def _numeric_series(values: Any, index: Any) -> pd.Series:
+    if hasattr(values, "reindex"):
+        aligned = values.reindex(index)
+    else:
+        aligned = pd.Series(values, index=index)
+    return pd.to_numeric(aligned, errors="coerce").fillna(0.0)
+
+
+def _series_delta_metrics(parent: pd.Series, child: pd.Series, prefix: str) -> dict[str, float]:
+    diff = child - parent
+    return {
+        f"{prefix}_mean_abs_delta": float(diff.abs().mean()),
+        f"{prefix}_max_abs_delta": float(diff.abs().max()),
+        f"{prefix}_changed_fraction": float((diff.abs() > 1e-12).mean()),
+    }
+
+
+def _behavior_delta(parent_text: str, child_text: str) -> dict[str, float]:
+    parent = _strategy_smoke_outputs(parent_text)
+    child = _strategy_smoke_outputs(child_text)
+    panel = child["panel"]
+    index = panel.index
+    parent_signal = _numeric_series(parent["signal"], index)
+    child_signal = _numeric_series(child["signal"], index)
+    parent_ranked = _numeric_series(parent["ranked"], index)
+    child_ranked = _numeric_series(child["ranked"], index)
+    parent_weights = _numeric_series(parent["weights"], index)
+    child_weights = _numeric_series(child["weights"], index)
+
+    eps = 1e-12
+    parent_active = parent_weights.abs() > eps
+    child_active = child_weights.abs() > eps
+    active_union = parent_active | child_active
+    active_intersection = parent_active & child_active
+    active_jaccard = (
+        float(active_intersection.sum() / active_union.sum()) if int(active_union.sum()) else 1.0
+    )
+    active_symmetric_diff = parent_active ^ child_active
+
+    by_date = pd.DataFrame(
+        {
+            "date": panel[CONTRACT.date].to_numpy(),
+            "parent_weight": parent_weights.to_numpy(dtype=float),
+            "child_weight": child_weights.to_numpy(dtype=float),
+        },
+        index=index,
+    ).groupby("date", sort=True)
+    parent_gross = by_date["parent_weight"].apply(lambda s: float(s.abs().sum()))
+    child_gross = by_date["child_weight"].apply(lambda s: float(s.abs().sum()))
+    parent_net = by_date["parent_weight"].sum()
+    child_net = by_date["child_weight"].sum()
+    gross_delta = child_gross - parent_gross
+    net_delta = child_net - parent_net
+
+    metrics = {
+        **_series_delta_metrics(parent_signal, child_signal, "signal"),
+        **_series_delta_metrics(parent_ranked, child_ranked, "ranked_signal"),
+        **_series_delta_metrics(parent_weights, child_weights, "weight"),
+        "active_position_jaccard": active_jaccard,
+        "active_position_symmetric_diff_count": float(active_symmetric_diff.sum()),
+        "mean_abs_gross_exposure_delta": float(gross_delta.abs().mean()),
+        "max_abs_gross_exposure_delta": float(gross_delta.abs().max()),
+        "mean_abs_net_exposure_delta": float(net_delta.abs().mean()),
+        "max_abs_net_exposure_delta": float(net_delta.abs().max()),
+    }
+    metrics["signal_behavior_changed"] = float(metrics["signal_max_abs_delta"] > 1e-12)
+    metrics["ranking_behavior_changed"] = float(metrics["ranked_signal_max_abs_delta"] > 1e-12)
+    metrics["portfolio_behavior_changed"] = float(
+        metrics["weight_max_abs_delta"] > 1e-12
+        or metrics["active_position_symmetric_diff_count"] > 0.0
+    )
+    metrics["gross_exposure_changed"] = float(metrics["max_abs_gross_exposure_delta"] > 1e-12)
+    return metrics
+
+
+def _is_exact_behavioral_noop(metrics: dict[str, float]) -> bool:
+    return (
+        metrics.get("signal_max_abs_delta", 0.0) <= 1e-12
+        and metrics.get("ranked_signal_max_abs_delta", 0.0) <= 1e-12
+        and metrics.get("weight_max_abs_delta", 0.0) <= 1e-12
+        and metrics.get("active_position_symmetric_diff_count", 0.0) <= 0.0
+    )
+
+
 def run_micro_filter(
     parent_text: str,
     generated_text: str,
@@ -328,6 +433,7 @@ def run_micro_filter(
         "compile_pass": False,
         "vector_smoke_pass": False,
         "portfolio_semantic_pass": False,
+        "behavior_delta_pass": False,
     }
     text = generated_text.strip()
     if not text:
@@ -443,6 +549,26 @@ def run_micro_filter(
         return _fail(gates, category="vector_smoke_failed", reason=str(exc), parsed_block_count=parsed_count)
     gates["vector_smoke_pass"] = True
     gates["portfolio_semantic_pass"] = True
+    try:
+        behavior_delta_metrics = _behavior_delta(parent_text, child_text)
+    except Exception as exc:
+        return _fail(
+            gates,
+            category="behavior_delta_failed",
+            reason=str(exc),
+            parsed_block_count=parsed_count,
+            vector_smoke_metrics=smoke_metrics,
+        )
+    if _is_exact_behavioral_noop(behavior_delta_metrics):
+        return _fail(
+            gates,
+            category="behavioral_noop",
+            reason="child smoke outputs are identical to parent signal, ranked signal, and weights",
+            parsed_block_count=parsed_count,
+            vector_smoke_metrics=smoke_metrics,
+            behavior_delta_metrics=behavior_delta_metrics,
+        )
+    gates["behavior_delta_pass"] = True
 
     return MicroFilterResult(
         decision="pass",
@@ -450,6 +576,7 @@ def run_micro_filter(
         parsed_block_count=parsed_count,
         child_text=child_text,
         vector_smoke_metrics=smoke_metrics,
+        behavior_delta_metrics=behavior_delta_metrics,
     )
 
 

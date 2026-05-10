@@ -273,6 +273,7 @@ def main() -> int:
             final_diff_text,
             target_surface,
             result.vector_smoke_metrics,
+            result.behavior_delta_metrics,
         )
         return {
             "child_hash": child_hash,
@@ -807,6 +808,7 @@ def main() -> int:
                             "prompt_card_id": prompt_card_id,
                             **population_policy_snapshot,
                             "child_sha256": child_hash,
+                            "behavior_delta_metrics": result.behavior_delta_metrics,
                             "duplicate_of_program_id": duplicate_of_program_id,
                             "duplicate_patch_fingerprint_of_program_id": duplicate_patch_fingerprint_of_program_id,
                             "near_duplicate_of_program_id": near_duplicate_of_program_id,
@@ -930,6 +932,7 @@ def main() -> int:
             "prompt_card_lazy_penalty_sums": population_policy_summary["prompt_card_lazy_penalty_sums"],
             "prompt_card_best_scores": population_policy_summary["prompt_card_best_scores"],
             "prompt_card_fitness": population_policy_summary["prompt_card_fitness"],
+            "prompt_card_reroute_policy": population_policy_summary["prompt_card_reroute_policy"],
             "duplicate_heavy_intents": population_policy_summary["duplicate_heavy_intents"],
             "surface_schedule": list(surface_schedule),
             "prior_summary_paths": [str(path) for path in args.prior_summary],

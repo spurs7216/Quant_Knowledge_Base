@@ -337,12 +337,40 @@ def portfolio_shape_buckets(metrics: dict[str, Any]) -> dict[str, str]:
     }
 
 
-def map_cell_key(target_surface: str, intent: str, metrics: dict[str, Any]) -> str:
+def behavior_delta_buckets(metrics: dict[str, Any] | None) -> dict[str, str]:
+    metrics = metrics or {}
+    return {
+        "portfolio_delta_bucket": _bucket(
+            metrics.get("weight_max_abs_delta"),
+            (1e-12, 0.002),
+            ("no_portfolio_delta", "small_portfolio_delta", "material_portfolio_delta"),
+        ),
+        "rank_delta_bucket": _bucket(
+            metrics.get("ranked_signal_max_abs_delta"),
+            (1e-12, 0.05),
+            ("no_rank_delta", "small_rank_delta", "material_rank_delta"),
+        ),
+        "gross_delta_bucket": _bucket(
+            metrics.get("max_abs_gross_exposure_delta"),
+            (1e-12, 0.05),
+            ("no_gross_delta", "small_gross_delta", "material_gross_delta"),
+        ),
+    }
+
+
+def map_cell_key(
+    target_surface: str,
+    intent: str,
+    metrics: dict[str, Any],
+    behavior_delta_metrics: dict[str, Any] | None = None,
+) -> str:
     buckets = portfolio_shape_buckets(metrics)
+    delta_buckets = behavior_delta_buckets(behavior_delta_metrics)
     parts = {
         "surface": target_surface,
         "intent": intent,
         **buckets,
+        **delta_buckets,
     }
     return "|".join(f"{key}={parts[key]}" for key in sorted(parts))
 
@@ -351,20 +379,24 @@ def patch_diversity_descriptor(
     diff_text: str,
     target_surface: str,
     metrics: dict[str, Any],
+    behavior_delta_metrics: dict[str, Any] | None = None,
 ) -> dict[str, str]:
     intent = classify_patch_intent(diff_text, target_surface)
     buckets = portfolio_shape_buckets(metrics)
+    delta_buckets = behavior_delta_buckets(behavior_delta_metrics)
     return {
         "patch_intent": intent,
         "patch_fingerprint": patch_fingerprint(diff_text),
-        "map_cell_key": map_cell_key(target_surface, intent, metrics),
+        "map_cell_key": map_cell_key(target_surface, intent, metrics, behavior_delta_metrics),
         **buckets,
+        **delta_buckets,
     }
 
 
 __all__ = [
     "DIVERSITY_TARGETS",
     "DiversityTarget",
+    "behavior_delta_buckets",
     "choose_diversity_target",
     "classify_patch_intent",
     "format_diversity_target",

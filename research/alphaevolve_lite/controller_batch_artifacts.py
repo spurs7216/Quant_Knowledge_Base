@@ -107,6 +107,7 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "compile_pass_rate": final_rate("compile_pass"),
         "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
         "portfolio_semantic_pass_rate": final_rate("portfolio_semantic_pass"),
+        "behavior_delta_pass_rate": final_rate("behavior_delta_pass"),
         "unique_child_pass_rate": final_rate("unique_child"),
         "target_intent_match_rate": (
             len(target_intent_matches) / len(passed) if passed else 0.0
@@ -119,6 +120,9 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         ),
         "near_duplicate_patch_count": sum(
             1 for item in attempts if item.get("failure_category") == "near_duplicate_patch"
+        ),
+        "behavioral_noop_count": sum(
+            1 for item in attempts if item.get("failure_category") == "behavioral_noop"
         ),
         "duplicate_retry_attempt_rate": len(duplicate_retries) / total if total else 0.0,
         "duplicate_retry_success_rate": (
@@ -159,12 +163,14 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- compile_pass_rate: `{summary['compile_pass_rate']}`",
         f"- vector_smoke_pass_rate: `{summary['vector_smoke_pass_rate']}`",
         f"- portfolio_semantic_pass_rate: `{summary['portfolio_semantic_pass_rate']}`",
+        f"- behavior_delta_pass_rate: `{summary['behavior_delta_pass_rate']}`",
         f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
         f"- target_intent_match_rate: `{summary['target_intent_match_rate']}`",
         f"- target_intent_mismatch_pass_count: `{summary['target_intent_mismatch_pass_count']}`",
         f"- duplicate_child_count: `{summary['duplicate_child_count']}`",
         f"- duplicate_patch_fingerprint_count: `{summary['duplicate_patch_fingerprint_count']}`",
         f"- near_duplicate_patch_count: `{summary['near_duplicate_patch_count']}`",
+        f"- behavioral_noop_count: `{summary['behavioral_noop_count']}`",
         f"- duplicate_retry_attempt_rate: `{summary['duplicate_retry_attempt_rate']}`",
         f"- duplicate_retry_success_rate: `{summary['duplicate_retry_success_rate']}`",
         f"- map_cell_count: `{summary['map_cell_count']}`",
@@ -184,6 +190,7 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
                 f"- near_duplicate_threshold: `{summary.get('near_duplicate_threshold')}`",
                 f"- prompt_card_score_sums: `{summary.get('prompt_card_score_sums', {})}`",
                 f"- prompt_card_lazy_penalty_sums: `{summary.get('prompt_card_lazy_penalty_sums', {})}`",
+                f"- prompt_card_reroute_policy: `{summary.get('prompt_card_reroute_policy', {})}`",
             ]
         )
     if "reasoning_memory_enabled" in summary:

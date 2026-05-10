@@ -22,14 +22,19 @@ POPULATION_POLICY_VERSION = "controller_population_policy_v2"
 PROMPT_FITNESS_POLICY_VERSION = "prompt_fitness_and_lazy_score_v1"
 DEFAULT_PARENT_PROGRAM_ID = "PROG-20260430-000000"
 NEAR_DUPLICATE_FAILURE_CATEGORY = "near_duplicate_patch"
+BEHAVIORAL_NOOP_FAILURE_CATEGORY = "behavioral_noop"
 PASS_CONTROLLER_SEARCH_SCORE = 1.0
 TARGET_INTENT_MISMATCH_CONTROLLER_SCORE = 0.35
 TARGET_INTENT_MISMATCH_LAZY_PENALTY = -0.15
 DEFAULT_REJECT_LAZY_PENALTY = -0.20
+PROMPT_CARD_REROUTE_MIN_ATTEMPTS = 2
+PROMPT_CARD_REROUTE_DUPLICATE_RATE = 0.50
+PROMPT_CARD_REROUTE_LOW_FITNESS = -0.15
 LAZY_PENALTY_BY_FAILURE_CATEGORY = {
     "empty_output": -0.40,
     "malformed_search_replace": -0.40,
     "no_valid_patch": -0.30,
+    BEHAVIORAL_NOOP_FAILURE_CATEGORY: -0.30,
     "duplicate_child": -0.30,
     "duplicate_patch_fingerprint": -0.30,
     NEAR_DUPLICATE_FAILURE_CATEGORY: -0.30,
@@ -39,6 +44,7 @@ LAZY_PENALTY_BY_FAILURE_CATEGORY = {
     "apply_failed": -0.25,
     "compile_failed": -0.20,
     "vector_smoke_failed": -0.20,
+    "behavior_delta_failed": -0.20,
     "portfolio_semantic_failed": -0.10,
     "forbidden_policy_edit": -0.50,
     "introduced_new_import": -0.50,
@@ -133,6 +139,7 @@ class PopulationPolicyState:
             "prompt_card_pass_count": int(self.prompt_card_pass_counts[prompt_card_id]),
             "prompt_card_duplicate_count": int(self.prompt_card_duplicate_counts[prompt_card_id]),
             **self.prompt_card_fitness(prompt_card_id),
+            **self.prompt_card_reroute_policy(prompt_card_id),
         }
 
     def record_attempt(self, attempt_record: dict[str, Any], *, final_diff_text: str | None = None) -> None:
@@ -227,9 +234,37 @@ class PopulationPolicyState:
             "prompt_card_hard_gate_risk": float(hard_gate_risk),
         }
 
+    def prompt_card_reroute_policy(self, prompt_card_id: str) -> dict[str, Any]:
+        """Return prompt-card de-saturation pressure for target selection."""
+
+        attempts = int(self.prompt_card_attempt_counts[prompt_card_id])
+        fitness = self.prompt_card_fitness(prompt_card_id)
+        duplicate_rate = float(fitness["prompt_card_duplicate_rate"])
+        nonduplicate_pass_rate = float(fitness["prompt_card_nonduplicate_pass_rate"])
+        fitness_score = float(fitness["prompt_card_fitness_score"])
+        penalty = 0.0
+        reasons: list[str] = []
+        if attempts >= PROMPT_CARD_REROUTE_MIN_ATTEMPTS and duplicate_rate >= PROMPT_CARD_REROUTE_DUPLICATE_RATE:
+            penalty += 8.0
+            reasons.append("duplicate_rate")
+        if attempts >= PROMPT_CARD_REROUTE_MIN_ATTEMPTS and fitness_score <= PROMPT_CARD_REROUTE_LOW_FITNESS:
+            penalty += 6.0
+            reasons.append("low_fitness")
+        if attempts >= 3 and nonduplicate_pass_rate <= 0.0:
+            penalty += 6.0
+            reasons.append("no_nonduplicate_passes")
+        return {
+            "prompt_card_reroute_penalty": float(penalty),
+            "prompt_card_reroute_reasons": ",".join(reasons),
+        }
+
     def to_summary(self) -> dict[str, Any]:
         prompt_card_fitness = {
             prompt_card_id: self.prompt_card_fitness(prompt_card_id)
+            for prompt_card_id in sorted(self.prompt_card_attempt_counts)
+        }
+        prompt_card_reroute_policy = {
+            prompt_card_id: self.prompt_card_reroute_policy(prompt_card_id)
             for prompt_card_id in sorted(self.prompt_card_attempt_counts)
         }
         return {
@@ -250,6 +285,7 @@ class PopulationPolicyState:
             "prompt_card_lazy_penalty_sums": dict(sorted(self.prompt_card_lazy_penalty_sums.items())),
             "prompt_card_best_scores": dict(sorted(self.prompt_card_best_scores.items())),
             "prompt_card_fitness": prompt_card_fitness,
+            "prompt_card_reroute_policy": prompt_card_reroute_policy,
             "patch_signature_count_by_surface": {
                 surface: len(records)
                 for surface, records in sorted(self.patch_signatures_by_surface.items())
@@ -299,6 +335,7 @@ def seed_population_policy_state(
     prior_attempts: Iterable[dict[str, Any]],
     *,
     default_parent_id: str = DEFAULT_PARENT_PROGRAM_ID,
+    historical_missing_parent_id: str = DEFAULT_PARENT_PROGRAM_ID,
 ) -> PopulationPolicyState:
     """Build controller population state from prior summary attempts."""
 
@@ -310,7 +347,7 @@ def seed_population_policy_state(
         prompt_card_id = str(attempt.get("prompt_card_id") or prompt_card_id_for(surface, target_intent))
         record = {
             **attempt,
-            "parent_id": str(attempt.get("parent_id") or default_parent_id),
+            "parent_id": str(attempt.get("parent_id") or historical_missing_parent_id),
             "target_surface": surface,
             "target_intent": target_intent,
             "patch_intent": patch_intent,
@@ -352,6 +389,8 @@ def choose_population_diversity_target(
         prompt_fitness_score = float(prompt_fitness["prompt_card_fitness_score"])
         prompt_duplicate_rate = float(prompt_fitness["prompt_card_duplicate_rate"])
         prompt_pass_rate = float(prompt_fitness["prompt_card_nonduplicate_pass_rate"])
+        reroute_policy = state.prompt_card_reroute_policy(prompt_card_id)
+        reroute_penalty = float(reroute_policy["prompt_card_reroute_penalty"])
         prompt_penalty = max(0.0, -prompt_fitness_score) * 2.0 + prompt_duplicate_rate * 2.0
         prompt_bonus = min(1.0, prompt_pass_rate)
         score = (
@@ -360,6 +399,7 @@ def choose_population_diversity_target(
             + attempt_penalty
             + direction_flip_penalty
             + prompt_penalty
+            + reroute_penalty
             - prompt_bonus
         )
         rotation_distance = (idx - start) % len(targets)
@@ -469,6 +509,8 @@ def format_population_policy_context(
             f"prompt_card_nonduplicate_pass_rate: {snapshot['prompt_card_nonduplicate_pass_rate']:.3f}",
             f"prompt_card_duplicate_rate: {snapshot['prompt_card_duplicate_rate']:.3f}",
             f"prompt_card_hard_gate_risk: {snapshot['prompt_card_hard_gate_risk']:.3f}",
+            f"prompt_card_reroute_penalty: {snapshot['prompt_card_reroute_penalty']:.3f}",
+            f"prompt_card_reroute_reasons: {snapshot['prompt_card_reroute_reasons'] or 'none'}",
             f"near_duplicate_threshold: {near_duplicate_threshold:.3f}",
             "duplicate_heavy_intents:",
             *duplicate_lines,
@@ -565,6 +607,7 @@ def _read_text_if_present(raw_path: Any) -> str | None:
 __all__ = [
     "DEFAULT_PARENT_PROGRAM_ID",
     "DEFAULT_REJECT_LAZY_PENALTY",
+    "BEHAVIORAL_NOOP_FAILURE_CATEGORY",
     "LAZY_PENALTY_BY_FAILURE_CATEGORY",
     "NEAR_DUPLICATE_FAILURE_CATEGORY",
     "PASS_CONTROLLER_SEARCH_SCORE",

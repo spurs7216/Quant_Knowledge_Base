@@ -2,13 +2,22 @@
 title: Phase 4 Markdown Package Changelog
 type: project
 status: active
-updated: 2026-04-27
+updated: 2026-05-10
 tags:
   - project
   - phase4
   - changelog
 ---
 # Phase 4 Markdown Package Changelog
+
+## 2026-05-10 Attempt017 Repair Hardening
+
+- Fixed population-policy seeding so prior attempts without explicit `parent_id` are not counted as offspring of the active attempt017 parent.
+- Added controller-static parent-child behavior-delta diagnostics and exact smoke no-op rejection.
+- Added behavior-delta MAP buckets so diversity is tied to functional ranking/portfolio/exposure changes, not patch text alone.
+- Added sample-eval exposure diagnostics for gross, net, long, and short exposure.
+- Added prompt-card reroute pressure for duplicate-heavy, low-fitness, or no-nonduplicate-pass cards before the next remote run.
+- Added `controller_evaluator_hardening_remote_instructions_20260510.md` for the next controller-only remote smoke.
 
 ## 2026-05-09 Controller Search Policy Update
 
