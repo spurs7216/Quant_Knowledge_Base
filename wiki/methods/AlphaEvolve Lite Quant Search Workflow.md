@@ -154,6 +154,9 @@ The first Phase 4 controller batches produced reusable operating lessons:
 - syntax, exact SEARCH matching, compile, and vector smoke did not catch one-sided portfolios, so portfolio semantic gates are mandatory;
 - duplicate simple sign flips can look like multiple successes unless child program hashes are tracked;
 - prompt cards that repeatedly produce invalid, lazy, duplicate, or near-duplicate patches should receive negative controller evidence before expensive market evaluation;
+- sample `sample_pass` must require broad active portfolio-day coverage, because a child can generate extreme Sharpe by trading only a few dates;
+- child sample evaluation should compare against the seed or parent summary when available, because code-different children can be metric-equivalent after ranking and risk controls;
+- missing-held-weight repairs must not use evaluator-only forward-return fields; reducing missingness by knowing next-day availability is lookahead;
 - signal-proportional portfolio weighting must use positive magnitudes for each side and assign negative weights to shorts explicitly;
 - hard signal saturation can preserve signs but still imbalance exposure;
 - Qwen-style reasoning modes can return `message.content = null`, so serving/routing must disable thinking in the actual HTTP payload and record reasoning-only failures;

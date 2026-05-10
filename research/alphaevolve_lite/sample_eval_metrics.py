@@ -24,10 +24,96 @@ EMPTY_SPLIT_METRICS = {
 }
 
 
+REFERENCE_COMPARISON_METRICS = [
+    "annualized_return",
+    "annualized_volatility",
+    "sharpe",
+    "gross_annualized_return",
+    "gross_sharpe",
+    "max_drawdown",
+    "turnover",
+    "hit_rate",
+    "beta_to_vwretd",
+    "mean_daily_n_names",
+    "mean_missing_held_weight",
+    "max_missing_held_weight",
+    "max_weight",
+    "turnover_aware_score",
+]
+
+
 def empty_split_metrics() -> dict[str, float]:
     """Return a fresh all-NaN split metric record."""
 
     return dict(EMPTY_SPLIT_METRICS)
+
+
+def _finite_float(value: Any) -> float | None:
+    try:
+        result = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(result):
+        return None
+    return result
+
+
+def compare_search_sample_to_reference(
+    metrics: dict[str, dict[str, float]],
+    reference_summary: dict[str, Any],
+    *,
+    tolerance: float,
+    metric_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Compare current search-sample metrics with a seed or parent summary.
+
+    This is a diagnostic for child evaluation. It catches no-op or
+    functionally neutral children whose code differs but whose sample evidence
+    is indistinguishable from the reference under the reported metrics.
+    """
+
+    if tolerance < 0.0:
+        raise ValueError("reference comparison tolerance must be nonnegative")
+
+    current = metrics.get("search_sample", {})
+    reference = (
+        reference_summary.get("metrics", {}).get("search_sample", {})
+        if isinstance(reference_summary, dict)
+        else {}
+    )
+    fields = metric_names or REFERENCE_COMPARISON_METRICS
+    rows: dict[str, dict[str, Any]] = {}
+    comparable_count = 0
+    max_abs_delta = 0.0
+    all_equivalent = True
+
+    for name in fields:
+        current_value = _finite_float(current.get(name))
+        reference_value = _finite_float(reference.get(name))
+        if current_value is None or reference_value is None:
+            equivalent = current_value is None and reference_value is None
+            delta = None
+        else:
+            comparable_count += 1
+            delta = float(current_value - reference_value)
+            max_abs_delta = max(max_abs_delta, abs(delta))
+            equivalent = abs(delta) <= tolerance
+        all_equivalent = all_equivalent and equivalent
+        rows[name] = {
+            "current": current_value,
+            "reference": reference_value,
+            "delta": delta,
+            "equivalent": bool(equivalent),
+        }
+
+    return {
+        "reference_available": bool(reference),
+        "metric_equivalent_to_reference": bool(reference and comparable_count and all_equivalent),
+        "comparable_metric_count": int(comparable_count),
+        "max_abs_metric_delta": float(max_abs_delta),
+        "tolerance": float(tolerance),
+        "metrics": rows,
+    }
 
 
 def max_drawdown(returns: Any) -> float:
@@ -119,6 +205,63 @@ def split_metrics(
             turnover_penalty=turnover_penalty,
             missing_weight_penalty=missing_weight_penalty,
         ),
+    }
+
+
+def portfolio_day_coverage_diagnostics(
+    portfolio: Any,
+    panel: Any,
+    contract: Any,
+    *,
+    validation_end: Any,
+    min_portfolio_days: int,
+    min_portfolio_day_coverage: float,
+) -> dict[str, Any]:
+    """Measure whether a sample portfolio is active on enough eligible days.
+
+    The sample evaluator is allowed to review sparse ideas, but `sample_pass`
+    should mean a daily-stock child traded across a broad search sample rather
+    than producing a high Sharpe from a few surviving dates.
+    """
+
+    import numpy as np
+
+    if min_portfolio_days < 1:
+        raise ValueError("min_portfolio_days must be positive")
+    if not 0.0 < min_portfolio_day_coverage <= 1.0:
+        raise ValueError("min_portfolio_day_coverage must be in (0, 1]")
+
+    visible_panel = panel.loc[panel[contract.date] <= validation_end]
+    visible_universe_days = int(visible_panel[contract.date].dropna().nunique())
+    if portfolio.empty or "DlyCalDt" not in portfolio.columns:
+        portfolio_days = 0
+    else:
+        portfolio_days = int(portfolio["DlyCalDt"].dropna().nunique())
+
+    if visible_universe_days:
+        portfolio_day_coverage = float(portfolio_days / visible_universe_days)
+        coverage_required_days = int(np.ceil(min_portfolio_day_coverage * visible_universe_days))
+        min_required_portfolio_days = min(int(min_portfolio_days), coverage_required_days)
+    else:
+        portfolio_day_coverage = float("nan")
+        min_required_portfolio_days = int(min_portfolio_days)
+
+    min_days_pass = portfolio_days >= min_required_portfolio_days
+    coverage_pass = bool(
+        visible_universe_days
+        and np.isfinite(portfolio_day_coverage)
+        and portfolio_day_coverage >= min_portfolio_day_coverage
+    )
+    return {
+        "portfolio_days": portfolio_days,
+        "visible_universe_days": visible_universe_days,
+        "portfolio_day_coverage": portfolio_day_coverage,
+        "min_portfolio_days": int(min_portfolio_days),
+        "min_portfolio_day_coverage": float(min_portfolio_day_coverage),
+        "min_required_portfolio_days": int(min_required_portfolio_days),
+        "portfolio_min_days_pass": bool(min_days_pass),
+        "portfolio_day_coverage_pass": bool(coverage_pass),
+        "portfolio_coverage_pass": bool(min_days_pass and coverage_pass),
     }
 
 
@@ -267,8 +410,10 @@ def cost_sensitivity_rows(
 
 __all__ = [
     "build_forward_returns",
+    "compare_search_sample_to_reference",
     "cost_sensitivity_rows",
     "empty_split_metrics",
+    "portfolio_day_coverage_diagnostics",
     "portfolio_from_weights",
     "scorecard_from_metrics",
     "split_metrics",

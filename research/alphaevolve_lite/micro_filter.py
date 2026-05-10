@@ -33,6 +33,14 @@ FORBIDDEN_TEXT_PATTERNS = [
     "to_csv(",
 ]
 
+FORBIDDEN_GENERATED_REPLACEMENT_PATTERNS = [
+    "fwd_ret",
+    "fwd_date",
+    "fwd_vwretd",
+    "next_market_date",
+    "one_day_forward",
+]
+
 
 class PortfolioSemanticError(ValueError):
     """Raised when a child compiles but violates portfolio-shape invariants."""
@@ -153,6 +161,17 @@ def _contains_forbidden_pattern(child_text: str) -> str | None:
     for pattern in FORBIDDEN_TEXT_PATTERNS:
         if pattern.lower() in lowered:
             return pattern
+    return None
+
+
+def _contains_forbidden_replacement_pattern(blocks: list[Any]) -> str | None:
+    """Reject generated edits that use evaluator-only forward-return fields."""
+
+    for block in blocks:
+        lowered = block.replace.lower()
+        for pattern in FORBIDDEN_GENERATED_REPLACEMENT_PATTERNS:
+            if pattern.lower() in lowered:
+                return pattern
     return None
 
 
@@ -299,6 +318,7 @@ def run_micro_filter(
         "nonempty_output": False,
         "not_no_valid_patch": False,
         "parse_search_replace": False,
+        "no_forward_return_replacement": False,
         "exact_search_match": False,
         "evolve_block_safe": False,
         "apply_patch": False,
@@ -323,6 +343,19 @@ def run_micro_filter(
         return _fail(gates, category="malformed_search_replace", reason=str(exc))
     parsed_count = len(blocks)
     gates["parse_search_replace"] = True
+
+    forbidden_replacement = _contains_forbidden_replacement_pattern(blocks)
+    if forbidden_replacement:
+        return _fail(
+            gates,
+            category="forbidden_forward_return_reference",
+            reason=(
+                "generated replacement used evaluator-only forward-return field: "
+                f"{forbidden_replacement}"
+            ),
+            parsed_block_count=parsed_count,
+        )
+    gates["no_forward_return_replacement"] = True
 
     exact_counts = [parent_text.count(block.search) for block in blocks]
     if any(count != 1 for count in exact_counts):

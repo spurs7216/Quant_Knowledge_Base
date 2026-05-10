@@ -214,6 +214,72 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
         },
         "created_at": "2026-05-09T00:00:00+00:00",
     },
+    {
+        "skill_name": "Do not win by shrinking active days",
+        "skill_type": "diagnostic_rule",
+        "confidence": "high",
+        "status": "active",
+        "pattern": "A sample-evaluated child reports strong Sharpe but is active on only a few portfolio days.",
+        "strategy": "Classify the result as a coverage artifact and require broad active-day coverage for sample_pass.",
+        "prompt_rule": "Do not create sparse few-day books to improve metrics; keep the strategy active on most eligible sample dates.",
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 1,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Avoid metric-equivalent no-op children",
+        "skill_type": "diagnostic_rule",
+        "confidence": "high",
+        "status": "active",
+        "pattern": "A child changes code but the sample metrics are indistinguishable from the seed or parent.",
+        "strategy": "Flag the child as functionally neutral and steer future prompts toward behavior changes that survive downstream controls.",
+        "prompt_rule": "Do not propose cosmetic, monotone-invariant, or threshold-absorbed edits; make the intended behavior observable after ranking and risk controls.",
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 3,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "skill_name": "No forward-return availability filters",
+        "skill_type": "failure_guardrail",
+        "confidence": "high",
+        "status": "active",
+        "pattern": "A repair for missing-held-weight is tempted to select names with known next-day returns.",
+        "strategy": "Reject generated edits that use evaluator-only forward-return fields and repair missingness through ex-ante signal, ranking, portfolio, or risk logic.",
+        "prompt_rule": "Do not use fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward in generated strategy edits.",
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 0,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+        },
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
 ]
 
 

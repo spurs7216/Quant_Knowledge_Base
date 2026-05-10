@@ -88,6 +88,10 @@ def build_evaluator_diagnostic_report(
         )
     search = _dig(summary, "metrics", "search_sample") or {}
     baseline = summary.get("baseline_summary", {}) if isinstance(summary.get("baseline_summary"), dict) else {}
+    sample_coverage = summary.get("sample_coverage", {}) if isinstance(summary.get("sample_coverage"), dict) else {}
+    reference_comparison = (
+        summary.get("reference_comparison", {}) if isinstance(summary.get("reference_comparison"), dict) else {}
+    )
     decision = summary.get("decision")
     sharpe = _as_float(search.get("sharpe"))
     ann_return = _as_float(search.get("annualized_return"))
@@ -95,6 +99,9 @@ def build_evaluator_diagnostic_report(
     turnover_score = _as_float(search.get("turnover_aware_score"))
     max_weight = _as_float(search.get("max_weight"))
     max_missing = _as_float(search.get("max_missing_held_weight"))
+    portfolio_days = _as_float(sample_coverage.get("portfolio_days"))
+    portfolio_day_coverage = _as_float(sample_coverage.get("portfolio_day_coverage"))
+    min_portfolio_day_coverage = _as_float(sample_coverage.get("min_portfolio_day_coverage"))
     if decision and str(decision) not in {"sample_pass", "survive_for_mutation", "record_only"}:
         cards.append(
             _card(
@@ -176,6 +183,55 @@ def build_evaluator_diagnostic_report(
                 target_surfaces=["portfolio", "risk"],
                 prompt_instruction="Avoid narrowing the book in a way that increases missing held-weight exposure.",
                 avoid_actions=["do not treat missing returns as alpha"],
+            )
+        )
+    if (
+        sample_coverage
+        and sample_coverage.get("portfolio_coverage_pass") is False
+        and portfolio_days is not None
+        and portfolio_day_coverage is not None
+    ):
+        cards.append(
+            _card(
+                diagnostic_id="diag_sparse_portfolio_coverage",
+                bottleneck="sparse_portfolio_coverage",
+                severity="high",
+                evidence={
+                    "portfolio_days": int(portfolio_days),
+                    "visible_universe_days": sample_coverage.get("visible_universe_days"),
+                    "portfolio_day_coverage": portfolio_day_coverage,
+                    "min_portfolio_day_coverage": min_portfolio_day_coverage,
+                },
+                likely_causes=[
+                    "selection logic may trade only rare dates",
+                    "sparsity can inflate Sharpe from too few observations",
+                ],
+                target_surfaces=["portfolio", "risk", "signal", "ranking"],
+                prompt_instruction=(
+                    "Preserve broad active-day coverage; do not improve metrics by leaving only a few traded days."
+                ),
+                avoid_actions=["do not treat few-day Sharpe as alpha evidence"],
+            )
+        )
+    if reference_comparison.get("metric_equivalent_to_reference") is True:
+        cards.append(
+            _card(
+                diagnostic_id="diag_metric_equivalent_to_reference",
+                bottleneck="metric_equivalent_child",
+                severity="medium",
+                evidence={
+                    "max_abs_metric_delta": reference_comparison.get("max_abs_metric_delta"),
+                    "tolerance": reference_comparison.get("tolerance"),
+                },
+                likely_causes=[
+                    "patch may be monotone-invariant under rank selection",
+                    "risk controls or thresholds may absorb the generated change",
+                ],
+                target_surfaces=["signal", "ranking", "portfolio", "risk"],
+                prompt_instruction=(
+                    "Make a behaviorally meaningful change whose effect survives ranking, selection, and risk controls."
+                ),
+                avoid_actions=["do not count cosmetic or functionally neutral edits as useful children"],
             )
         )
     sign_flip = baseline.get("sign_flip_search_sample", {})

@@ -270,6 +270,86 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-09T00:00:00+00:00",
     },
+    {
+        "source_run_id": "remote_sample_eval_controller_batch_001_review_20260509",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "evaluator_caveat",
+        "title": "Sparse few-day portfolios are review artifacts",
+        "description": "Use before portfolio, risk, signal, or ranking changes that may reduce active dates.",
+        "content": (
+            "A child can show very high sample Sharpe by trading only a few dates. Treat that as a "
+            "coverage artifact, not alpha. Preserve broad active portfolio-day coverage unless a separate "
+            "human-approved sparse strategy contract is introduced."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+            "island": ["portfolio_risk_turnover", "signal_transform", "repair_near_miss", "any"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+            "failure_categories": ["sparse_portfolio_coverage", "sample_review_artifact"],
+            "attempt_ids": ["attempt_000"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "remote_sample_eval_controller_batch_001_review_20260509",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "evaluator_caveat",
+        "title": "Metric-equivalent children are not useful improvements",
+        "description": "Use when a patch changes code but not search-sample behavior versus the seed or parent.",
+        "content": (
+            "A monotone, threshold-absorbed, or cosmetic patch can produce metrics indistinguishable from "
+            "the reference program. Store it as evidence, but do not treat it as a useful child; ask for "
+            "a behaviorally meaningful change that survives ranking, selection, and risk controls."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+            "island": ["signal_transform", "portfolio_risk_turnover", "any"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+            "failure_categories": ["metric_equivalent_to_reference"],
+            "attempt_ids": ["attempt_004", "attempt_010", "attempt_011"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "remote_sample_eval_controller_batch_001_review_20260509",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "data_contract",
+        "title": "Do not use forward-return availability inside child code",
+        "description": "Use when repairing missing-held-weight or sparse-coverage problems.",
+        "content": (
+            "Missing held weight must be reduced without lookahead. Generated strategy code must not use "
+            "fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward to select or weight names; "
+            "those fields are evaluator accounting fields."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+            "island": "any",
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_batch_001_review_20260509.md"
+            ],
+            "failure_categories": ["lookahead_guardrail"],
+        },
+        "status": "active",
+        "created_at": "2026-05-09T00:00:00+00:00",
+    },
 ]
 
 

@@ -25,6 +25,11 @@ def parse_args() -> argparse.Namespace:
         "--program-path",
         default="research/alphaevolve_lite/seeds/kalman_reversal_seed.py",
     )
+    parser.add_argument(
+        "--parent-program-id",
+        default="",
+        help="Program id recorded as the parent when --program-path is not the generation-zero seed.",
+    )
     parser.add_argument("--evaluator-summary", default="")
     parser.add_argument("--out-dir", default="artifacts/phase4_alphaevolve/controller_batch_001")
     parser.add_argument("--db-path", default="")
@@ -210,6 +215,7 @@ def main() -> int:
         temperatures = [0.2]
     if args.db_path:
         init_db(args.db_path)
+    parent_program_id = args.parent_program_id or DEFAULT_PARENT_PROGRAM_ID
     memory_path = None if args.disable_reasoning_memory else Path(args.memory_path)
     reasoning_memory_items: list[dict[str, Any]] = []
     retrieved_memory_ids_seen: set[str] = set()
@@ -285,7 +291,7 @@ def main() -> int:
     near_duplicate_check_enabled = population_policy_enabled and not args.disable_near_duplicate_check
     population_policy_state = seed_population_policy_state(
         prior_attempt_records,
-        default_parent_id=DEFAULT_PARENT_PROGRAM_ID,
+        default_parent_id=parent_program_id,
     )
 
     attempt_records: list[dict[str, Any]] = []
@@ -299,7 +305,7 @@ def main() -> int:
         attempt_dir = out_dir / f"attempt_{attempt:03d}"
         attempt_dir.mkdir(parents=True, exist_ok=True)
         temperature = temperatures[attempt % len(temperatures)]
-        parent_id = DEFAULT_PARENT_PROGRAM_ID
+        parent_id = parent_program_id
         target_surface = choose_target_surface(attempt, surface_schedule=surface_schedule)
         if population_policy_enabled:
             diversity_target = choose_population_diversity_target(
@@ -771,7 +777,7 @@ def main() -> int:
                     args.db_path,
                     {
                         "program_id": program_id,
-                        "parent_id": "PROG-20260430-000000",
+                        "parent_id": parent_program_id,
                         "root_id": "CAND-20260423-001",
                         "branch_id": "BRANCH-CAND-20260423-001-001",
                         "generation": 1,
@@ -904,6 +910,7 @@ def main() -> int:
     summary.update(
         {
             "program_path": str(program_path),
+            "parent_program_id": parent_program_id,
             "evaluator_summary": args.evaluator_summary,
             "model_role": args.model_role,
             "population_policy_version": POPULATION_POLICY_VERSION if population_policy_enabled else "v1",

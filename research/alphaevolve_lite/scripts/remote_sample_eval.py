@@ -26,6 +26,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out-dir", required=True)
     parser.add_argument("--program-path", default="research/alphaevolve_lite/seeds/kalman_reversal_seed.py")
     parser.add_argument("--db-path", default="")
+    parser.add_argument(
+        "--reference-summary",
+        default="",
+        help="Optional seed/parent evaluator_summary.json used to flag metric-equivalent children.",
+    )
+    parser.add_argument(
+        "--reference-equivalence-tolerance",
+        type=float,
+        default=1e-9,
+        help="Absolute tolerance for optional search-sample metric equivalence to the reference summary.",
+    )
     parser.add_argument("--start-date", default="2018-01-01")
     parser.add_argument("--end-date", default="2020-12-31")
     parser.add_argument("--chunksize", type=int, default=1_000_000)
@@ -36,6 +47,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--null-seeds", type=int, default=5)
     parser.add_argument("--turnover-penalty", type=float, default=0.25)
     parser.add_argument("--missing-weight-penalty", type=float, default=5.0)
+    parser.add_argument(
+        "--min-portfolio-days",
+        type=int,
+        default=252,
+        help="Minimum active portfolio days required when the visible sample is long enough.",
+    )
+    parser.add_argument(
+        "--min-portfolio-day-coverage",
+        type=float,
+        default=0.80,
+        help="Minimum fraction of visible rolling-universe days with an active portfolio.",
+    )
     parser.add_argument("--program-id", default="PROG-20260430-000000")
     parser.add_argument("--run-id", default="")
     return parser.parse_args()
@@ -172,8 +195,10 @@ def main() -> int:
     )
     from research.alphaevolve_lite.sample_eval_metrics import (
         build_forward_returns,
+        compare_search_sample_to_reference,
         cost_sensitivity_rows,
         portfolio_from_weights,
+        portfolio_day_coverage_diagnostics,
         scorecard_from_metrics,
         split_metrics,
     )
@@ -193,7 +218,23 @@ def main() -> int:
     if args.null_seeds < 0:
         print("--null-seeds must be nonnegative", file=sys.stderr)
         return 2
+    if args.reference_equivalence_tolerance < 0.0:
+        print("--reference-equivalence-tolerance must be nonnegative", file=sys.stderr)
+        return 2
+    if args.min_portfolio_days < 1:
+        print("--min-portfolio-days must be positive", file=sys.stderr)
+        return 2
+    if not 0.0 < args.min_portfolio_day_coverage <= 1.0:
+        print("--min-portfolio-day-coverage must be in (0, 1]", file=sys.stderr)
+        return 2
     git_status = write_git_status_artifacts(out_dir)
+    reference_summary = {}
+    if args.reference_summary:
+        reference_path = Path(args.reference_summary)
+        if not reference_path.exists():
+            print(f"reference summary does not exist: {reference_path}", file=sys.stderr)
+            return 2
+        reference_summary = json.loads(reference_path.read_text(encoding="utf-8"))
 
     diagnostics: list[dict[str, Any]] = []
     decision = "reject"
@@ -243,6 +284,18 @@ def main() -> int:
             raise RuntimeError("seed produced no nonzero portfolio returns")
 
         visible_splits = [split for split in splits if split.name in {"train", "validation"}]
+        portfolio_coverage = portfolio_day_coverage_diagnostics(
+            portfolio,
+            universe_panel,
+            CONTRACT,
+            validation_end=validation_end,
+            min_portfolio_days=args.min_portfolio_days,
+            min_portfolio_day_coverage=args.min_portfolio_day_coverage,
+        )
+        diagnostics.extend(
+            {"check": key, "status": "info", "value": value}
+            for key, value in portfolio_coverage.items()
+        )
         metrics = {
             split.name: split_metrics(
                 portfolio,
@@ -278,11 +331,20 @@ def main() -> int:
         baseline_rows.to_csv(out_dir / "null_baselines.csv", index=False)
         baseline_summary = summarize_baselines(baseline_rows, metrics)
         write_json(out_dir / "baseline_summary.json", baseline_summary)
+        reference_comparison = compare_search_sample_to_reference(
+            metrics,
+            reference_summary,
+            tolerance=args.reference_equivalence_tolerance,
+        )
 
         hard_gates = {
             "daily_stock_contract_v1_columns_present": True,
             "rolling_universe_nonempty": bool(len(membership)),
             "portfolio_nonempty": bool(len(portfolio)),
+            "portfolio_min_active_days": bool(portfolio_coverage["portfolio_min_days_pass"]),
+            "portfolio_day_coverage_within_sample_tolerance": bool(
+                portfolio_coverage["portfolio_day_coverage_pass"]
+            ),
             "max_weight_reported": "max_weight" in metrics["search_sample"],
             "test_metrics_locked": True,
             "missing_held_weight_within_sample_tolerance": metrics["search_sample"]["max_missing_held_weight"] <= 0.05,
@@ -291,6 +353,10 @@ def main() -> int:
             "null_baselines_written": (out_dir / "null_baselines.csv").exists(),
             "turnover_aware_score_reported": "turnover_aware_score" in metrics["search_sample"],
         }
+        if reference_summary:
+            hard_gates["not_metric_equivalent_to_reference"] = not bool(
+                reference_comparison["metric_equivalent_to_reference"]
+            )
         decision = "sample_pass" if all(hard_gates.values()) else "sample_review"
 
         scorecard = scorecard_from_metrics(args.program_id, metrics, visible_splits)
@@ -320,6 +386,8 @@ def main() -> int:
             "program_id": args.program_id,
             "stage": "remote_sample_eval",
             "program_path": str(resolved_program_path),
+            "reference_summary_path": args.reference_summary,
+            "reference_equivalence_tolerance": args.reference_equivalence_tolerance,
             "csv_path": args.csv_path,
             "start_date": args.start_date,
             "end_date": args.end_date,
@@ -329,6 +397,9 @@ def main() -> int:
             "null_seeds": args.null_seeds,
             "turnover_penalty": args.turnover_penalty,
             "missing_weight_penalty": args.missing_weight_penalty,
+            "min_portfolio_days": args.min_portfolio_days,
+            "min_portfolio_day_coverage": args.min_portfolio_day_coverage,
+            "portfolio_coverage": portfolio_coverage,
             "daily_stock_contract": CONTRACT.contract_id,
             "universe_policy": UNIVERSE_POLICY_ID,
             "eligibility_filters": eligibility_query_description(),
@@ -343,6 +414,8 @@ def main() -> int:
                 "program_id": args.program_id,
                 "metrics": metrics,
                 "baseline_summary": baseline_summary,
+                "sample_coverage": portfolio_coverage,
+                "reference_comparison": reference_comparison,
             },
         )
         write_json(
@@ -356,12 +429,15 @@ def main() -> int:
                 "hard_gates": hard_gates,
                 "metrics": metrics,
                 "baseline_summary": baseline_summary,
+                "sample_coverage": portfolio_coverage,
+                "reference_comparison": reference_comparison,
                 "descriptors": {
                     "daily_stock_contract": CONTRACT.contract_id,
                     "strategy_family": "kalman_innovation_reversal",
                     "program_path": str(resolved_program_path),
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
+                    "portfolio_day_coverage": portfolio_coverage["portfolio_day_coverage"],
                     "git_dirty": git_status["git_dirty"],
                 },
                 "next_prompt_hint": "If sample_pass, compare against seed, null baselines, and sibling children before any stage-0/full validation. Do not use test metrics for prompt sampling.",
@@ -408,6 +484,11 @@ def main() -> int:
                 f"- rows_after_static_eligibility: `{eligibility_diag.get('rows_after_static_eligibility')}`",
                 f"- universe_rows: `{len(universe_panel)}`",
                 f"- portfolio_days: `{len(portfolio)}`",
+                f"- visible_universe_days: `{portfolio_coverage['visible_universe_days']}`",
+                f"- portfolio_day_coverage: `{portfolio_coverage['portfolio_day_coverage']}`",
+                f"- min_required_portfolio_days: `{portfolio_coverage['min_required_portfolio_days']}`",
+                f"- reference_metric_equivalent: `{reference_comparison['metric_equivalent_to_reference']}`",
+                f"- reference_max_abs_metric_delta: `{reference_comparison['max_abs_metric_delta']}`",
                 f"- search_sample_sharpe: `{metrics['search_sample']['sharpe']}`",
                 f"- turnover_aware_score: `{metrics['search_sample']['turnover_aware_score']}`",
                 f"- max_weight: `{metrics['search_sample']['max_weight']}`",
@@ -442,6 +523,7 @@ def main() -> int:
                     "descriptors": {
                         "daily_stock_contract": CONTRACT.contract_id,
                         "program_path": str(resolved_program_path),
+                        "portfolio_coverage": portfolio_coverage,
                     },
                     "hard_gates": hard_gates,
                     "validation_exposure": {

@@ -34,5 +34,6 @@ Controller batch refactor notes:
 Remote sample-evaluator refactor notes:
 
 - `sample_eval_metrics.py` owns one-day-forward return construction, portfolio accounting, split metrics, scorecards, and cost sensitivity.
+- `sample_eval_metrics.py` also owns active portfolio-day coverage diagnostics so sparse few-day sample artifacts cannot pass as broad daily-stock evidence.
 - `sample_eval_baselines.py` owns sign-flip and matched-random null baseline construction.
 - `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, and database writes there unless a new reusable contract appears.

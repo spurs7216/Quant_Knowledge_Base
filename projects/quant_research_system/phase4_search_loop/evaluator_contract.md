@@ -2,7 +2,7 @@
 title: Phase 4 Evaluator Contract
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-09
 tags:
   - project
   - phase4
@@ -73,6 +73,7 @@ controller_static_hard_gates:
   universe_policy_unchanged: true
   cost_policy_unchanged: true
   duplicate_policy_unchanged: true
+  no_forward_return_availability_filter: true
   no_raw_warehouse_copy_to_vault: true
   no_broker_or_ibkr_logic: true
   undeclared_name_check_pass: true
@@ -90,6 +91,8 @@ remote_hard_gates:
   lookahead_guard_pass: true
   one_day_or_declared_holding_period_timing_pass: true
   nonfinite_return_check_pass: true
+  active_portfolio_day_coverage_pass: true
+  reference_metric_equivalence_check_pass: true
   turnover_cost_application_check_pass: true
   max_single_name_weight_check_pass: true
   minimum_names_per_side_check_pass: true

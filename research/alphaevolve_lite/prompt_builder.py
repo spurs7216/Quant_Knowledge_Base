@@ -34,6 +34,7 @@ Rules:
 - Do not include # EVOLVE-BLOCK-START or # EVOLVE-BLOCK-END in the SEARCH block.
 - Do not introduce new imports, new global names, file I/O, data loading, or undeclared dependencies.
 - Do not change train/validation/test split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
+- Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
 - Do not add broker, IBKR, TWS, account, position, order, or credential logic.
 - If the prompt provides a Target behavior cell, implement that intended patch intent. Do not substitute an easier patch intent.
 - Do not use a sign or direction flip unless the intended patch intent is direction_flip.
@@ -72,6 +73,7 @@ You may not remove or weaken transaction costs.
 You may not edit duplicate policy, return timing, artifact-writing logic, or evaluator gates.
 You may not add broker, IBKR, TWS, account, position, order, or credential logic.
 You may not add a non-primary dataset unless the prompt explicitly provides a dataset_admission_id.
+You may not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
 You must keep SEARCH blocks strictly inside EVOLVE-BLOCK markers.
 """
 
@@ -83,6 +85,8 @@ The hardened sample evaluator showed:
 - turnover is high;
 - random matched long/short baselines are worse than the seed;
 - the sign-flipped seed is better than the current seed.
+- sample pass requires broad active portfolio-day coverage; a sparse few-day book is review evidence, not alpha.
+- code changes that are metric-equivalent to the seed are not useful children.
 
 Prefer bounded changes to signal direction, turnover dampening, ranking transform, or risk controls.
 Do not edit loader, universe, split, cost, duplicate, artifact, or data-contract logic.
@@ -105,7 +109,10 @@ SURFACE_GUIDANCE = {
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
-        "or bounded gross exposure use through local logic. If you weight by signal strength, compute positive "
+        "or bounded gross exposure use through local logic. Keep the book active on most eligible sample dates; "
+        "name sparsity is acceptable only if it does not collapse the portfolio to a few traded days. "
+        "Do not filter names using forward-return availability fields. "
+        "If you weight by signal strength, compute positive "
         "long-side magnitudes and positive short-side magnitudes separately, then assign negative weights to "
         "shorts; preserve both long and short exposure and keep net exposure near zero. If you use a boolean "
         "selection mask, convert it to index labels aligned to the target Series before assigning weights."
@@ -134,6 +141,8 @@ def compact_evaluator_context(summary: dict[str, Any]) -> str:
         return "No evaluator summary supplied."
     metrics = summary.get("metrics", {}).get("search_sample", {})
     baseline = summary.get("baseline_summary", {})
+    sample_coverage = summary.get("sample_coverage", {})
+    reference_comparison = summary.get("reference_comparison", {})
     fields = {
         "decision": summary.get("decision"),
         "search_sample_sharpe": metrics.get("sharpe"),
@@ -142,6 +151,11 @@ def compact_evaluator_context(summary: dict[str, Any]) -> str:
         "search_sample_turnover_aware_score": metrics.get("turnover_aware_score"),
         "max_weight": metrics.get("max_weight"),
         "max_missing_held_weight": metrics.get("max_missing_held_weight"),
+        "portfolio_days": sample_coverage.get("portfolio_days"),
+        "visible_universe_days": sample_coverage.get("visible_universe_days"),
+        "portfolio_day_coverage": sample_coverage.get("portfolio_day_coverage"),
+        "metric_equivalent_to_reference": reference_comparison.get("metric_equivalent_to_reference"),
+        "reference_max_abs_metric_delta": reference_comparison.get("max_abs_metric_delta"),
         "random_sharpe_summary": baseline.get("random_search_sample_sharpe"),
         "random_turnover_aware_summary": baseline.get("random_search_sample_turnover_aware_score"),
         "sign_flip_search_sample": baseline.get("sign_flip_search_sample"),
