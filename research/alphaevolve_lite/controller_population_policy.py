@@ -30,6 +30,7 @@ DEFAULT_REJECT_LAZY_PENALTY = -0.20
 PROMPT_CARD_REROUTE_MIN_ATTEMPTS = 2
 PROMPT_CARD_REROUTE_DUPLICATE_RATE = 0.50
 PROMPT_CARD_REROUTE_LOW_FITNESS = -0.15
+PROMPT_CARD_REROUTE_LOW_PASS_RATE = 0.25
 LAZY_PENALTY_BY_FAILURE_CATEGORY = {
     "empty_output": -0.40,
     "malformed_search_replace": -0.40,
@@ -250,6 +251,13 @@ class PopulationPolicyState:
         if attempts >= PROMPT_CARD_REROUTE_MIN_ATTEMPTS and fitness_score <= PROMPT_CARD_REROUTE_LOW_FITNESS:
             penalty += 6.0
             reasons.append("low_fitness")
+        if (
+            attempts >= 3
+            and nonduplicate_pass_rate <= PROMPT_CARD_REROUTE_LOW_PASS_RATE
+            and fitness_score <= 0.50
+        ):
+            penalty += 4.0
+            reasons.append("low_pass_rate")
         if attempts >= 3 and nonduplicate_pass_rate <= 0.0:
             penalty += 6.0
             reasons.append("no_nonduplicate_passes")

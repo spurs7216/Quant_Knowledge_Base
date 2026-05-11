@@ -91,13 +91,15 @@ review_decision:
 
 Zip or otherwise return the full `controller_batch_001_attempt017_repair_20260509` artifact folder. Do not launch sample evaluation from this batch until local review selects a tiny subset.
 
-When sample evaluation is later requested for selected children, use the hardened evaluator with the seed reference summary:
+When sample evaluation is later requested for selected children, use the hardened evaluator with the attempt017 parent reference summary:
 
 ```bash
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
   --program-path <selected_child_program.py> \
-  --reference-summary artifacts/phase4_alphaevolve/remote_sample_eval_controller_batch_001_seed_reference_20260509/evaluator_summary.json \
+  --program-id <selected_child_program_id> \
+  --parent-program-id PROG-20260430-CHILD-0017 \
+  --reference-summary artifacts/phase4_alphaevolve/remote_sample_eval_controller_batch_001_topup_attempt_017_20260509/evaluator_summary.json \
   --out-dir <selected_child_sample_eval_out_dir> \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --start-date 2018-01-01 \

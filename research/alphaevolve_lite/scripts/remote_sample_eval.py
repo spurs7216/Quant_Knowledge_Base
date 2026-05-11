@@ -14,6 +14,10 @@ from pathlib import Path
 from typing import Any
 
 
+DEFAULT_SEED_PROGRAM_ID = "PROG-20260430-000000"
+DEFAULT_SEED_PROGRAM_PATH = Path("research/alphaevolve_lite/seeds/kalman_reversal_seed.py")
+
+
 def _ensure_repo_import() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     if str(repo_root) not in sys.path:
@@ -59,7 +63,15 @@ def parse_args() -> argparse.Namespace:
         default=0.80,
         help="Minimum fraction of visible rolling-universe days with an active portfolio.",
     )
-    parser.add_argument("--program-id", default="PROG-20260430-000000")
+    parser.add_argument("--program-id", default=DEFAULT_SEED_PROGRAM_ID)
+    parser.add_argument(
+        "--parent-program-id",
+        default="",
+        help=(
+            "Parent program id for child sample evaluation. If omitted for a child, "
+            "the reference-summary program_id is used when available."
+        ),
+    )
     parser.add_argument("--run-id", default="")
     return parser.parse_args()
 
@@ -127,6 +139,26 @@ def write_git_status_artifacts(out_dir: Path) -> dict[str, Any]:
 def write_lines(path: Path, lines: list[str]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def is_seed_program_path(resolved_program_path: Path) -> bool:
+    """Return whether the evaluated program is the canonical generation-zero seed."""
+
+    try:
+        return resolved_program_path.resolve() == (Path.cwd() / DEFAULT_SEED_PROGRAM_PATH).resolve()
+    except Exception:
+        return str(resolved_program_path).replace("\\", "/").endswith(DEFAULT_SEED_PROGRAM_PATH.as_posix())
+
+
+def child_parent_program_id(args: argparse.Namespace, reference_summary: dict[str, Any]) -> str:
+    """Resolve child parent lineage for sample-evaluation database records."""
+
+    if args.parent_program_id:
+        return str(args.parent_program_id)
+    reference_program_id = reference_summary.get("program_id") if isinstance(reference_summary, dict) else None
+    if reference_program_id:
+        return str(reference_program_id)
+    return DEFAULT_SEED_PROGRAM_ID
 
 
 def duplicate_diagnostics(frame, contract, max_rows: int = 200):
@@ -242,6 +274,12 @@ def main() -> int:
 
     try:
         strategy_module, resolved_program_path = load_strategy_module(args.program_path)
+        is_seed_program = is_seed_program_path(resolved_program_path)
+        if not is_seed_program and args.program_id == DEFAULT_SEED_PROGRAM_ID:
+            raise RuntimeError(
+                "child sample evaluation requires --program-id; refusing to record a child under the seed id"
+            )
+        resolved_parent_program_id = None if is_seed_program else child_parent_program_id(args, reference_summary)
         raw, load_diag = load_daily_stock_window(
             args.csv_path,
             start_date=args.start_date,
@@ -385,6 +423,7 @@ def main() -> int:
         manifest = {
             "run_id": run_id,
             "program_id": args.program_id,
+            "parent_program_id": resolved_parent_program_id,
             "stage": "remote_sample_eval",
             "program_path": str(resolved_program_path),
             "reference_summary_path": args.reference_summary,
@@ -413,6 +452,7 @@ def main() -> int:
             out_dir / "metrics.json",
             {
                 "program_id": args.program_id,
+                "parent_program_id": resolved_parent_program_id,
                 "metrics": metrics,
                 "baseline_summary": baseline_summary,
                 "sample_coverage": portfolio_coverage,
@@ -424,6 +464,7 @@ def main() -> int:
             {
                 "schema_version": "phase4_evaluator_summary_v1",
                 "program_id": args.program_id,
+                "parent_program_id": resolved_parent_program_id,
                 "stage": "remote_sample_eval",
                 "decision": decision,
                 "failure_reason": failure_reason,
@@ -436,6 +477,7 @@ def main() -> int:
                     "daily_stock_contract": CONTRACT.contract_id,
                     "strategy_family": "kalman_innovation_reversal",
                     "program_path": str(resolved_program_path),
+                    "parent_program_id": resolved_parent_program_id,
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
                     "portfolio_day_coverage": portfolio_coverage["portfolio_day_coverage"],
@@ -484,6 +526,7 @@ def main() -> int:
                 "",
                 f"- decision: `{decision}`",
                 f"- program_id: `{args.program_id}`",
+                f"- parent_program_id: `{resolved_parent_program_id}`",
                 f"- daily_stock_contract: `{CONTRACT.contract_id}`",
                 f"- rows_after_static_eligibility: `{eligibility_diag.get('rows_after_static_eligibility')}`",
                 f"- universe_rows: `{len(universe_panel)}`",
@@ -506,17 +549,12 @@ def main() -> int:
         )
 
         if args.db_path:
-            default_seed_path = Path("research/alphaevolve_lite/seeds/kalman_reversal_seed.py")
-            try:
-                is_seed_program = resolved_program_path.resolve() == (Path.cwd() / default_seed_path).resolve()
-            except Exception:
-                is_seed_program = str(resolved_program_path).replace("\\", "/").endswith(default_seed_path.as_posix())
             init_db(args.db_path)
             insert_program_record(
                 args.db_path,
                 {
                     "program_id": args.program_id,
-                    "parent_id": None if is_seed_program else "PROG-20260430-000000",
+                    "parent_id": resolved_parent_program_id,
                     "root_id": "CAND-20260423-001",
                     "branch_id": "BRANCH-CAND-20260423-001-001",
                     "generation": 0 if is_seed_program else 1,
@@ -530,6 +568,7 @@ def main() -> int:
                     "descriptors": {
                         "daily_stock_contract": CONTRACT.contract_id,
                         "program_path": str(resolved_program_path),
+                        "parent_program_id": resolved_parent_program_id,
                         "portfolio_coverage": portfolio_coverage,
                         "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
                         "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
@@ -554,6 +593,7 @@ def main() -> int:
             {
                 "schema_version": "phase4_evaluator_summary_v1",
                 "program_id": args.program_id,
+                "parent_program_id": None,
                 "stage": "remote_sample_eval",
                 "decision": "reject",
                 "failure_reason": failure_reason,

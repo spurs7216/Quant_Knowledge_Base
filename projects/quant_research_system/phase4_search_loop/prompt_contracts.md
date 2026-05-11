@@ -160,6 +160,8 @@ Only copy SEARCH text from the editable code body above. Do not copy from helper
 MAP-Elites controller diversity:
 {target_behavior_cell}
 
+The intended patch intent in the target behavior cell is mandatory. Do not substitute an easier patch family. Do not use a sign or direction flip unless the intended patch intent is `direction_flip`.
+
 Already occupied same-surface MAP cells:
 {occupied_map_cells}
 

@@ -237,12 +237,12 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
     if target_surface == "signal":
         if "signal=-" in compact or "signal=-signal" in compact:
             return "direction_flip"
+        if "rolling_vol" in lower or "clip(lower=" in lower:
+            return "volatility_floor_or_scaling"
         if "rolling(" in lower or "ewm(" in lower or ".shift(" in lower:
             return "time_smoothing"
         if "history" in lower or "min_history" in lower:
             return "history_confidence_weighting"
-        if "rolling_vol" in lower or "clip(lower=" in lower:
-            return "volatility_floor_or_scaling"
         if "tanh" in lower:
             return "bounded_tanh_dampening"
         if "np.sign" in lower or "sign(" in lower or "minimum(" in lower:

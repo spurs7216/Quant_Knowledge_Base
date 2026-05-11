@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-08
+updated: 2026-05-09
 tags:
   - project
   - phase4
@@ -132,8 +132,10 @@ New implementation-policy files:
 - [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md): ReasoningBank-style memory layer for turning batch successes and failures into retrievable prompt lessons.
 - [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md): Dr. RTL transfer note for group-relative sibling comparison and skill learning.
 - [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md): implementation note for the deterministic analyzer role and explicit skill-library layer.
+- [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md): CodeEvolve, ShinkaEvolve, and ThetaEvolve transfer note for duplicate control, parent sampling, novelty pressure, and deferred RL.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
+- [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
 
 Existing policy files included for completeness:
 
@@ -155,6 +157,7 @@ Dated review records retained as evidence, not active plans:
 - [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md): no-thinking and larger-token-budget small batch review.
 - [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md): duplicate-retry and MAP-cell small batch review.
 - [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md): 50-attempt controller-only remote handoff.
+- [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md): 50-attempt controller run review; mechanics healthy but uniqueness gate failed.
 
 ## Search Principle
 
@@ -171,6 +174,8 @@ A remote validation batch is only an evaluator artifact. An AlphaEvolve-style lo
 - explicit skill cards with confidence/status, separate from raw program memory
 - a program database that stores every generated program, not just winners
 - parent/inspiration sampling that balances exploitation and diversity
+- population policies that track duplicate pressure, parent offspring counts, prompt fitness, and MAP-cell occupancy
+- deterministic near-duplicate checks over edit signatures before any market evaluator is launched
 
 The candidate registry and program database are different:
 

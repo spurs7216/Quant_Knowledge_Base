@@ -39,4 +39,4 @@ Remote sample-evaluator refactor notes:
 - `sample_eval_metrics.py` also owns active portfolio-day coverage diagnostics so sparse few-day sample artifacts cannot pass as broad daily-stock evidence.
 - `sample_eval_metrics.py` reports gross/net/long/short exposure diagnostics so de-grossing artifacts are visible in parent-relative comparisons.
 - `sample_eval_baselines.py` owns sign-flip and matched-random null baseline construction.
-- `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, and database writes there unless a new reusable contract appears.
+- `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, lineage validation, and database writes there unless a new reusable contract appears. Child sample evaluations must use explicit child `--program-id` and should provide `--parent-program-id`.

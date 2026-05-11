@@ -2,13 +2,20 @@
 title: Phase 4 Markdown Package Changelog
 type: project
 status: active
-updated: 2026-05-10
+updated: 2026-05-11
 tags:
   - project
   - phase4
   - changelog
 ---
 # Phase 4 Markdown Package Changelog
+
+## 2026-05-11 Hardening Smoke Review Patch
+
+- Reviewed `controller_evaluator_hardening_smoke_20260510`: the new behavior-delta gate rejected four exact smoke no-ops and the single sample-evaluated child did not improve on attempt017.
+- Tightened `remote_sample_eval.py` lineage handling so child sample evaluation refuses the seed default program id and records `parent_program_id`.
+- Updated signal intent classification so `rolling_vol` edits are classified as `volatility_floor_or_scaling` before generic rolling/time-smoothing rules.
+- Added `controller_evaluator_hardening_smoke_review_20260511.md` as the project evidence note.
 
 ## 2026-05-10 Attempt017 Repair Hardening
 

@@ -106,6 +106,8 @@ Use attempt017 as the active reference, because these children mutate attempt017
 python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
   --program-path <selected_child_program.py> \
+  --program-id <selected_child_program_id> \
+  --parent-program-id PROG-20260430-CHILD-0017 \
   --reference-summary artifacts/phase4_alphaevolve/remote_sample_eval_controller_batch_001_topup_attempt_017_20260509/evaluator_summary.json \
   --out-dir <selected_child_sample_eval_out_dir> \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
