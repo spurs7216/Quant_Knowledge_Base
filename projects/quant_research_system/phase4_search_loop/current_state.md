@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-10
+updated: 2026-05-11
 tags:
   - project
   - phase4
@@ -33,6 +33,8 @@ sources:
   - "controller_batch_001_attempt017_repair_hardening_20260510.md"
   - "controller_evaluator_hardening_remote_instructions_20260510.md"
   - "controller_evaluator_hardening_smoke_review_20260511.md"
+  - "controller_attempt017_focused_round_review_20260511.md"
+  - "controller_attempt017_search_control_remote_instructions_20260511.md"
 ---
 # Phase 4 Current State
 
@@ -67,6 +69,10 @@ artifacts/remote_sample_eval_controller_batch_001.zip
 
 This is now a partial data-backed evolution probe, not a completed AlphaEvolve improvement round. The attempt017 repair run confirmed that Qwen/controller mechanics are healthy but also showed off-target children, gross-exposure dampeners, and exact smoke no-ops. The follow-up hardening smoke confirmed the new behavior-delta gate and parent-offspring accounting, then sample-evaluated one nontrivial signal child. That child underperformed attempt017 and did not fix missing-held-weight risk.
 
+The focused attempt017 round generated one target-matched child worth sample evaluation, `PROG-20260511-A017-FOCUS-0000`. Remote review rejected promotion: the child improved missing-held-weight behavior, but failed parent-relative performance and turnover-aware criteria badly. This is negative sample-eval evidence against treating generic signal dampening as an attempt017 improvement.
+
+The local search-control patch is now implemented in `prompt_builder.py`, `reasoning_memory.py`, and `skill_library.py`. Future prompts explicitly say that missing-held-weight improvement alone is insufficient, generic signal dampening is negative evidence for the attempt017 branch unless it preserves parent-relative economics, and portfolio/risk edits must survive downstream controls into final weights.
+
 The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
 Current evolution status:
@@ -77,7 +83,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: lineage_classifier_patch_before_any_further_remote_run
+next_stage: small_focused_attempt017_controller_rerun_after_github_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -153,6 +159,8 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `remote_sample_eval_controller_batch_001` | Seed plus five curated children were sample-evaluated. `attempt_000` had huge Sharpe but only 3 portfolio days; `attempt_004`, `attempt_010`, and `attempt_011` were metric-equivalent to the seed; `attempt_017` improved broad-sample Sharpe and turnover but failed missing-held-weight tolerance. | Add active portfolio-day coverage and optional reference-equivalence gates. Use `attempt_017` only as a structural lead, not as a promoted child. |
 | `controller_batch_001_attempt017_repair` | 8/12 controller-static pass, no parse/apply/compile/vector/semantic failures, no duplicate child rejects, but target-intent match was low and several pass children were gross-only or behaviorally weak. Prior missing `parent_id` values were incorrectly attributed to attempt017 during policy seeding. | Harden population accounting, reject exact smoke no-ops, add behavior-delta MAP buckets, expose sample-eval exposure diagnostics, and reroute low-fitness prompt cards before another remote run. |
 | `controller_evaluator_hardening_smoke_20260510` | 2/6 controller pass, 4/6 exact smoke no-op rejects, no duplicate rejects, parent-offspring accounting correct, MAP delta buckets reported. The only nontrivial child, attempt004, sample-reviewed worse than attempt017 and still failed max missing-held-weight at 0.12. | The no-op gate is useful. Do not promote or further evaluate this batch. Fix child sample-eval lineage and signal intent classification before the next remote run. |
+| `controller_attempt017_focused_round_20260511` | 3/12 controller pass, 7 behavioral no-op rejects, one exact-search failure, one near-duplicate reject, no empty Qwen output, DB insert 1.0. The only target-matched child, `PROG-20260511-A017-FOCUS-0000`, improved missing-held weight but failed parent-relative performance and turnover-aware criteria badly in sample eval. | Missing-held-weight improvement alone is not alpha evidence. Treat generic signal dampening as controller-safe but market-unproven/negative for the attempt017 branch. Patch prompt/memory to require preservation of parent-relative return and turnover-aware score before another focused run. |
+| `attempt017_search_control_patch_20260511` | Local prompt, reasoning-memory, and skill-library defaults now carry the negative attempt017 repair lesson. Retrieval checks confirm signal prompts retrieve the generic-dampening avoid rule and portfolio/risk prompts retrieve final-weight no-op guardrails. | The next remote action can be a small focused controller-only rerun after GitHub sync. Sample-evaluate at most one target-matched, behaviorally nontrivial child with plausible parent-relative economics. |
 
 ## Failure Memory
 
@@ -183,6 +191,8 @@ Keep these lessons in future prompt and controller design:
 - Gross-exposure dampening can improve cost and missing-held-weight metrics without improving alpha. Sample evaluation must report gross/net/long/short exposure so parent-relative gains are interpretable.
 - Child sample evaluation must use explicit child `program_id` and parent lineage. Refuse child sample eval under the seed default id, otherwise database records can overwrite or misrepresent lineage.
 - Missing-held-weight repairs must not use evaluator-only forward-return availability fields such as `fwd_ret`, `fwd_date`, `fwd_vwretd`, `next_market_date`, or `one_day_forward`.
+- Improving missing-held weight alone is not promotion evidence. `PROG-20260511-A017-FOCUS-0000` improved that diagnostic but failed parent-relative performance and turnover-aware criteria badly.
+- Generic signal dampening (`bounded_tanh_dampening`, `clipped_magnitude_dampening`) can create controller-visible portfolio deltas without improving alpha. Treat it as market-unproven and now negative evidence for the attempt017 branch unless it also improves parent-relative economics.
 
 ## Reasoning Memory Layer
 
@@ -199,20 +209,24 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not all-child evaluation. It is a small local lineage/classifier patch before any further remote run:
+The next step is not broad validation and not all-child evaluation. The search-control patch is complete. After GitHub sync, run one small controller-only focused attempt017 round with the updated prompt/memory/skill defaults.
 
 ```yaml
-next_local_patch:
-  sample_eval_child_program_id_required: true
-  sample_eval_parent_program_id_supported: true
-  signal_intent_classifier_orders_rolling_vol_before_generic_rolling: true
-starting_evidence: controller_evaluator_hardening_smoke_20260510
+next_remote_run:
+  type: small_controller_only_focused_round
+  parent: PROG-20260430-CHILD-0017
+  attempts: 8_to_12
+  sample_eval_limit_after_review: 0_or_1
+  broad_validation: false
+  full_validation: false
+starting_evidence: controller_attempt017_focused_round_20260511
 structural_lead: "attempt_017 causal signal smoothing"
-main_defect_to_fix: "child lineage metadata and volatility-scaling intent classification"
+main_defect_to_fix: "search is improving one diagnostic while damaging parent-relative economics"
 checks_to_inspect:
-  - child sample-eval refuses default seed id for non-seed program paths
-  - sample-eval artifacts include parent_program_id
-  - rolling_vol edits classify as volatility_floor_or_scaling
+  - prompt/memory explicitly says missing-held improvement alone is insufficient
+  - bounded_tanh/clipped dampening on attempt017 carries negative sample-eval memory
+  - portfolio/risk prompt cards require behavior that survives downstream controls
+  - next focused run sample-evaluates at most one target-matched nontrivial child
 test_set_used: false
 ```
 
@@ -239,5 +253,5 @@ Controller smoke-test Sharpe must not be used as alpha evidence. It is only an i
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md)
-- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

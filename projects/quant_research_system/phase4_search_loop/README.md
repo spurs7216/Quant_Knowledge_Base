@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-09
+updated: 2026-05-11
 tags:
   - project
   - phase4
@@ -158,6 +158,8 @@ Dated review records retained as evidence, not active plans:
 - [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md): duplicate-retry and MAP-cell small batch review.
 - [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md): 50-attempt controller-only remote handoff.
 - [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md): 50-attempt controller run review; mechanics healthy but uniqueness gate failed.
+- [controller_attempt017_focused_round_review_20260511.md](controller_attempt017_focused_round_review_20260511.md): focused attempt017 round review; one child improved missing-held weight but failed parent-relative performance and turnover-aware criteria.
+- [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md): next small controller-only focused run after the search-control patch.
 
 ## Search Principle
 

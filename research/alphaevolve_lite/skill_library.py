@@ -280,6 +280,98 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
         },
         "created_at": "2026-05-09T00:00:00+00:00",
     },
+    {
+        "skill_name": "Avoid single-diagnostic missing-held repairs",
+        "skill_type": "avoid_strategy",
+        "confidence": "avoid",
+        "status": "active",
+        "pattern": (
+            "A sample_review repair improves max_missing_held_weight but worsens parent-relative performance "
+            "or turnover-aware criteria."
+        ),
+        "strategy": (
+            "Reject the idea as a narrow caveat fix unless it also preserves or improves parent-relative Sharpe, "
+            "annualized return, turnover-aware score, coverage, and max-weight discipline."
+        ),
+        "prompt_rule": (
+            "Do not optimize missing-held weight alone; the child must preserve parent-relative economics and "
+            "turnover-aware quality."
+        ),
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 1,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+        },
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Avoid attempt017 generic signal dampening",
+        "skill_type": "avoid_strategy",
+        "confidence": "avoid",
+        "status": "active",
+        "pattern": (
+            "A signal patch uses bounded_tanh_dampening, clipped_magnitude_dampening, or generic magnitude "
+            "compression to repair missing-held weight."
+        ),
+        "strategy": (
+            "Avoid generic signal compression for attempt017-style repair unless there is a specific mechanism "
+            "that should preserve ranking economics after costs and turnover."
+        ),
+        "prompt_rule": (
+            "Do not use bounded tanh, clipped magnitude, or simple signal shrinkage as a missing-held repair "
+            "unless it should preserve parent-relative return and turnover-aware score."
+        ),
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 2,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+        },
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Portfolio and risk edits must change final weights",
+        "skill_type": "failure_guardrail",
+        "confidence": "high",
+        "status": "active",
+        "pattern": (
+            "Portfolio or risk patches pass syntax but are absorbed by selection, side normalization, or risk "
+            "logic, producing behavioral_noop rejects."
+        ),
+        "strategy": (
+            "Before emitting a patch, reason about whether the change survives downstream controls into final "
+            "weights or portfolio-shape metrics."
+        ),
+        "prompt_rule": (
+            "If a portfolio or risk edit is likely to leave final weights unchanged, output NO_VALID_PATCH."
+        ),
+        "applicability": {
+            "source_stage": "controller_static",
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 7,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+        },
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
 ]
 
 

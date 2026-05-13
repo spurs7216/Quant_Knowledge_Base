@@ -350,6 +350,107 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-09T00:00:00+00:00",
     },
+    {
+        "source_run_id": "controller_attempt017_focused_round_20260511",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "evaluator_caveat",
+        "title": "Missing-held improvement is not enough",
+        "description": "Use for sample_review repair rounds, especially attempt017-style missing-held repairs.",
+        "content": (
+            "The focused attempt017 repair produced a child that improved max_missing_held_weight, but the "
+            "remote sample decision was no promotion because parent-relative performance and turnover-aware "
+            "criteria worsened. Do not optimize missing-held weight alone; preserve or improve parent-relative "
+            "Sharpe, annualized return, turnover-aware score, broad active-day coverage, and max-weight discipline."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal", "ranking", "portfolio", "risk"],
+            "island": ["repair_near_miss", "portfolio_risk_turnover", "signal_transform", "any"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+            "failure_categories": [
+                "missing_held_only_repair",
+                "parent_relative_performance_failure",
+                "turnover_aware_failure",
+            ],
+            "attempt_ids": ["attempt_000"],
+            "program_ids": ["PROG-20260511-A017-FOCUS-0000"],
+        },
+        "status": "active",
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "controller_attempt017_focused_round_20260511",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "failure_guardrail",
+        "title": "Generic signal dampening is negative evidence on attempt017",
+        "description": "Use for signal bounded_tanh_dampening, clipped_magnitude_dampening, or similar repairs.",
+        "content": (
+            "Attempt017-style generic signal compression created controller-visible behavior deltas but did not "
+            "produce promotion evidence. Treat bounded_tanh_dampening, clipped_magnitude_dampening, and simple "
+            "signal magnitude shrinkage as negative evidence when the goal is missing-held repair, unless the "
+            "patch has a concrete reason to preserve ranking economics and parent-relative turnover-aware score."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal"],
+            "island": ["repair_near_miss", "signal_transform"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+            "failure_categories": [
+                "bounded_tanh_dampening_negative_sample_evidence",
+                "clipped_magnitude_dampening_market_unproven",
+            ],
+            "attempt_ids": ["attempt_000", "attempt_006"],
+            "program_ids": ["PROG-20260511-A017-FOCUS-0000"],
+        },
+        "status": "active",
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "controller_attempt017_focused_round_20260511",
+        "source_stage": "controller_static",
+        "source_outcome": "failure",
+        "memory_type": "failure_guardrail",
+        "title": "Portfolio and risk edits must survive downstream controls",
+        "description": "Use when proposing portfolio or risk repairs after many behavioral no-op rejects.",
+        "content": (
+            "Seven focused-round attempts were rejected as behavioral no-ops. Portfolio and risk changes must "
+            "survive ranking, selection, side normalization, and risk controls so final weights or portfolio "
+            "shape change observably. If an edit will be threshold-absorbed or normalization-absorbed, output "
+            "NO_VALID_PATCH instead of producing a cosmetic child."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+            "island": ["repair_near_miss", "portfolio_risk_turnover"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_focused_round_review_20260511.md"
+            ],
+            "failure_categories": ["behavioral_noop", "metric_equivalent_to_parent"],
+            "attempt_ids": [
+                "attempt_001",
+                "attempt_002",
+                "attempt_004",
+                "attempt_005",
+                "attempt_007",
+                "attempt_008",
+                "attempt_011",
+            ],
+        },
+        "status": "active",
+        "created_at": "2026-05-11T00:00:00+00:00",
+    },
 ]
 
 

@@ -87,10 +87,19 @@ The hardened sample evaluator showed:
 - the sign-flipped seed is better than the current seed.
 - sample pass requires broad active portfolio-day coverage; a sparse few-day book is review evidence, not alpha.
 - code changes that are metric-equivalent to the seed are not useful children.
+- repairing one caveat, such as missing held weight, is not enough if parent-relative performance or turnover-aware score gets worse.
 
 Prefer bounded changes to signal direction, turnover dampening, ranking transform, or risk controls.
 Do not edit loader, universe, split, cost, duplicate, artifact, or data-contract logic.
 Return exactly one SEARCH/REPLACE patch.
+"""
+
+PARENT_RELATIVE_SEARCH_RULES = """Search-sample and controller metrics are evaluated relative to the current parent, not only in isolation.
+Do not optimize a single diagnostic caveat while degrading parent-relative Sharpe, annualized return, turnover-aware score, broad active-day coverage, or max-weight discipline.
+For sample_review repair parents, a missing-held-weight reduction is useful only when the child also preserves or improves parent-relative economics and does not create a sparse or metric-equivalent book.
+Avoid generic signal compression such as bounded tanh or clipped magnitude dampening as a missing-held-weight repair unless it has a concrete mechanism that should preserve ranking economics after costs.
+If the target edit is likely to be absorbed by ranking, portfolio selection, or risk normalization so final weights are unchanged, output NO_VALID_PATCH instead of a cosmetic patch.
+Full validation remains forbidden inside child generation; these rules are search-control guidance for deterministic controller and sample gates.
 """
 
 
@@ -100,7 +109,9 @@ SURFACE_GUIDANCE = {
         "only when the target intent requests direction_flip; otherwise use the requested bounded damping, "
         "history-confidence, volatility-scaling, or causal-smoothing family. Avoid hard saturation such as tanh "
         "if it can create many tied signals and imbalanced long/short books. For time_smoothing targets, use "
-        "causal rolling, EWM, or lagged smoothing; do not substitute a nonlinear magnitude dampener."
+        "causal rolling, EWM, or lagged smoothing; do not substitute a nonlinear magnitude dampener. Treat "
+        "generic bounded or clipped signal dampening as negative evidence on attempt017-style missing-held "
+        "repairs unless it preserves parent-relative economics after costs."
     ),
     "ranking": (
         "Edit only the ranking EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
@@ -115,12 +126,14 @@ SURFACE_GUIDANCE = {
         "If you weight by signal strength, compute positive "
         "long-side magnitudes and positive short-side magnitudes separately, then assign negative weights to "
         "shorts; preserve both long and short exposure and keep net exposure near zero. If you use a boolean "
-        "selection mask, convert it to index labels aligned to the target Series before assigning weights."
+        "selection mask, convert it to index labels aligned to the target Series before assigning weights. Avoid "
+        "threshold or sparsity edits that are absorbed downstream and leave final weights effectively unchanged."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
         "normalization, and conservative handling of small long or short books. Preserve both long and short "
-        "books; avoid logic that can make the portfolio one-sided or materially net long/net short."
+        "books; avoid logic that can make the portfolio one-sided or materially net long/net short. Risk edits "
+        "must produce an observable portfolio-shape change after normalization; otherwise output NO_VALID_PATCH."
     ),
 }
 
@@ -292,6 +305,9 @@ Diagnostic analyzer cards:
 
 Use diagnostic cards as bottleneck localization, not as proof of market alpha.
 
+Parent-relative search-control rules:
+{PARENT_RELATIVE_SEARCH_RULES}
+
 Immutable rules:
 {IMMUTABLE_RULES}
 
@@ -460,6 +476,7 @@ def write_prompt_artifact(out_dir: str | Path, messages: dict[str, str]) -> dict
 __all__ = [
     "DEFAULT_MUTATION_INSTRUCTION",
     "IMMUTABLE_RULES",
+    "PARENT_RELATIVE_SEARCH_RULES",
     "REPAIR_SYSTEM_PROMPT",
     "STRICT_SEARCH_REPLACE_SYSTEM_PROMPT",
     "build_child_generation_prompt",
