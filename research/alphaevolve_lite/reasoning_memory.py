@@ -451,6 +451,76 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-11T00:00:00+00:00",
     },
+    {
+        "source_run_id": "controller_attempt017_mechanism_batch_20260513",
+        "source_stage": "controller_static",
+        "source_outcome": "failure",
+        "memory_type": "data_contract",
+        "title": "Use surface-local daily-stock field access",
+        "description": "Use for liquidity, market-cap, industry, or status mechanisms inside seed EVOLVE blocks.",
+        "content": (
+            "The attempt017 mechanism batch showed that valid daily_stock fields can still fail when read "
+            "from the wrong local frame. In ranking, portfolio, and risk blocks, local group/valid frames may "
+            "contain only date, signal, security id, or weight. Read extra daily_stock fields with "
+            "panel.loc[index, CONTRACT.field] aligned to the target index; do not assume "
+            "valid[CONTRACT.dollar_volume], group[CONTRACT.industry_primary], or CONTRACT.volume[group.index] "
+            "is valid."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["ranking", "portfolio", "risk"],
+            "island": ["portfolio_risk_turnover", "neutralization_liquidity", "repair_near_miss"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_mechanism_batch_review_20260514.md"
+            ],
+            "failure_categories": ["vector_smoke_failed", "local_frame_field_access_error"],
+            "attempt_ids": ["attempt_000", "attempt_002", "attempt_004", "attempt_008", "attempt_009"],
+            "program_ids": [
+                "PROG-20260513-A017-MECH-0000",
+                "PROG-20260513-A017-MECH-0002",
+                "PROG-20260513-A017-MECH-0004",
+                "PROG-20260513-A017-MECH-0008",
+                "PROG-20260513-A017-MECH-0009",
+            ],
+        },
+        "status": "active",
+        "created_at": "2026-05-14T00:00:00+00:00",
+    },
+    {
+        "source_run_id": "controller_attempt017_mechanism_batch_20260513",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "evaluator_caveat",
+        "title": "Controller-best signal liquidity child failed sample eval",
+        "description": "Use for attempt017 signal/liquidity_adjusted_reversal follow-ups.",
+        "content": (
+            "PROG-20260513-A017-MECH-0007 was the best controller sibling and the only sample-eval-eligible "
+            "child in the mechanism batch, but sample evaluation was worse than attempt017 on Sharpe, "
+            "annualized return, turnover-aware score, drawdown, and missing-held exposure. Controller-relative "
+            "success is not strategy skill promotion evidence."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["signal"],
+            "island": ["signal_transform", "neutralization_liquidity", "repair_near_miss"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_mechanism_batch_review_20260514.md"
+            ],
+            "failure_categories": [
+                "parent_relative_performance_failure",
+                "turnover_aware_failure",
+                "missing_held_worse",
+            ],
+            "attempt_ids": ["attempt_007"],
+            "program_ids": ["PROG-20260513-A017-MECH-0007"],
+        },
+        "status": "active",
+        "created_at": "2026-05-14T00:00:00+00:00",
+    },
 ]
 
 

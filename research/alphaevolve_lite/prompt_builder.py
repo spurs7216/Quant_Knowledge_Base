@@ -98,6 +98,7 @@ PARENT_RELATIVE_SEARCH_RULES = """Search-sample and controller metrics are evalu
 Do not optimize a single diagnostic caveat while degrading parent-relative Sharpe, annualized return, turnover-aware score, broad active-day coverage, or max-weight discipline.
 For sample_review repair parents, a missing-held-weight reduction is useful only when the child also preserves or improves parent-relative economics and does not create a sparse or metric-equivalent book.
 Avoid generic signal compression such as bounded tanh or clipped magnitude dampening as a missing-held-weight repair unless it has a concrete mechanism that should preserve ranking economics after costs.
+Attempt017 mechanism-batch evidence: PROG-20260513-A017-MECH-0007 was a signal/liquidity_adjusted_reversal child with final-weight delta, but sample evaluation was worse than attempt017 on Sharpe, annualized return, turnover-aware score, drawdown, and missing-held exposure. Do not treat signal-side liquidity adjustment as a promoted repair for this branch.
 If the target edit is likely to be absorbed by ranking, portfolio selection, or risk normalization so final weights are unchanged, output NO_VALID_PATCH instead of a cosmetic patch.
 Full validation remains forbidden inside child generation; these rules are search-control guidance for deterministic controller and sample gates.
 """
@@ -108,6 +109,34 @@ Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_v
 For the attempt017 branch, prefer mechanisms that change final weights through liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, or liquidity-scaled caps.
 Do not answer a liquidity, persistence, or industry-neutral target with generic tanh, clipped magnitude dampening, or raw signal shrinkage.
 """
+
+SURFACE_LOCAL_DATA_ACCESS = {
+    "signal": (
+        "Local data scope: inside the signal block, group is a per-security slice of the full daily_stock "
+        "panel, so group[CONTRACT.dollar_volume], group[CONTRACT.volume], group[CONTRACT.market_cap], "
+        "and group[CONTRACT.price] are valid when present. Align any derived Series to group.index."
+    ),
+    "ranking": (
+        "Local data scope: the ranking block's data/group frame contains only CONTRACT.date and signal. "
+        "To use daily_stock fields, read them from panel with aligned index labels, for example "
+        "industry = panel.loc[group.index, CONTRACT.industry_primary]. Do not use "
+        "group[CONTRACT.industry_primary] unless the editable body already added that column."
+    ),
+    "portfolio": (
+        "Local data scope: the portfolio block's data/group/valid frames contain CONTRACT.date, "
+        "CONTRACT.security_id, and signal only. To use liquidity, price, market cap, exchange, or industry, "
+        "read from panel with aligned labels, for example liq = panel.loc[valid.index, "
+        "CONTRACT.dollar_volume]. For side-specific values use panel.loc[longs, CONTRACT.dollar_volume] "
+        "or panel.loc[shorts, CONTRACT.dollar_volume]. Convert boolean masks to index labels before "
+        "assigning weights."
+    ),
+    "risk": (
+        "Local data scope: the risk block's data/group frame contains CONTRACT.date and weight only. "
+        "To use liquidity, price, market cap, exchange, or industry, read from panel with aligned labels, "
+        "for example liq = panel.loc[group.index, CONTRACT.dollar_volume]. If using a per-name cap Series, "
+        "align it to w.index before clipping and renormalize long and short sides separately afterward."
+    ),
+}
 
 
 SURFACE_GUIDANCE = {
@@ -127,7 +156,8 @@ SURFACE_GUIDANCE = {
         "only when the target intent requests direction_flip; otherwise use the requested robust center/scale, "
         "rank/percentile transform, winsorization, monotone transform, or cross-sectional shrinkage family. "
         "For industry_neutral_rank, use native daily_stock industry fields such as CONTRACT.industry_primary "
-        "with a fallback when a date-industry group is too small."
+        "with a fallback when a date-industry group is too small. In this seed, read industry from "
+        "panel.loc[group.index, CONTRACT.industry_primary], not from group[CONTRACT.industry_primary]."
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
@@ -141,7 +171,8 @@ SURFACE_GUIDANCE = {
         "threshold or sparsity edits that are absorbed downstream and leave final weights effectively unchanged. "
         "For liquidity_weighted_sides, use current-day liquidity or market-cap proxies only as positive side "
         "magnitudes. For persistence_trade_gate, use prior-day signal or same-sign persistence and keep a fallback "
-        "when a side becomes too thin."
+        "when a side becomes too thin. In this seed, read daily_stock fields through panel.loc[valid.index, ...] "
+        "or panel.loc[longs/shorts, ...], because valid does not include liquidity or market-cap columns."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
@@ -149,7 +180,8 @@ SURFACE_GUIDANCE = {
         "books; avoid logic that can make the portfolio one-sided or materially net long/net short. Risk edits "
         "must produce an observable portfolio-shape change after normalization; otherwise output NO_VALID_PATCH. "
         "For liquidity_scaled_cap, the cap formula must bite below current weights for low-liquidity names and "
-        "then renormalize long and short sides separately."
+        "then renormalize long and short sides separately. In this seed, read daily_stock fields through "
+        "panel.loc[group.index, ...], because group does not include liquidity or market-cap columns."
     ),
 }
 
@@ -271,6 +303,10 @@ def build_child_generation_prompt(
     surface = target_surface or choose_target_surface(attempt_index)
     editable_body = editable_block_text(parent_code, surface)
     guidance = SURFACE_GUIDANCE.get(surface, "Edit only the target EVOLVE-BLOCK.")
+    data_access_guidance = SURFACE_LOCAL_DATA_ACCESS.get(
+        surface,
+        "Use only variables available in the editable body and align any new Series to the target index.",
+    )
     previous_patch_text = "None."
     if previous_accepted_patches:
         previous_patch_text = "\n\n".join(
@@ -326,6 +362,9 @@ Parent-relative search-control rules:
 
 Stage-0 daily_stock mechanism guidance:
 {STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE}
+
+Surface-local data access contract:
+{data_access_guidance}
 
 Immutable rules:
 {IMMUTABLE_RULES}
@@ -436,6 +475,10 @@ def build_patch_repair_prompt(
 
     surface = target_surface or choose_target_surface(attempt_index)
     editable_body = editable_block_text(parent_code, surface)
+    data_access_guidance = SURFACE_LOCAL_DATA_ACCESS.get(
+        surface,
+        "Use only variables available in the editable body and align any new Series to the target index.",
+    )
     user_prompt = f"""Task type: controller_static_patch_repair
 Target mutation surface: {surface}
 Allowed mutation surface: {surface} only
@@ -453,8 +496,11 @@ Unsafe patch:
 Reason rejected:
 {failure_reason}
 
+Surface-local data access contract:
+{data_access_guidance}
+
 Repair instruction:
-Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake; for pandas boolean indexers, assign with index labels aligned to the target Series, not with a boolean Series from a different index. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
+Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake; for daily_stock field KeyError failures, replace local-frame field access with panel.loc[...] access aligned to the same index. For pandas boolean indexers, assign with index labels aligned to the target Series, not with a boolean Series from a different index. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
 """
     return {
         "system": REPAIR_SYSTEM_PROMPT,
@@ -498,6 +544,7 @@ __all__ = [
     "PARENT_RELATIVE_SEARCH_RULES",
     "REPAIR_SYSTEM_PROMPT",
     "STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE",
+    "SURFACE_LOCAL_DATA_ACCESS",
     "STRICT_SEARCH_REPLACE_SYSTEM_PROMPT",
     "build_child_generation_prompt",
     "build_patch_repair_prompt",

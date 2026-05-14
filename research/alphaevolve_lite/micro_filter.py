@@ -182,13 +182,17 @@ def _make_smoke_panel() -> pd.DataFrame:
     rng = np.random.default_rng(123)
     dates = pd.bdate_range("2020-01-01", periods=90)
     rows: list[dict[str, Any]] = []
+    industries = (1200, 2200, 3500, 4800, 6200)
+    exchanges = ("N", "Q", "A")
     for idx, permno in enumerate(range(10001, 10041)):
-        cap = 1_000_000.0 + idx * 20_000.0
+        industry = industries[idx % len(industries)]
+        exchange = exchanges[idx % len(exchanges)]
+        cap = 750_000.0 + (idx % 10) * 120_000.0 + idx * 7_500.0
         price = 20.0 + idx * 0.5
         for pos, date in enumerate(dates):
             ret = float(rng.normal(0.0001, 0.01))
             price = max(1.0, price * (1.0 + ret))
-            volume = float(50_000 + (idx + pos) * 100)
+            volume = float(20_000 + (idx % 8) * 35_000 + pos * (40 + (idx % 5) * 15))
             rows.append(
                 {
                     CONTRACT.security_id: permno,
@@ -201,13 +205,13 @@ def _make_smoke_panel() -> pd.DataFrame:
                     CONTRACT.dollar_volume: price * volume,
                     CONTRACT.market_cap: cap * (1.0 + pos * 0.0001),
                     CONTRACT.shares_outstanding: cap / price,
-                    CONTRACT.exchange: "N",
+                    CONTRACT.exchange: exchange,
                     CONTRACT.security_type: "EQTY",
                     CONTRACT.share_type: "NS",
                     CONTRACT.trading_status: "A",
                     CONTRACT.conditional_type: "RW",
                     CONTRACT.us_incorporated: "Y",
-                    CONTRACT.industry_primary: 3500,
+                    CONTRACT.industry_primary: industry,
                     CONTRACT.benchmark_return_primary: float(rng.normal(0.0001, 0.008)),
                     CONTRACT.benchmark_return_secondary: float(rng.normal(0.0001, 0.008)),
                     "fwd_ret": float(rng.normal(0.0001, 0.01)),

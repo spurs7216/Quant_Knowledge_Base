@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-13
+updated: 2026-05-14
 tags:
   - project
   - phase4
@@ -38,6 +38,9 @@ sources:
   - "controller_attempt017_search_control_rerun_review_20260513.md"
   - "attempt017_mechanism_design_20260513.md"
   - "controller_attempt017_mechanism_batch_remote_instructions_20260513.md"
+  - "controller_attempt017_mechanism_batch_review_20260514.md"
+  - "controller_prompt_smoke_repair_20260514.md"
+  - "controller_attempt017_mechanism_rerun_remote_instructions_20260514.md"
 ---
 # Phase 4 Current State
 
@@ -76,7 +79,11 @@ The focused attempt017 round generated one target-matched child worth sample eva
 
 The local search-control patch was tested in `controller_attempt017_search_control_rerun_20260511`. The controller path is healthy, but the batch did not produce a sample-eval candidate. Four children passed controller-static gates; two were off-target, and the two target-matched passes did not change final portfolio weights. The only material portfolio-delta signal child was another generic magnitude dampener, which remains negative evidence for the attempt017 branch.
 
-The better next research move is now documented in [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md) and wired into the controller vocabulary. The new target families are daily-stock-only mechanisms with plausible final-weight effects: liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled risk caps. Controller summaries now also report deterministic sample-eval eligibility so off-target, no-final-weight-delta, and known-bad dampening children are not accidentally treated as evaluation candidates.
+The better next research move is documented in [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md) and wired into the controller vocabulary. The new target families are daily-stock-only mechanisms with plausible final-weight effects: liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled risk caps. Controller summaries now also report deterministic sample-eval eligibility so off-target, no-final-weight-delta, and known-bad dampening children are not accidentally treated as evaluation candidates.
+
+The first mechanism batch, reviewed in [controller_attempt017_mechanism_batch_review_20260514.md](controller_attempt017_mechanism_batch_review_20260514.md), produced exactly one sample-eval-eligible child, `PROG-20260513-A017-MECH-0007`, and the remote operator evaluated only that child. The controller selection rule worked, but the child was not promotable: it was worse than attempt017 on Sharpe, annualized return, turnover-aware score, drawdown, and missing-held exposure. The batch also exposed a controller prompt/smoke problem: portfolio, ranking, and risk mechanism patches often tried to read daily-stock fields from local frames that do not carry those columns.
+
+The local repair is now implemented in [controller_prompt_smoke_repair_20260514.md](controller_prompt_smoke_repair_20260514.md). Prompt generation and repair now include surface-local data-access contracts; the smoke panel has multiple industries, exchanges, liquidity levels, and market-cap levels; reasoning memory and the skill library carry the field-access repair rule; and remote Git hygiene is documented in [remote_csv_execution_policy.md](remote_csv_execution_policy.md) plus [agent/operations.md](../../../agent/operations.md).
 
 The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
@@ -88,7 +95,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_controller_only_mechanism_batch_after_sync
+next_stage: remote_controller_only_mechanism_rerun_after_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -168,6 +175,8 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `attempt017_search_control_patch_20260511` | Local prompt, reasoning-memory, and skill-library defaults now carry the negative attempt017 repair lesson. Retrieval checks confirm signal prompts retrieve the generic-dampening avoid rule and portfolio/risk prompts retrieve final-weight no-op guardrails. | The next remote action can be a small focused controller-only rerun after GitHub sync. Sample-evaluate at most one target-matched, behaviorally nontrivial child with plausible parent-relative economics. |
 | `controller_attempt017_search_control_rerun_20260511` | 4/12 controller pass, no empty Qwen output, no duplicate child rejects, DB insert 1.0, but 6 behavioral no-op rejects, 1 exact-search failure, 1 near-duplicate patch, and 2 target-intent mismatch passes. The target-matched passes had no final-weight delta. | Do not sample-evaluate this batch. Prompt memory alone is not enough; add deterministic sample-eval eligibility gates for target-intent match and final-weight effect, and harden avoid-skill handling for known-bad focused repair families. |
 | `attempt017_mechanism_design_20260513` | Attempt017 evidence was translated into concrete daily-stock-only mechanisms: portfolio liquidity weighting, signal persistence gating, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled caps. The target vocabulary, intent classifier, prompt guidance, and sample-eval eligibility summary are patched locally. | Stop asking Qwen for generic dampeners. Give it mechanism targets that use ex-ante price, volume, dollar-volume, market-cap, status, exchange, or industry fields and should affect final weights. |
+| `controller_attempt017_mechanism_batch_20260513` plus attempt007 sample eval | 5/12 controller pass, target-intent match 1.0, no duplicate pressure, but vector smoke and portfolio semantic pass rates were only 0.5. The only sample-eval candidate, `PROG-20260513-A017-MECH-0007`, was broad and non-equivalent but worse than attempt017 on parent-relative Sharpe, return, turnover-aware score, drawdown, and missing-held exposure. | The controller eligibility rule worked, but the mechanism prompt did not specify local data-scope contracts for each EVOLVE block. Repair prompt/smoke fixtures before another remote generation batch. |
+| `controller_prompt_smoke_repair_20260514` | Local prompt/smoke repair implemented surface-local data-access guidance, panel.loc repair prompts, multi-industry and wider-liquidity smoke fixtures, active reasoning memory, high-confidence skill rule, and remote Git hygiene policy. Local checks passed. | After GitHub sync, run one small controller-only rerun focused on direct portfolio/risk/ranking mechanisms. Sample-evaluate at most one eligible direct-mechanism child. |
 
 ## Failure Memory
 
@@ -202,6 +211,9 @@ Keep these lessons in future prompt and controller design:
 - Generic signal dampening (`bounded_tanh_dampening`, `clipped_magnitude_dampening`) can create controller-visible portfolio deltas without improving alpha. Treat it as market-unproven and now negative evidence for the attempt017 branch unless it also improves parent-relative economics.
 - Avoid skills are currently prompt guidance, not hard filters. The search-control rerun still generated clipped magnitude dampening despite retrieving the avoid skill, so focused repair mode needs deterministic eligibility or rejection rules for known-bad patch families.
 - Target-matched controller passes can still be useless if final weights are unchanged. For sample-eval eligibility, require target-intent match plus final-weight delta or an explicit pre-declared reason why raw-signal/ranking changes should matter in full data.
+- Mechanism prompts must name the surface-local data-access contract. Portfolio and risk blocks may have `panel` available but local `data`, `group`, or `valid` frames may not include `CONTRACT.dollar_volume`, `CONTRACT.volume`, `CONTRACT.market_cap`, or industry fields. Use `panel.loc[index, CONTRACT.field]` with aligned indices when the local frame lacks the field.
+- Controller smoke fixtures must exercise the mechanism being targeted. A one-industry smoke panel cannot prove that industry neutralization affects final weights, and a smoke panel that only checks generic pass/fail can miss data-scope prompt defects.
+- Controller-relative success memory should not be promoted to active strategy skill until sample-eval evidence is checked. `PROG-20260513-A017-MECH-0007` was the best controller sibling but failed parent-relative market evaluation.
 
 ## Reasoning Memory Layer
 
@@ -218,43 +230,29 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not all-child evaluation. After GitHub sync, run a small controller-only mechanism batch. Sample-evaluate at most one child, and only if the new eligibility summary marks a target-matched child with final-weight delta and no known bad dampening family.
+The next step is not broad validation and not test evaluation. After GitHub sync, run one small controller-only mechanism rerun using [controller_attempt017_mechanism_rerun_remote_instructions_20260514.md](controller_attempt017_mechanism_rerun_remote_instructions_20260514.md).
 
 ```yaml
-mechanism_targets_added:
-  signal:
-    - liquidity_adjusted_reversal
-  ranking:
-    - industry_neutral_rank
-  portfolio:
-    - liquidity_weighted_sides
-    - persistence_trade_gate
-  risk:
-    - liquidity_scaled_cap
-sample_eval_eligibility_hardening:
-  sample_eval_eligibility_requires_target_intent_match: implemented
-  sample_eval_eligibility_requires_final_weight_delta_or_explicit_reason: implemented_for_weight_delta
-  avoid_skill_family_can_be_hard_rejected_for_focused_repair: implemented_for_known_signal_dampening_families
-  report_candidate_eligibility_summary_in_controller_artifacts: implemented
 next_remote_run:
-  type: small_controller_only_mechanism_batch
+  type: small_controller_only_mechanism_rerun
   parent: PROG-20260430-CHILD-0017
   preferred_surfaces:
-    - portfolio
-    - ranking
-    - signal
-    - risk
+    - portfolio/liquidity_weighted_sides
+    - portfolio/persistence_trade_gate
+    - risk/liquidity_scaled_cap
+    - ranking/industry_neutral_rank
   sample_eval_limit_after_review: 0_or_1
   broad_validation: false
   full_validation: false
-starting_evidence: controller_attempt017_search_control_rerun_20260511
+starting_evidence: controller_attempt017_mechanism_batch_20260513
 structural_lead: "attempt_017 causal signal smoothing"
-main_defect_to_fix: "controller passes are not yet good sample-eval candidates"
+main_defect_to_check: "direct portfolio/risk/ranking mechanisms now use surface-local panel.loc field access and pass vector smoke"
 checks_to_inspect:
-  - off-target controller passes are not sample-eval eligible
-  - no-final-weight-delta passes are flagged as review-only unless explicitly justified
-  - known avoid-skill families can be rejected or heavily penalized in focused repair mode
-  - next remote run uses fewer, more concrete mechanism targets
+  - portfolio/risk prompts use panel.loc index-aligned CONTRACT field access
+  - ranking prompts use panel.loc group.index for industry fields
+  - smoke panel has multiple industries
+  - no-final-weight-delta passes stay sample-eval ineligible
+  - signal/liquidity_adjusted_reversal is not re-sample-evaluated without a materially new reason
 test_set_used: false
 ```
 

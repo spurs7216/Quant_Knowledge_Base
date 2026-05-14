@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-13
+updated: 2026-05-14
 tags:
   - project
   - phase4
@@ -163,6 +163,9 @@ Dated review records retained as evidence, not active plans:
 - [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md): next small controller-only focused run after the search-control patch.
 - [controller_attempt017_search_control_rerun_review_20260513.md](controller_attempt017_search_control_rerun_review_20260513.md): search-control rerun review; controller healthy but no sample-eval candidate.
 - [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md): next controller-only mechanism batch handoff.
+- [controller_attempt017_mechanism_batch_review_20260514.md](controller_attempt017_mechanism_batch_review_20260514.md): mechanism batch plus attempt007 sample-eval review; one selected child was broad but worse than attempt017, and portfolio/risk mechanism prompts need local data-scope repair.
+- [controller_prompt_smoke_repair_20260514.md](controller_prompt_smoke_repair_20260514.md): local prompt/smoke repair for surface-local daily-stock field access and multi-industry/liquidity smoke coverage.
+- [controller_attempt017_mechanism_rerun_remote_instructions_20260514.md](controller_attempt017_mechanism_rerun_remote_instructions_20260514.md): remote rerun handoff after the prompt/smoke repair, including Git hygiene preflight.
 
 ## Search Principle
 

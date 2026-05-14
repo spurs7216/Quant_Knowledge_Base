@@ -2,7 +2,7 @@
 title: Phase 4 Remote CSV Execution Policy
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-14
 tags:
   - project
   - phase4
@@ -83,6 +83,37 @@ dirty_flag: false
 cost_grid_bps: [0.0, 2.5, 5.0, 10.0]
 remote_no_broker_logic: true
 ```
+
+## Remote Git Hygiene
+
+Remote run manifests must be reproducible from GitHub unless the artifact explicitly declares otherwise.
+
+Before running controller, Qwen, sample-eval, stage-0, or full-validation jobs:
+
+1. Pull the intended GitHub branch.
+2. Run `git status --short --branch`.
+3. Confirm whether `HEAD` equals `origin/main` or the requested remote branch.
+4. If a local hygiene commit is needed, such as ignoring `.codex/`, either push it before the research run or record the exact local commit and the reason it was not pushed in `run_manifest.yaml` and `review.md`.
+5. Do not mix research-code edits with hygiene commits.
+6. Do not run research jobs from a dirty worktree unless the artifact explicitly records `git_dirty: true`, `git_status.txt`, and `git_diff_stat.txt`.
+
+A clean remote worktree is not enough if `HEAD` is an unpushed local commit. For reproducibility, the preferred state is:
+
+```yaml
+git_dirty: false
+head_matches_origin_main: true
+manifest_commit_fetchable_from_github: true
+```
+
+Allowed exception:
+
+```yaml
+local_hygiene_commit_only: true
+research_code_diff_vs_origin_main: false
+manifest_must_record_unpushed_commit_reason: true
+```
+
+If an artifact was produced from `origin/main` plus an unpushed hygiene commit, treat the research metrics as likely usable only after confirming that the hygiene commit changes no research code. Future reruns should prefer exact `origin/main` or a pushed hygiene commit.
 
 ## CSV Reading Policy
 

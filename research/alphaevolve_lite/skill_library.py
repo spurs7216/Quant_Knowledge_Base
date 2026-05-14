@@ -372,6 +372,37 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
         },
         "created_at": "2026-05-11T00:00:00+00:00",
     },
+    {
+        "skill_name": "Use panel.loc for extra daily-stock fields",
+        "skill_type": "repair_pattern",
+        "confidence": "high",
+        "status": "active",
+        "pattern": (
+            "A ranking, portfolio, or risk mechanism patch reads CONTRACT fields from a local frame that "
+            "does not contain those columns."
+        ),
+        "strategy": (
+            "Use panel.loc[index, CONTRACT.field] aligned to the active group, valid set, long side, "
+            "short side, or risk-control weight index."
+        ),
+        "prompt_rule": (
+            "When the editable body's local data/group/valid frame lacks a daily_stock field, read it from "
+            "panel.loc[...] with aligned index labels; never use CONTRACT.field[group.index]."
+        ),
+        "applicability": {
+            "source_stage": "controller_static",
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["ranking", "portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 5,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/controller_attempt017_mechanism_batch_review_20260514.md"
+            ],
+        },
+        "created_at": "2026-05-14T00:00:00+00:00",
+    },
 ]
 
 
