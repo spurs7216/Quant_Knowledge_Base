@@ -97,8 +97,10 @@ remote_hard_gates:
   max_single_name_weight_check_pass: true
   minimum_names_per_side_check_pass: true
   artifact_bundle_complete: true
-  code_snapshot_recorded: true
-  dirty_flag_recorded: true
+code_snapshot_recorded: true
+dirty_flag_recorded: true
+git_head_matches_origin_main_recorded: true
+program_sha256_recorded: true
 ```
 
 Dataset-added gates, locked until dataset admission exists:
@@ -239,6 +241,7 @@ evaluator_summary.json
 failure_report.md
 review.md
 cost_sensitivity.csv
+program_snapshot.py
 subperiod_metrics.csv
 liquidity_bucket_metrics.csv
 concentration_metrics.csv

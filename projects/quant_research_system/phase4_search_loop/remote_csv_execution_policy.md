@@ -80,6 +80,10 @@ input_paths:
 output_dir: "artifacts/phase4/RUN-YYYYMMDD-000001"
 code_snapshot_hash: "..."
 dirty_flag: false
+git_commit: "..."
+git_origin_main_commit: "..."
+git_head_matches_origin_main: true
+manifest_commit_fetchable_from_github: true
 cost_grid_bps: [0.0, 2.5, 5.0, 10.0]
 remote_no_broker_logic: true
 ```
@@ -161,6 +165,7 @@ concentration_metrics.csv
 universe_summary.csv
 split_manifest.yaml
 code_snapshot.txt or code_snapshot_hash.txt
+program_snapshot.py
 ```
 
 For hardened Phase 4 sample evaluation, also produce:
@@ -171,6 +176,7 @@ null_baselines.csv
 baseline_summary.json
 git_status.txt
 git_diff_stat.txt
+program_snapshot.py
 ```
 
 Optional:

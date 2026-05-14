@@ -41,6 +41,8 @@ sources:
   - "controller_attempt017_mechanism_batch_review_20260514.md"
   - "controller_prompt_smoke_repair_20260514.md"
   - "controller_attempt017_mechanism_rerun_remote_instructions_20260514.md"
+  - "controller_attempt017_mechanism_rerun_review_20260514.md"
+  - "controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md"
 ---
 # Phase 4 Current State
 
@@ -85,6 +87,10 @@ The first mechanism batch, reviewed in [controller_attempt017_mechanism_batch_re
 
 The local repair is now implemented in [controller_prompt_smoke_repair_20260514.md](controller_prompt_smoke_repair_20260514.md). Prompt generation and repair now include surface-local data-access contracts; the smoke panel has multiple industries, exchanges, liquidity levels, and market-cap levels; reasoning memory and the skill library carry the field-access repair rule; and remote Git hygiene is documented in [remote_csv_execution_policy.md](remote_csv_execution_policy.md) plus [agent/operations.md](../../../agent/operations.md).
 
+The mechanism rerun, reviewed in [controller_attempt017_mechanism_rerun_review_20260514.md](controller_attempt017_mechanism_rerun_review_20260514.md), produced one sample-eval-eligible child, `PROG-20260514-A017-MECHFIX-0009`. The child was an industry-neutral ranking mechanism that correctly used `panel.loc[group.index, CONTRACT.industry_primary]` and materially changed the book. It improved turnover, drawdown, breadth, and missing-held behavior versus attempt017, but weakened parent-relative annualized return and Sharpe and had a negative train Sharpe. It is useful evidence, not a promotion.
+
+The next search move is 27B-assisted but not 27B-direct-code. `Qwen/Qwen3.5-27B-FP8` should synthesize attempt017, attempt007, attempt009, and controller diagnostics into JSON mechanism cards. `Qwen/Qwen3.5-9B` should then generate strict SEARCH/REPLACE children conditioned on those cards. The code now supports this through `build_mechanism_cards.py`, `--mechanism-card-path`, and prompt-side medium-model mechanism-card injection.
+
 The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
 Current evolution status:
@@ -95,7 +101,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_controller_only_mechanism_rerun_after_sync
+next_stage: remote_27b_mechanism_cards_then_9b_controller_batch_after_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -177,6 +183,7 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `attempt017_mechanism_design_20260513` | Attempt017 evidence was translated into concrete daily-stock-only mechanisms: portfolio liquidity weighting, signal persistence gating, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled caps. The target vocabulary, intent classifier, prompt guidance, and sample-eval eligibility summary are patched locally. | Stop asking Qwen for generic dampeners. Give it mechanism targets that use ex-ante price, volume, dollar-volume, market-cap, status, exchange, or industry fields and should affect final weights. |
 | `controller_attempt017_mechanism_batch_20260513` plus attempt007 sample eval | 5/12 controller pass, target-intent match 1.0, no duplicate pressure, but vector smoke and portfolio semantic pass rates were only 0.5. The only sample-eval candidate, `PROG-20260513-A017-MECH-0007`, was broad and non-equivalent but worse than attempt017 on parent-relative Sharpe, return, turnover-aware score, drawdown, and missing-held exposure. | The controller eligibility rule worked, but the mechanism prompt did not specify local data-scope contracts for each EVOLVE block. Repair prompt/smoke fixtures before another remote generation batch. |
 | `controller_prompt_smoke_repair_20260514` | Local prompt/smoke repair implemented surface-local data-access guidance, panel.loc repair prompts, multi-industry and wider-liquidity smoke fixtures, active reasoning memory, high-confidence skill rule, and remote Git hygiene policy. Local checks passed. | After GitHub sync, run one small controller-only rerun focused on direct portfolio/risk/ranking mechanisms. Sample-evaluate at most one eligible direct-mechanism child. |
+| `controller_attempt017_mechanism_rerun_20260514` plus attempt009 sample eval | 2/12 controller pass, 7 behavioral no-op rejects, 1 duplicate child reject, 2 vector-smoke rejects, and exactly one sample-eval candidate. Attempt009 was a target-matched industry-neutral ranking child with material final-weight delta. Sample eval narrowly failed missing-held tolerance at 0.0512, improved turnover/drawdown/breadth versus attempt017, but reduced annualized return and Sharpe and showed negative train Sharpe. | Do not promote. Use 27B as a medium reviewer to propose mechanism cards that preserve attempt009 implementation-shape gains without giving up attempt017 parent-relative alpha metrics. Add program snapshots and `HEAD == origin/main` reproducibility capture. |
 
 ## Failure Memory
 
@@ -214,6 +221,9 @@ Keep these lessons in future prompt and controller design:
 - Mechanism prompts must name the surface-local data-access contract. Portfolio and risk blocks may have `panel` available but local `data`, `group`, or `valid` frames may not include `CONTRACT.dollar_volume`, `CONTRACT.volume`, `CONTRACT.market_cap`, or industry fields. Use `panel.loc[index, CONTRACT.field]` with aligned indices when the local frame lacks the field.
 - Controller smoke fixtures must exercise the mechanism being targeted. A one-industry smoke panel cannot prove that industry neutralization affects final weights, and a smoke panel that only checks generic pass/fail can miss data-scope prompt defects.
 - Controller-relative success memory should not be promoted to active strategy skill until sample-eval evidence is checked. `PROG-20260513-A017-MECH-0007` was the best controller sibling but failed parent-relative market evaluation.
+- `PROG-20260514-A017-MECHFIX-0009` shows the opposite tradeoff: a direct industry-neutral mechanism can improve implementation shape, turnover, drawdown, breadth, and missing-held weight while weakening parent-relative return and Sharpe. Do not confuse cleaner portfolio construction with stronger alpha.
+- A clean remote worktree is insufficient if `HEAD` is an unpushed commit. Remote controller and sample-eval artifacts must record `git_origin_main_commit`, `git_head_matches_origin_main`, and code snapshots/hashes.
+- 27B should be used as a mechanism reviewer before direct generation. Prior evidence showed 27B can be useful for medium-depth review but is not the default strict patch generator.
 
 ## Reasoning Memory Layer
 
@@ -230,29 +240,35 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not test evaluation. After GitHub sync, run one small controller-only mechanism rerun using [controller_attempt017_mechanism_rerun_remote_instructions_20260514.md](controller_attempt017_mechanism_rerun_remote_instructions_20260514.md).
+The next step is not broad validation and not test evaluation. After GitHub sync, run the 27B-assisted mechanism-card workflow in [controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md).
 
 ```yaml
 next_remote_run:
-  type: small_controller_only_mechanism_rerun
+  type: qwen27b_mechanism_cards_then_qwen9b_controller_batch
   parent: PROG-20260430-CHILD-0017
+  reviewer_model: Qwen3.5-27B-FP8
+  generator_model: Qwen3.5-9B
+  medium_model_output: JSON mechanism cards only
   preferred_surfaces:
+    - ranking/industry_neutral_rank
     - portfolio/liquidity_weighted_sides
     - portfolio/persistence_trade_gate
     - risk/liquidity_scaled_cap
-    - ranking/industry_neutral_rank
   sample_eval_limit_after_review: 0_or_1
   broad_validation: false
   full_validation: false
-starting_evidence: controller_attempt017_mechanism_batch_20260513
+starting_evidence:
+  - controller_attempt017_mechanism_batch_20260513
+  - controller_attempt017_mechanism_rerun_20260514
+  - remote_sample_eval_controller_attempt017_mechanism_rerun_20260514_attempt_009
 structural_lead: "attempt_017 causal signal smoothing"
-main_defect_to_check: "direct portfolio/risk/ranking mechanisms now use surface-local panel.loc field access and pass vector smoke"
+main_defect_to_check: "mechanism cards propose ways to keep attempt009 implementation-shape gains without sacrificing attempt017 parent-relative return and Sharpe"
 checks_to_inspect:
-  - portfolio/risk prompts use panel.loc index-aligned CONTRACT field access
-  - ranking prompts use panel.loc group.index for industry fields
-  - smoke panel has multiple industries
+  - mechanism_cards.json is valid JSON and contains no code patches
+  - 9B prompts include mechanism_card_ids
+  - controller artifact records git_head_matches_origin_main
+  - sample eval artifacts include program_snapshot.py and program_sha256
   - no-final-weight-delta passes stay sample-eval ineligible
-  - signal/liquidity_adjusted_reversal is not re-sample-evaluated without a materially new reason
 test_set_used: false
 ```
 

@@ -166,6 +166,8 @@ Dated review records retained as evidence, not active plans:
 - [controller_attempt017_mechanism_batch_review_20260514.md](controller_attempt017_mechanism_batch_review_20260514.md): mechanism batch plus attempt007 sample-eval review; one selected child was broad but worse than attempt017, and portfolio/risk mechanism prompts need local data-scope repair.
 - [controller_prompt_smoke_repair_20260514.md](controller_prompt_smoke_repair_20260514.md): local prompt/smoke repair for surface-local daily-stock field access and multi-industry/liquidity smoke coverage.
 - [controller_attempt017_mechanism_rerun_remote_instructions_20260514.md](controller_attempt017_mechanism_rerun_remote_instructions_20260514.md): remote rerun handoff after the prompt/smoke repair, including Git hygiene preflight.
+- [controller_attempt017_mechanism_rerun_review_20260514.md](controller_attempt017_mechanism_rerun_review_20260514.md): rerun plus attempt009 sample-eval review; attempt009 improved implementation shape but weakened parent-relative return and Sharpe.
+- [controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md): next remote handoff using Qwen3.5-27B-FP8 for JSON mechanism cards and Qwen3.5-9B for strict patches.
 
 ## Search Principle
 

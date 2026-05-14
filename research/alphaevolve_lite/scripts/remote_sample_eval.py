@@ -121,19 +121,9 @@ def git_value(args: list[str]) -> str:
 def write_git_status_artifacts(out_dir: Path) -> dict[str, Any]:
     """Record dirty-tree details for remote reproducibility review."""
 
-    status = git_value(["status", "--short"])
-    diff_stat = git_value(["diff", "--stat"])
-    branch = git_value(["rev-parse", "--abbrev-ref", "HEAD"])
-    commit = git_value(["rev-parse", "HEAD"])
-    (out_dir / "git_status.txt").write_text(status + ("\n" if status else ""), encoding="utf-8")
-    (out_dir / "git_diff_stat.txt").write_text(diff_stat + ("\n" if diff_stat else ""), encoding="utf-8")
-    return {
-        "git_commit": commit,
-        "git_branch": branch,
-        "git_dirty": bool(status),
-        "git_status_path": "git_status.txt",
-        "git_diff_stat_path": "git_diff_stat.txt",
-    }
+    from research.alphaevolve_lite.reproducibility import capture_git_reproducibility
+
+    return capture_git_reproducibility(out_dir)
 
 
 def write_lines(path: Path, lines: list[str]) -> None:
@@ -220,6 +210,7 @@ def main() -> int:
         load_daily_stock_window,
     )
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
+    from research.alphaevolve_lite.reproducibility import capture_program_snapshot
     from research.alphaevolve_lite.sample_eval_baselines import (
         build_baseline_records,
         flatten_baseline_rows,
@@ -274,6 +265,7 @@ def main() -> int:
 
     try:
         strategy_module, resolved_program_path = load_strategy_module(args.program_path)
+        program_snapshot = capture_program_snapshot(resolved_program_path, out_dir)
         is_seed_program = is_seed_program_path(resolved_program_path)
         if not is_seed_program and args.program_id == DEFAULT_SEED_PROGRAM_ID:
             raise RuntimeError(
@@ -388,6 +380,9 @@ def main() -> int:
             "missing_held_weight_within_sample_tolerance": metrics["search_sample"]["max_missing_held_weight"] <= 0.05,
             "duplicate_diagnostics_written": (out_dir / "duplicate_diagnostics.csv").exists(),
             "git_status_recorded": (out_dir / "git_status.txt").exists(),
+            "git_worktree_clean": not bool(git_status.get("git_dirty")),
+            "git_head_matches_origin_main": bool(git_status.get("git_head_matches_origin_main")),
+            "code_snapshot_recorded": (out_dir / str(program_snapshot["program_snapshot_path"])).exists(),
             "null_baselines_written": (out_dir / "null_baselines.csv").exists(),
             "turnover_aware_score_reported": "turnover_aware_score" in metrics["search_sample"],
             "exposure_diagnostics_reported": "mean_gross_exposure" in metrics["search_sample"],
@@ -426,6 +421,7 @@ def main() -> int:
             "parent_program_id": resolved_parent_program_id,
             "stage": "remote_sample_eval",
             "program_path": str(resolved_program_path),
+            **program_snapshot,
             "reference_summary_path": args.reference_summary,
             "reference_equivalence_tolerance": args.reference_equivalence_tolerance,
             "csv_path": args.csv_path,
@@ -477,6 +473,8 @@ def main() -> int:
                     "daily_stock_contract": CONTRACT.contract_id,
                     "strategy_family": "kalman_innovation_reversal",
                     "program_path": str(resolved_program_path),
+                    "program_snapshot_path": program_snapshot["program_snapshot_path"],
+                    "program_sha256": program_snapshot["program_sha256"],
                     "parent_program_id": resolved_parent_program_id,
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
@@ -485,6 +483,9 @@ def main() -> int:
                     "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
                     "max_abs_net_exposure": metrics["search_sample"].get("max_abs_net_exposure"),
                     "git_dirty": git_status["git_dirty"],
+                    "git_commit": git_status["git_commit"],
+                    "git_origin_main_commit": git_status["git_origin_main_commit"],
+                    "git_head_matches_origin_main": git_status["git_head_matches_origin_main"],
                 },
                 "next_prompt_hint": "If sample_pass, compare against seed, null baselines, and sibling children before any stage-0/full validation. Do not use test metrics for prompt sampling.",
                 "artifact_paths": {
@@ -495,6 +496,8 @@ def main() -> int:
                     "null_baselines": "null_baselines.csv",
                     "baseline_summary": "baseline_summary.json",
                     "git_status": "git_status.txt",
+                    "git_diff_stat": "git_diff_stat.txt",
+                    "program_snapshot": program_snapshot["program_snapshot_path"],
                     "universe_summary": "universe_summary.csv",
                     "split_manifest": "split_manifest.yaml",
                 },
@@ -545,6 +548,8 @@ def main() -> int:
                 f"- max_missing_held_weight: `{metrics['search_sample']['max_missing_held_weight']}`",
                 f"- duplicate_groups_with_conflicts: `{duplicate_summary['duplicate_groups_with_conflicts']}`",
                 f"- git_dirty: `{git_status['git_dirty']}`",
+                f"- git_head_matches_origin_main: `{git_status['git_head_matches_origin_main']}`",
+                f"- program_sha256: `{program_snapshot['program_sha256']}`",
             ],
         )
 
@@ -568,11 +573,16 @@ def main() -> int:
                     "descriptors": {
                         "daily_stock_contract": CONTRACT.contract_id,
                         "program_path": str(resolved_program_path),
+                        "program_snapshot_path": program_snapshot["program_snapshot_path"],
+                        "program_sha256": program_snapshot["program_sha256"],
                         "parent_program_id": resolved_parent_program_id,
                         "portfolio_coverage": portfolio_coverage,
                         "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
                         "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
                         "max_abs_net_exposure": metrics["search_sample"].get("max_abs_net_exposure"),
+                        "git_commit": git_status["git_commit"],
+                        "git_origin_main_commit": git_status["git_origin_main_commit"],
+                        "git_head_matches_origin_main": git_status["git_head_matches_origin_main"],
                     },
                     "hard_gates": hard_gates,
                     "validation_exposure": {

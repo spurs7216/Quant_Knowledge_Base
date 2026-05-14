@@ -256,6 +256,13 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         lines.extend(
             [
                 f"- surface_schedule: `{summary.get('surface_schedule')}`",
+                f"- git_commit: `{summary.get('git_commit')}`",
+                f"- git_origin_main_commit: `{summary.get('git_origin_main_commit')}`",
+                f"- git_head_matches_origin_main: `{summary.get('git_head_matches_origin_main')}`",
+                f"- parent_program_sha256: `{summary.get('parent_program_sha256')}`",
+                f"- mechanism_cards_enabled: `{summary.get('mechanism_cards_enabled', False)}`",
+                f"- mechanism_card_path: `{summary.get('mechanism_card_path')}`",
+                f"- retrieved_mechanism_card_ids: `{summary.get('retrieved_mechanism_card_ids', [])}`",
                 f"- prior_summary_paths: `{summary.get('prior_summary_paths', [])}`",
                 f"- prior_attempt_count: `{summary.get('prior_attempt_count', 0)}`",
                 f"- prior_pass_count: `{summary.get('prior_pass_count', 0)}`",

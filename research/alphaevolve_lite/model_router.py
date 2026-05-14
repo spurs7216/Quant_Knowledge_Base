@@ -45,6 +45,11 @@ ENDPOINTS = {
         served_model_name="qwen35-9b-fast",
         base_url="http://127.0.0.1:8001/v1",
     ),
+    "medium_quality_reviewer": ModelEndpoint(
+        role="medium_quality_reviewer",
+        served_model_name="qwen35-27b-fp8",
+        base_url="http://127.0.0.1:8020/v1",
+    ),
 }
 
 DEFAULT_MAX_COMPLETION_TOKENS = 8192

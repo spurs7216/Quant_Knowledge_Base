@@ -104,6 +104,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--skill-card-limit", type=int, default=3)
     parser.add_argument("--disable-skill-library", action="store_true")
+    parser.add_argument(
+        "--mechanism-card-path",
+        default="",
+        help="Optional 27B-reviewed mechanism_cards.json artifact to inject into child-generation prompts.",
+    )
+    parser.add_argument("--mechanism-card-limit", type=int, default=3)
     parser.add_argument("--program-id-prefix", default="PROG-20260430-CHILD")
     parser.add_argument(
         "--mock-patch-mode",
@@ -156,6 +162,12 @@ def main() -> int:
         build_evaluator_diagnostic_report,
         write_diagnostic_report,
     )
+    from research.alphaevolve_lite.mechanism_cards import (
+        mechanism_card_ids,
+        read_mechanism_cards,
+        render_mechanism_cards,
+        select_mechanism_cards,
+    )
     from research.alphaevolve_lite.model_router import chat_completion
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
     from research.alphaevolve_lite.prompt_builder import (
@@ -164,6 +176,10 @@ def main() -> int:
         extract_evolve_block_bodies,
         load_json_if_exists,
         write_prompt_artifact,
+    )
+    from research.alphaevolve_lite.reproducibility import (
+        capture_git_reproducibility,
+        capture_program_snapshot,
     )
     from research.alphaevolve_lite.reasoning_memory import (
         append_memory_update,
@@ -185,6 +201,9 @@ def main() -> int:
     if not 0.0 < args.near_duplicate_threshold <= 1.0:
         print("--near-duplicate-threshold must be in (0, 1]", file=sys.stderr)
         return 2
+    if args.mechanism_card_limit < 0:
+        print("--mechanism-card-limit must be nonnegative", file=sys.stderr)
+        return 2
 
     program_path = Path(args.program_path)
     if not program_path.exists():
@@ -202,6 +221,12 @@ def main() -> int:
     evaluator_summary = load_json_if_exists(args.evaluator_summary)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+    git_status = capture_git_reproducibility(out_dir)
+    parent_program_snapshot = capture_program_snapshot(
+        program_path,
+        out_dir,
+        snapshot_name="parent_program_snapshot.py",
+    )
     evaluator_diagnostic_report = build_evaluator_diagnostic_report(
         evaluator_summary,
         source_path=args.evaluator_summary or None,
@@ -245,6 +270,23 @@ def main() -> int:
                 "skill_item_count": len(skill_items),
                 "active_skill_item_count": sum(1 for item in skill_items if item.get("status") == "active"),
                 "skill_ids": [item.get("skill_id") for item in skill_items],
+            },
+        )
+    mechanism_card_path = Path(args.mechanism_card_path) if args.mechanism_card_path else None
+    mechanism_cards: list[dict[str, Any]] = []
+    retrieved_mechanism_card_ids_seen: set[str] = set()
+    if mechanism_card_path is not None:
+        try:
+            mechanism_cards = read_mechanism_cards(mechanism_card_path)
+        except (OSError, ValueError, json.JSONDecodeError) as exc:
+            print(f"failed to load mechanism cards: {exc}", file=sys.stderr)
+            return 2
+        write_json(
+            out_dir / "mechanism_cards_loaded.json",
+            {
+                "mechanism_card_path": str(mechanism_card_path),
+                "mechanism_card_count": len(mechanism_cards),
+                "mechanism_card_ids": mechanism_card_ids(mechanism_cards),
             },
         )
     patch_filter_config = PatchFilterConfig(
@@ -324,6 +366,15 @@ def main() -> int:
             )
         target_intent = diversity_target.intent if diversity_target else "other"
         prompt_card_id = prompt_card_id_for(target_surface, target_intent)
+        selected_mechanism_cards = select_mechanism_cards(
+            mechanism_cards,
+            target_surface=target_surface,
+            target_intent=target_intent,
+            limit=args.mechanism_card_limit,
+        )
+        selected_mechanism_card_ids = mechanism_card_ids(selected_mechanism_cards)
+        retrieved_mechanism_card_ids_seen.update(selected_mechanism_card_ids)
+        mechanism_card_text = render_mechanism_cards(selected_mechanism_cards)
         if population_policy_enabled:
             population_policy_snapshot = population_policy_state.target_snapshot(
                 parent_id=parent_id,
@@ -386,6 +437,7 @@ def main() -> int:
             reasoning_memory_text=prompt_context.reasoning_memory_text,
             diagnostic_text=prompt_context.diagnostic_text,
             skill_text=prompt_context.skill_text,
+            mechanism_card_text=mechanism_card_text,
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -540,6 +592,15 @@ def main() -> int:
                         )
                     retry_target_intent = retry_target.intent if retry_target else "other"
                     retry_prompt_card_id = prompt_card_id_for(target_surface, retry_target_intent)
+                    retry_mechanism_cards = select_mechanism_cards(
+                        mechanism_cards,
+                        target_surface=target_surface,
+                        target_intent=retry_target_intent,
+                        limit=args.mechanism_card_limit,
+                    )
+                    retry_mechanism_card_ids = mechanism_card_ids(retry_mechanism_cards)
+                    retrieved_mechanism_card_ids_seen.update(retry_mechanism_card_ids)
+                    retry_mechanism_card_text = render_mechanism_cards(retry_mechanism_cards)
                     if population_policy_enabled:
                         retry_population_policy_text = format_population_policy_context(
                             population_policy_state,
@@ -590,6 +651,7 @@ def main() -> int:
                         reasoning_memory_text=retry_prompt_context.reasoning_memory_text,
                         diagnostic_text=retry_prompt_context.diagnostic_text,
                         skill_text=retry_prompt_context.skill_text,
+                        mechanism_card_text=retry_mechanism_card_text,
                     )
                     write_messages(
                         attempt_dir / f"duplicate_retry_{retry_index}_prompt",
@@ -695,6 +757,7 @@ def main() -> int:
                         diversity_target = retry_target
                         target_intent = retry_target_intent
                         prompt_card_id = retry_prompt_card_id
+                        selected_mechanism_card_ids = retry_mechanism_card_ids
                         if population_policy_enabled:
                             population_policy_snapshot = population_policy_state.target_snapshot(
                                 parent_id=parent_id,
@@ -829,6 +892,7 @@ def main() -> int:
                             "diagnostic_card_ids": diagnostic_card_ids,
                             "reasoning_memory_item_ids": retrieved_memory_item_ids,
                             "skill_ids": retrieved_skill_ids,
+                            "mechanism_card_ids": selected_mechanism_card_ids,
                             "initial_failure_category": initial_result_record.get("failure_category"),
                             "dry_run_only": True,
                         },
@@ -897,6 +961,8 @@ def main() -> int:
                 "reasoning_memory_path": str(memory_path) if memory_path else None,
                 "skill_ids": retrieved_skill_ids,
                 "skill_library_path": str(skill_library_path) if skill_library_path else None,
+                "mechanism_card_ids": selected_mechanism_card_ids,
+                "mechanism_card_path": str(mechanism_card_path) if mechanism_card_path else None,
             }
         )
         result_record.update(sample_eval_eligibility(result_record))
@@ -915,6 +981,9 @@ def main() -> int:
         {
             "program_path": str(program_path),
             "parent_program_id": parent_program_id,
+            "parent_program_snapshot_path": parent_program_snapshot["program_snapshot_path"],
+            "parent_program_sha256": parent_program_snapshot["program_sha256"],
+            **git_status,
             "evaluator_summary": args.evaluator_summary,
             "model_role": args.model_role,
             "population_policy_version": POPULATION_POLICY_VERSION if population_policy_enabled else "v1",
@@ -952,6 +1021,10 @@ def main() -> int:
             "skill_library_path": str(skill_library_path) if skill_library_path else None,
             "skill_library_item_count": len(skill_items),
             "retrieved_skill_ids": sorted(retrieved_skill_ids_seen),
+            "mechanism_cards_enabled": mechanism_card_path is not None,
+            "mechanism_card_path": str(mechanism_card_path) if mechanism_card_path else None,
+            "mechanism_card_count": len(mechanism_cards),
+            "retrieved_mechanism_card_ids": sorted(retrieved_mechanism_card_ids_seen),
             "evaluator_diagnostic_report_json": evaluator_diagnostic_paths["json"],
             "evaluator_diagnostic_report_markdown": evaluator_diagnostic_paths["markdown"],
             "evaluator_diagnostic_card_ids": [

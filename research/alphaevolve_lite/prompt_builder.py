@@ -295,6 +295,7 @@ def build_child_generation_prompt(
     reasoning_memory_text: str | None = None,
     diagnostic_text: str | None = None,
     skill_text: str | None = None,
+    mechanism_card_text: str | None = None,
     mutation_instruction: str = DEFAULT_MUTATION_INSTRUCTION,
 ) -> dict[str, str]:
     """Build system/user messages for a child-generation attempt."""
@@ -336,6 +337,9 @@ def build_child_generation_prompt(
     memory_text = reasoning_memory_text.strip() if reasoning_memory_text and reasoning_memory_text.strip() else "None."
     diagnostics = diagnostic_text.strip() if diagnostic_text and diagnostic_text.strip() else "None."
     skills = skill_text.strip() if skill_text and skill_text.strip() else "None."
+    mechanism_cards = (
+        mechanism_card_text.strip() if mechanism_card_text and mechanism_card_text.strip() else "None."
+    )
     user_prompt = f"""Task type: controller_static_child_dry_run
 Attempt index: {attempt_index}
 Parent program id: {parent_id or "PROG-20260430-000000"}
@@ -356,6 +360,13 @@ Diagnostic analyzer cards:
 ```
 
 Use diagnostic cards as bottleneck localization, not as proof of market alpha.
+
+Medium-model mechanism cards:
+```text
+{mechanism_cards}
+```
+
+Use mechanism cards as reviewed mechanism hypotheses for this target surface. They are not code, not immutable rules, and not promotion evidence. The target behavior cell remains binding.
 
 Parent-relative search-control rules:
 {PARENT_RELATIVE_SEARCH_RULES}
