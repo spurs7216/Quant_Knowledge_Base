@@ -117,6 +117,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     _ensure_repo_import()
     from research.alphaevolve_lite.controller_batch_artifacts import (
+        sample_eval_eligibility,
         summarize_attempts,
         write_json,
         write_messages,
@@ -898,6 +899,7 @@ def main() -> int:
                 "skill_library_path": str(skill_library_path) if skill_library_path else None,
             }
         )
+        result_record.update(sample_eval_eligibility(result_record))
         write_json(attempt_dir / "micro_filter_result.json", result_record)
         if population_policy_enabled:
             population_policy_state.record_attempt(result_record, final_diff_text=final_diff_text)

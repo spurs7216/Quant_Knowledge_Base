@@ -102,6 +102,13 @@ If the target edit is likely to be absorbed by ranking, portfolio selection, or 
 Full validation remains forbidden inside child generation; these rules are search-control guidance for deterministic controller and sample gates.
 """
 
+STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE = """Stage-0 executable children may use only the supplied daily_stock panel and CONTRACT fields.
+Useful ex-ante daily_stock fields include CONTRACT.price, CONTRACT.volume, CONTRACT.dollar_volume, CONTRACT.market_cap, CONTRACT.industry_primary, CONTRACT.exchange, and existing status/return-missing flags when present in the panel.
+Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
+For the attempt017 branch, prefer mechanisms that change final weights through liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, or liquidity-scaled caps.
+Do not answer a liquidity, persistence, or industry-neutral target with generic tanh, clipped magnitude dampening, or raw signal shrinkage.
+"""
+
 
 SURFACE_GUIDANCE = {
     "signal": (
@@ -111,12 +118,16 @@ SURFACE_GUIDANCE = {
         "if it can create many tied signals and imbalanced long/short books. For time_smoothing targets, use "
         "causal rolling, EWM, or lagged smoothing; do not substitute a nonlinear magnitude dampener. Treat "
         "generic bounded or clipped signal dampening as negative evidence on attempt017-style missing-held "
-        "repairs unless it preserves parent-relative economics after costs."
+        "repairs unless it preserves parent-relative economics after costs. For liquidity_adjusted_reversal, "
+        "use daily_stock liquidity, price, or market-cap proxies as ex-ante confidence signals rather than "
+        "a generic magnitude compressor."
     ),
     "ranking": (
         "Edit only the ranking EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
         "only when the target intent requests direction_flip; otherwise use the requested robust center/scale, "
-        "rank/percentile transform, winsorization, monotone transform, or cross-sectional shrinkage family."
+        "rank/percentile transform, winsorization, monotone transform, or cross-sectional shrinkage family. "
+        "For industry_neutral_rank, use native daily_stock industry fields such as CONTRACT.industry_primary "
+        "with a fallback when a date-industry group is too small."
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
@@ -127,13 +138,18 @@ SURFACE_GUIDANCE = {
         "long-side magnitudes and positive short-side magnitudes separately, then assign negative weights to "
         "shorts; preserve both long and short exposure and keep net exposure near zero. If you use a boolean "
         "selection mask, convert it to index labels aligned to the target Series before assigning weights. Avoid "
-        "threshold or sparsity edits that are absorbed downstream and leave final weights effectively unchanged."
+        "threshold or sparsity edits that are absorbed downstream and leave final weights effectively unchanged. "
+        "For liquidity_weighted_sides, use current-day liquidity or market-cap proxies only as positive side "
+        "magnitudes. For persistence_trade_gate, use prior-day signal or same-sign persistence and keep a fallback "
+        "when a side becomes too thin."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
         "normalization, and conservative handling of small long or short books. Preserve both long and short "
         "books; avoid logic that can make the portfolio one-sided or materially net long/net short. Risk edits "
-        "must produce an observable portfolio-shape change after normalization; otherwise output NO_VALID_PATCH."
+        "must produce an observable portfolio-shape change after normalization; otherwise output NO_VALID_PATCH. "
+        "For liquidity_scaled_cap, the cap formula must bite below current weights for low-liquidity names and "
+        "then renormalize long and short sides separately."
     ),
 }
 
@@ -308,6 +324,9 @@ Use diagnostic cards as bottleneck localization, not as proof of market alpha.
 Parent-relative search-control rules:
 {PARENT_RELATIVE_SEARCH_RULES}
 
+Stage-0 daily_stock mechanism guidance:
+{STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE}
+
 Immutable rules:
 {IMMUTABLE_RULES}
 
@@ -478,6 +497,7 @@ __all__ = [
     "IMMUTABLE_RULES",
     "PARENT_RELATIVE_SEARCH_RULES",
     "REPAIR_SYSTEM_PROMPT",
+    "STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE",
     "STRICT_SEARCH_REPLACE_SYSTEM_PROMPT",
     "build_child_generation_prompt",
     "build_patch_repair_prompt",

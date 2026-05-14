@@ -58,6 +58,14 @@ DIVERSITY_TARGETS: dict[str, tuple[DiversityTarget, ...]] = {
             "time_smoothing",
             "Smooth the per-security signal causally with rolling or exponentially weighted logic.",
         ),
+        DiversityTarget(
+            "signal:liquidity_adjusted_reversal",
+            "liquidity_adjusted_reversal",
+            (
+                "Use current-day daily_stock liquidity, price, or market-cap proxies to adjust reversal "
+                "confidence without using forward-return fields."
+            ),
+        ),
     ),
     "ranking": (
         DiversityTarget(
@@ -84,6 +92,14 @@ DIVERSITY_TARGETS: dict[str, tuple[DiversityTarget, ...]] = {
             "ranking:shrinkage_transform",
             "shrinkage_transform",
             "Shrink weak cross-sectional signals toward zero while preserving order.",
+        ),
+        DiversityTarget(
+            "ranking:industry_neutral_rank",
+            "industry_neutral_rank",
+            (
+                "Rank or standardize signals within native daily_stock industry groups such as SICCD, "
+                "with a fallback for small groups."
+            ),
         ),
     ),
     "portfolio": (
@@ -112,6 +128,22 @@ DIVERSITY_TARGETS: dict[str, tuple[DiversityTarget, ...]] = {
             "no_trade_band_or_sparsity",
             "Reduce marginal positions using a band or sparse selection rule.",
         ),
+        DiversityTarget(
+            "portfolio:liquidity_weighted_sides",
+            "liquidity_weighted_sides",
+            (
+                "Within selected long and short tails, weight each side with positive signal and "
+                "current-day liquidity magnitudes while preserving balanced exposure."
+            ),
+        ),
+        DiversityTarget(
+            "portfolio:persistence_trade_gate",
+            "persistence_trade_gate",
+            (
+                "Require current tail membership to be supported by prior-day same-sign signal or a "
+                "large current margin, with fallback if a side becomes too thin."
+            ),
+        ),
     ),
     "risk": (
         DiversityTarget(
@@ -138,6 +170,14 @@ DIVERSITY_TARGETS: dict[str, tuple[DiversityTarget, ...]] = {
             "risk:cap_shape_change",
             "cap_shape_change",
             "Change clip/cap shape without weakening max-weight safety.",
+        ),
+        DiversityTarget(
+            "risk:liquidity_scaled_cap",
+            "liquidity_scaled_cap",
+            (
+                "Scale the effective single-name cap by current-day liquidity or market-cap proxies, "
+                "then renormalize long and short sides separately."
+            ),
         ),
     ),
 }
@@ -237,6 +277,16 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
     if target_surface == "signal":
         if "signal=-" in compact or "signal=-signal" in compact:
             return "direction_flip"
+        if (
+            "liquidity" in lower
+            or "dollar_volume" in lower
+            or "dlyprcvol" in lower
+            or "contract.dollar_volume" in lower
+            or "contract.volume" in lower
+            or "contract.price" in lower
+            or "contract.market_cap" in lower
+        ):
+            return "liquidity_adjusted_reversal"
         if "rolling_vol" in lower or "clip(lower=" in lower:
             return "volatility_floor_or_scaling"
         if "rolling(" in lower or "ewm(" in lower or ".shift(" in lower:
@@ -252,6 +302,14 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
     if target_surface == "ranking":
         if "return-" in compact or "return-demeaned" in compact:
             return "direction_flip"
+        if (
+            "industry" in lower
+            or "siccd" in lower
+            or "naics" in lower
+            or "icbindustry" in lower
+            or "contract.industry_primary" in lower
+        ):
+            return "industry_neutral_rank"
         if "quantile" in lower:
             return "winsorization_quantile_change"
         if "median" in lower or "mad" in lower:
@@ -263,6 +321,18 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
         return "ranking_other"
 
     if target_surface == "portfolio":
+        if "prev_signal" in lower or "same_sign" in lower or "persistence" in lower or ".shift(" in lower:
+            return "persistence_trade_gate"
+        if (
+            "liquidity" in lower
+            or "dollar_volume" in lower
+            or "dlyprcvol" in lower
+            or "contract.dollar_volume" in lower
+            or "contract.volume" in lower
+            or "contract.price" in lower
+            or "contract.market_cap" in lower
+        ):
+            return "liquidity_weighted_sides"
         if "long_quantile" in lower or "short_quantile" in lower or "quantile" in lower:
             return "selection_threshold_change"
         if "band" in lower or "sparse" in lower or "threshold" in lower or "=0.0" in compact:
@@ -278,6 +348,16 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
         return "portfolio_other"
 
     if target_surface == "risk":
+        if (
+            "liquidity" in lower
+            or "dollar_volume" in lower
+            or "dlyprcvol" in lower
+            or "contract.dollar_volume" in lower
+            or "contract.volume" in lower
+            or "contract.price" in lower
+            or "contract.market_cap" in lower
+        ):
+            return "liquidity_scaled_cap"
         if "max_weight" in lower and ("*" in lower or "min(" in lower or "max(" in lower):
             return "max_weight_tightening"
         if "len(" in lower:

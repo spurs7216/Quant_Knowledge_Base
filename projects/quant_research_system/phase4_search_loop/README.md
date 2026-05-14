@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-11
+updated: 2026-05-13
 tags:
   - project
   - phase4
@@ -133,6 +133,7 @@ New implementation-policy files:
 - [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md): Dr. RTL transfer note for group-relative sibling comparison and skill learning.
 - [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md): implementation note for the deterministic analyzer role and explicit skill-library layer.
 - [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md): CodeEvolve, ShinkaEvolve, and ThetaEvolve transfer note for duplicate control, parent sampling, novelty pressure, and deferred RL.
+- [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md): concrete daily-stock-only mechanism targets for the attempt017 branch.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
@@ -160,6 +161,8 @@ Dated review records retained as evidence, not active plans:
 - [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md): 50-attempt controller run review; mechanics healthy but uniqueness gate failed.
 - [controller_attempt017_focused_round_review_20260511.md](controller_attempt017_focused_round_review_20260511.md): focused attempt017 round review; one child improved missing-held weight but failed parent-relative performance and turnover-aware criteria.
 - [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md): next small controller-only focused run after the search-control patch.
+- [controller_attempt017_search_control_rerun_review_20260513.md](controller_attempt017_search_control_rerun_review_20260513.md): search-control rerun review; controller healthy but no sample-eval candidate.
+- [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md): next controller-only mechanism batch handoff.
 
 ## Search Principle
 
