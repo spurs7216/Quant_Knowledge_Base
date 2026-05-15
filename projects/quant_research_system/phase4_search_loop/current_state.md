@@ -240,7 +240,13 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not test evaluation. After GitHub sync, run the 27B-assisted mechanism-card workflow in [controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md).
+The next step is not broad validation and not test evaluation. The first 27B mechanism-card run
+started correctly after raising the serving context to 16384, but `model_response.json` recorded
+`prompt_tokens: 8143`, `completion_tokens: 1536`, and `finish_reason: length`; the JSON was
+truncated mid-card rather than truly malformed. After GitHub sync, rerun the 27B-assisted
+mechanism-card workflow in
+[controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md)
+with the corrected 27B context and completion settings.
 
 ```yaml
 next_remote_run:
@@ -249,6 +255,10 @@ next_remote_run:
   reviewer_model: Qwen3.5-27B-FP8
   generator_model: Qwen3.5-9B
   medium_model_output: JSON mechanism cards only
+  reviewer_serving:
+    max_model_len_minimum: 16384
+    gpu_memory_utilization: 0.90
+    build_mechanism_cards_max_tokens: 4096
   preferred_surfaces:
     - ranking/industry_neutral_rank
     - portfolio/liquidity_weighted_sides

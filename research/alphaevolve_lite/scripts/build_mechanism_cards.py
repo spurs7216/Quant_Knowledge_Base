@@ -23,7 +23,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--project-note", action="append", default=[])
     parser.add_argument("--model-role", default="medium_quality_reviewer")
     parser.add_argument("--temperature", type=float, default=0.2)
-    parser.add_argument("--max-tokens", type=int, default=2048)
+    parser.add_argument(
+        "--max-tokens",
+        type=int,
+        default=4096,
+        help=(
+            "Completion-token budget for JSON mechanism cards. "
+            "vLLM max-model-len must cover prompt tokens plus this value."
+        ),
+    )
     parser.add_argument("--card-limit", type=int, default=6)
     parser.add_argument(
         "--mock-response-path",
@@ -200,8 +208,29 @@ def main() -> int:
 
     (out_dir / "raw_output.txt").write_text(raw_output, encoding="utf-8")
     write_json(out_dir / "model_response.json", response_record)
-    payload = extract_json_object(raw_output)
-    normalized = normalize_mechanism_cards(payload)
+    truncation_error = _length_truncation_error(response_record, args.max_tokens)
+    if truncation_error:
+        write_json(out_dir / "mechanism_card_error.json", truncation_error)
+        print(json.dumps(truncation_error, sort_keys=True), file=sys.stderr)
+        return 1
+    try:
+        payload = extract_json_object(raw_output)
+        normalized = normalize_mechanism_cards(payload)
+    except Exception as exc:
+        parse_error = {
+            "status": "invalid_mechanism_cards",
+            "error_type": exc.__class__.__name__,
+            "message": str(exc),
+            "max_tokens": args.max_tokens,
+            "remediation": (
+                "Inspect raw_output.txt. If model_response.json finish_reason is length, "
+                "rerun with higher --max-tokens and a vLLM --max-model-len large enough "
+                "for prompt tokens plus completion tokens. Otherwise tighten the JSON-only prompt."
+            ),
+        }
+        write_json(out_dir / "mechanism_card_error.json", parse_error)
+        print(json.dumps(parse_error, sort_keys=True), file=sys.stderr)
+        return 1
     normalized.update(
         {
             "source_model_role": args.model_role,
@@ -227,6 +256,33 @@ def _compact_reroute(policy: dict[str, Any]) -> dict[str, Any]:
         key: value
         for key, value in policy.items()
         if isinstance(value, dict) and value.get("prompt_card_reroute_reasons")
+    }
+
+
+def _length_truncation_error(response_record: dict[str, Any], max_tokens: int) -> dict[str, Any] | None:
+    raw_response = response_record.get("raw_response")
+    if not isinstance(raw_response, dict):
+        return None
+    choices = raw_response.get("choices") or []
+    if not choices or not isinstance(choices[0], dict):
+        return None
+    finish_reason = choices[0].get("finish_reason")
+    if finish_reason != "length":
+        return None
+    usage = raw_response.get("usage", {}) if isinstance(raw_response.get("usage"), dict) else {}
+    return {
+        "status": "incomplete_generation",
+        "error_type": "finish_reason_length",
+        "message": "The 27B response hit the completion-token limit and may be truncated.",
+        "finish_reason": finish_reason,
+        "max_tokens": max_tokens,
+        "prompt_tokens": usage.get("prompt_tokens"),
+        "completion_tokens": usage.get("completion_tokens"),
+        "total_tokens": usage.get("total_tokens"),
+        "remediation": (
+            "Increase build_mechanism_cards.py --max-tokens and launch vLLM with "
+            "--max-model-len at least prompt_tokens plus the requested completion budget."
+        ),
     }
 
 

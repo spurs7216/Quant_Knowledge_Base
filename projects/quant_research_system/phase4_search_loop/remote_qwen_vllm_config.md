@@ -110,23 +110,25 @@ The inner-loop controller requests up to `8192` completion tokens. Because vLLM 
 ## Qwen3.5-27B-FP8 medium reviewer
 
 ```bash
-export NCCL_P2P_DISABLE=1
-export NCCL_DEBUG=WARN
-
-CUDA_VISIBLE_DEVICES=0,1 vllm serve Qwen/Qwen3.5-27B-FP8 \
+CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-27B-FP8 \
   --served-model-name qwen35-27b-fp8 \
   --host 127.0.0.1 \
   --port 8020 \
   --api-key "${AE_VLLM_API_KEY}" \
-  --tensor-parallel-size 2 \
+  --tensor-parallel-size 1 \
   --max-model-len 16384 \
-  --gpu-memory-utilization 0.40 \
+  --gpu-memory-utilization 0.90 \
   --max-num-seqs 1 \
   --enforce-eager \
   --reasoning-parser qwen3 \
-  --language-model-only \
-  --disable-custom-all-reduce
+  --language-model-only
 ```
+
+For medium-review windows with enough GPU headroom, `--max-model-len 32768` is acceptable. If
+single GPU launch fails, use tensor parallel size 2 with the NCCL workaround and
+`--disable-custom-all-reduce`. The 2026-05-14 mechanism-card artifact used 8143 prompt tokens and
+was truncated by a 1536 completion-token cap, so the serving context must cover prompt tokens plus
+the mechanism-card completion budget.
 
 ## Qwen3.6-35B-A3B-FP8 scheduled deep model
 

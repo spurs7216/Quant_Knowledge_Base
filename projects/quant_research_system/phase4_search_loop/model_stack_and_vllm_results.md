@@ -150,15 +150,18 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-27B-FP8 \
   --port 8020 \
   --api-key "${AE_VLLM_API_KEY}" \
   --tensor-parallel-size 1 \
-  --max-model-len 4096 \
-  --gpu-memory-utilization 0.85 \
+  --max-model-len 16384 \
+  --gpu-memory-utilization 0.90 \
   --max-num-seqs 1 \
   --enforce-eager \
   --reasoning-parser qwen3 \
   --language-model-only
 ```
 
-If single GPU fails, run with tensor parallel size 2 and the same NCCL workaround used for the 35B model.
+If the remote GPU has enough headroom, `--max-model-len 32768` is acceptable for medium-review
+windows. For mechanism-card generation, do not use `4096` or `8192`; the 2026-05-14 artifact
+recorded 8143 prompt tokens before completion. If single GPU fails, run with tensor parallel size 2
+and the same NCCL workaround used for the 35B model.
 
 ### Qwen3.6-35B-A3B-FP8
 

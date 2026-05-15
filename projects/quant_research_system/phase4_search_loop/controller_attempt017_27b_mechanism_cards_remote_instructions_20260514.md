@@ -2,7 +2,7 @@
 title: Controller Attempt017 27B Mechanism Cards Remote Instructions 2026-05-14
 type: project
 status: active
-updated: 2026-05-14
+updated: 2026-05-15
 tags:
   - project
   - phase4
@@ -59,7 +59,7 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-27B-FP8 \
   --port 8020 \
   --api-key "${AE_VLLM_API_KEY}" \
   --tensor-parallel-size 1 \
-  --max-model-len 8192 \
+  --max-model-len 16384 \
   --gpu-memory-utilization 0.90 \
   --max-num-seqs 1 \
   --enforce-eager \
@@ -67,7 +67,11 @@ CUDA_VISIBLE_DEVICES=0 vllm serve Qwen/Qwen3.5-27B-FP8 \
   --language-model-only
 ```
 
-If memory is tight, use `--max-model-len 4096` and keep `build_mechanism_cards.py --max-tokens 1536`.
+Do not use an 8192 context window for this mechanism-card run. The previous artifact recorded
+`prompt_tokens: 8143`, so 8192 is already too small before completion. Keep
+`--gpu-memory-utilization 0.90`; if the remote GPU has enough headroom, `--max-model-len 32768`
+is acceptable, but `16384` is the minimum target for the current prompt plus a 4096-token JSON
+completion budget.
 
 From a second terminal:
 
@@ -88,7 +92,7 @@ python research/alphaevolve_lite/scripts/build_mechanism_cards.py \
   --sample-eval-summary artifacts/phase4_alphaevolve/remote_sample_eval_controller_batch_001_topup_attempt_017_20260509/evaluator_summary.json \
   --card-limit 6 \
   --temperature 0.2 \
-  --max-tokens 1536
+  --max-tokens 4096
 ```
 
 Expected artifacts:
@@ -103,7 +107,11 @@ git_status.txt
 git_diff_stat.txt
 ```
 
-If 27B outputs malformed JSON, return the mechanism-card artifact and do not continue to 9B generation.
+If the builder writes `mechanism_card_error.json`, return the mechanism-card artifact and do not
+continue to 9B generation. `status: incomplete_generation` means the response hit the completion
+budget; rerun with a larger `--max-tokens` only if `prompt_tokens + max_tokens` still fits inside
+the active vLLM `--max-model-len`. For genuine malformed JSON, return the artifact for local
+review rather than hand-editing cards on the remote machine.
 
 If one of the evidence summary paths is absent, record the missing path in the artifact review and omit only that argument. Do not substitute test-set or full-validation evidence.
 
