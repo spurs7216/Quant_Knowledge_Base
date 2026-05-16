@@ -36,6 +36,15 @@ def parse_args() -> argparse.Namespace:
         help="Optional seed/parent evaluator_summary.json used to flag metric-equivalent children.",
     )
     parser.add_argument(
+        "--prior-sample-summary",
+        action="append",
+        default=[],
+        help=(
+            "Prior child evaluator_summary.json used to flag sample-metric replay against siblings. "
+            "May be repeated."
+        ),
+    )
+    parser.add_argument(
         "--reference-equivalence-tolerance",
         type=float,
         default=1e-9,
@@ -219,6 +228,7 @@ def main() -> int:
     from research.alphaevolve_lite.sample_eval_metrics import (
         build_forward_returns,
         compare_search_sample_to_reference,
+        compare_search_sample_to_references,
         cost_sensitivity_rows,
         portfolio_from_weights,
         portfolio_day_coverage_diagnostics,
@@ -258,6 +268,13 @@ def main() -> int:
             print(f"reference summary does not exist: {reference_path}", file=sys.stderr)
             return 2
         reference_summary = json.loads(reference_path.read_text(encoding="utf-8"))
+    prior_sample_summaries: list[dict[str, Any]] = []
+    for raw_path in args.prior_sample_summary:
+        prior_path = Path(raw_path)
+        if not prior_path.exists():
+            print(f"prior sample summary does not exist: {prior_path}", file=sys.stderr)
+            return 2
+        prior_sample_summaries.append(json.loads(prior_path.read_text(encoding="utf-8")))
 
     diagnostics: list[dict[str, Any]] = []
     decision = "reject"
@@ -366,6 +383,11 @@ def main() -> int:
             reference_summary,
             tolerance=args.reference_equivalence_tolerance,
         )
+        prior_sample_comparison = compare_search_sample_to_references(
+            metrics,
+            prior_sample_summaries,
+            tolerance=args.reference_equivalence_tolerance,
+        )
 
         hard_gates = {
             "daily_stock_contract_v1_columns_present": True,
@@ -390,6 +412,10 @@ def main() -> int:
         if reference_summary:
             hard_gates["not_metric_equivalent_to_reference"] = not bool(
                 reference_comparison["metric_equivalent_to_reference"]
+            )
+        if prior_sample_summaries:
+            hard_gates["not_metric_equivalent_to_prior_sample"] = not bool(
+                prior_sample_comparison["metric_equivalent_to_any_reference"]
             )
         decision = "sample_pass" if all(hard_gates.values()) else "sample_review"
 
@@ -423,6 +449,7 @@ def main() -> int:
             "program_path": str(resolved_program_path),
             **program_snapshot,
             "reference_summary_path": args.reference_summary,
+            "prior_sample_summary_paths": args.prior_sample_summary,
             "reference_equivalence_tolerance": args.reference_equivalence_tolerance,
             "csv_path": args.csv_path,
             "start_date": args.start_date,
@@ -453,6 +480,7 @@ def main() -> int:
                 "baseline_summary": baseline_summary,
                 "sample_coverage": portfolio_coverage,
                 "reference_comparison": reference_comparison,
+                "prior_sample_comparison": prior_sample_comparison,
             },
         )
         write_json(
@@ -469,6 +497,7 @@ def main() -> int:
                 "baseline_summary": baseline_summary,
                 "sample_coverage": portfolio_coverage,
                 "reference_comparison": reference_comparison,
+                "prior_sample_comparison": prior_sample_comparison,
                 "descriptors": {
                     "daily_stock_contract": CONTRACT.contract_id,
                     "strategy_family": "kalman_innovation_reversal",
@@ -476,6 +505,9 @@ def main() -> int:
                     "program_snapshot_path": program_snapshot["program_snapshot_path"],
                     "program_sha256": program_snapshot["program_sha256"],
                     "parent_program_id": resolved_parent_program_id,
+                    "prior_sample_equivalent_program_ids": prior_sample_comparison[
+                        "equivalent_reference_program_ids"
+                    ],
                     "universe_policy": UNIVERSE_POLICY_ID,
                     "data_scope": "daily_stock_only",
                     "portfolio_day_coverage": portfolio_coverage["portfolio_day_coverage"],
@@ -539,6 +571,11 @@ def main() -> int:
                 f"- min_required_portfolio_days: `{portfolio_coverage['min_required_portfolio_days']}`",
                 f"- reference_metric_equivalent: `{reference_comparison['metric_equivalent_to_reference']}`",
                 f"- reference_max_abs_metric_delta: `{reference_comparison['max_abs_metric_delta']}`",
+                f"- prior_sample_metric_equivalent: `{prior_sample_comparison['metric_equivalent_to_any_reference']}`",
+                (
+                    "- prior_sample_equivalent_program_ids: `"
+                    f"{prior_sample_comparison['equivalent_reference_program_ids']}`"
+                ),
                 f"- search_sample_sharpe: `{metrics['search_sample']['sharpe']}`",
                 f"- turnover_aware_score: `{metrics['search_sample']['turnover_aware_score']}`",
                 f"- max_weight: `{metrics['search_sample']['max_weight']}`",
@@ -576,6 +613,9 @@ def main() -> int:
                         "program_snapshot_path": program_snapshot["program_snapshot_path"],
                         "program_sha256": program_snapshot["program_sha256"],
                         "parent_program_id": resolved_parent_program_id,
+                        "prior_sample_equivalent_program_ids": prior_sample_comparison[
+                            "equivalent_reference_program_ids"
+                        ],
                         "portfolio_coverage": portfolio_coverage,
                         "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
                         "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),

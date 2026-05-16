@@ -135,6 +135,53 @@ def compare_search_sample_to_reference(
     }
 
 
+def compare_search_sample_to_references(
+    metrics: dict[str, dict[str, float]],
+    reference_summaries: list[dict[str, Any]],
+    *,
+    tolerance: float,
+    metric_names: list[str] | None = None,
+) -> dict[str, Any]:
+    """Compare search-sample metrics with prior child or sibling summaries.
+
+    The seed/parent reference comparison catches no-op children against the
+    parent. This multi-reference comparison catches search replay: a later
+    child may differ from the parent but be indistinguishable from an earlier
+    sibling that already consumed a sample evaluation.
+    """
+
+    comparisons: list[dict[str, Any]] = []
+    equivalent_reference_program_ids: list[str] = []
+    max_abs_delta = 0.0
+    available_count = 0
+
+    for idx, reference_summary in enumerate(reference_summaries):
+        comparison = compare_search_sample_to_reference(
+            metrics,
+            reference_summary,
+            tolerance=tolerance,
+            metric_names=metric_names,
+        )
+        program_id = str(reference_summary.get("program_id") or f"prior_sample_{idx:04d}")
+        comparison["reference_program_id"] = program_id
+        comparisons.append(comparison)
+        if comparison["reference_available"]:
+            available_count += 1
+        max_abs_delta = max(max_abs_delta, float(comparison["max_abs_metric_delta"]))
+        if comparison["metric_equivalent_to_reference"]:
+            equivalent_reference_program_ids.append(program_id)
+
+    return {
+        "reference_count": int(len(reference_summaries)),
+        "reference_available_count": int(available_count),
+        "metric_equivalent_to_any_reference": bool(equivalent_reference_program_ids),
+        "equivalent_reference_program_ids": equivalent_reference_program_ids,
+        "max_abs_metric_delta": float(max_abs_delta),
+        "tolerance": float(tolerance),
+        "comparisons": comparisons,
+    }
+
+
 def max_drawdown(returns: Any) -> float:
     wealth = (1.0 + returns.fillna(0.0)).cumprod()
     peak = wealth.cummax()
@@ -457,6 +504,7 @@ def cost_sensitivity_rows(
 __all__ = [
     "build_forward_returns",
     "compare_search_sample_to_reference",
+    "compare_search_sample_to_references",
     "cost_sensitivity_rows",
     "empty_split_metrics",
     "portfolio_day_coverage_diagnostics",

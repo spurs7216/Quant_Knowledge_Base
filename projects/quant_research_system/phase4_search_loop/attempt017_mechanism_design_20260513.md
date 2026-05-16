@@ -239,4 +239,4 @@ required:
 
 ## Next Step
 
-Run a small remote controller-only mechanism batch after GitHub sync. Do not sample-evaluate automatically; use the new sample-eval eligibility summary first. If no child is target-matched, changes final weights, and avoids known bad dampening families, return only the controller artifact.
+Run a small remote controller-only mechanism batch after GitHub sync. Do not sample-evaluate automatically; use the sample-eval eligibility summary first. If no child is target-matched and changes final weights, return only the controller artifact. Known bad dampening families are prompt/review warnings, not hard sample-eval filters for the next novelty smoke.

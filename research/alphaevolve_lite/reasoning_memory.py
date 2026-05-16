@@ -521,6 +521,44 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-14T00:00:00+00:00",
     },
+    {
+        "source_run_id": "remote_sample_eval_controller_attempt017_27b_card_batch_20260514_attempt_011",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "failure",
+        "memory_type": "failure_guardrail",
+        "title": "Attempt017 industry-neutral rank is negative repeat evidence",
+        "description": "Use for attempt017 ranking or neutralization follow-ups after attempt009 and attempt011.",
+        "content": (
+            "PROG-20260514-A017-MECHFIX-0009 and PROG-20260514-A017-27BCARD-0011 both improved "
+            "turnover, drawdown, breadth, and missing-held behavior, but weakened parent-relative "
+            "return and Sharpe and produced equivalent sample metrics. Do not spend another "
+            "sample evaluation on attempt017 industry_neutral_rank unless the controller child "
+            "beats the occupied MAP-cell elite, changes behavior materially, and is explicitly "
+            "checked against prior sample summaries."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["ranking"],
+            "island": ["neutralization_liquidity", "repair_near_miss"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md"
+            ],
+            "failure_categories": [
+                "sample_metric_equivalent_to_prior_child",
+                "parent_relative_performance_failure",
+                "occupied_map_cell_repeat",
+            ],
+            "attempt_ids": ["attempt_009", "attempt_011"],
+            "program_ids": [
+                "PROG-20260514-A017-MECHFIX-0009",
+                "PROG-20260514-A017-27BCARD-0011",
+            ],
+        },
+        "status": "active",
+        "created_at": "2026-05-15T00:00:00+00:00",
+    },
 ]
 
 

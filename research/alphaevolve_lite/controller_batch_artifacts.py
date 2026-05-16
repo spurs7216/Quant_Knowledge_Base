@@ -6,22 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from .artifact_io import clean_json, write_json
-
-
-SAMPLE_EVAL_ELIGIBILITY_VERSION = "sample_eval_candidate_eligibility_v1"
-KNOWN_BAD_ATTEMPT017_SIGNAL_FAMILIES = {
-    "bounded_tanh_dampening",
-    "clipped_magnitude_dampening",
-}
-
-
-def _as_float(value: Any) -> float | None:
-    if value is None:
-        return None
-    try:
-        return float(value)
-    except (TypeError, ValueError):
-        return None
+from .controller_sample_eval_policy import (
+    SAMPLE_EVAL_ELIGIBILITY_VERSION,
+    compare_to_map_cell_elite,
+    sample_eval_eligibility,
+)
 
 
 def write_messages(path: Path, title: str, messages: dict[str, str]) -> None:
@@ -49,54 +38,6 @@ def write_messages(path: Path, title: str, messages: dict[str, str]) -> None:
         ),
         encoding="utf-8",
     )
-
-
-def sample_eval_eligibility(attempt: dict[str, Any]) -> dict[str, Any]:
-    """Return deterministic sample-eval eligibility for one controller attempt.
-
-    This is not a promotion decision. It prevents controller-static passes from
-    being mistaken for data-backed evaluation candidates when they are off-target,
-    known-bad focused-repair families, or absorbed before final weights.
-    """
-
-    reasons: list[str] = []
-    if attempt.get("decision") != "pass":
-        reasons.append("not_controller_pass")
-    if not attempt.get("child_program_path"):
-        reasons.append("no_child_program")
-    if attempt.get("target_intent_match") is not True:
-        reasons.append("target_intent_not_matched")
-
-    patch_intent = str(attempt.get("patch_intent") or "")
-    target_surface = str(attempt.get("target_surface") or "")
-    if target_surface == "signal" and patch_intent in KNOWN_BAD_ATTEMPT017_SIGNAL_FAMILIES:
-        reasons.append("known_bad_attempt017_signal_dampening_family")
-
-    delta = attempt.get("behavior_delta_metrics", {}) or {}
-    weight_delta = _as_float(delta.get("weight_max_abs_delta"))
-    weight_changed_fraction = _as_float(delta.get("weight_changed_fraction"))
-    if (weight_delta or 0.0) <= 1e-12 and (weight_changed_fraction or 0.0) <= 0.0:
-        reasons.append("no_final_weight_delta")
-
-    metrics = attempt.get("vector_smoke_metrics", {}) or {}
-    active_days = _as_float(metrics.get("active_day_count"))
-    min_long_count = _as_float(metrics.get("min_long_count_active_day"))
-    min_short_count = _as_float(metrics.get("min_short_count_active_day"))
-    if active_days is not None and active_days < 20.0:
-        reasons.append("too_few_controller_active_days")
-    if min_long_count is not None and min_long_count < 3.0:
-        reasons.append("thin_controller_long_book")
-    if min_short_count is not None and min_short_count < 3.0:
-        reasons.append("thin_controller_short_book")
-
-    if attempt.get("hard_gates", {}).get("no_forward_return_replacement") is False:
-        reasons.append("forward_return_field_used")
-
-    return {
-        "sample_eval_eligibility_version": SAMPLE_EVAL_ELIGIBILITY_VERSION,
-        "sample_eval_eligible": not reasons,
-        "sample_eval_eligibility_reasons": reasons,
-    }
 
 
 def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
@@ -314,6 +255,7 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
 
 __all__ = [
     "SAMPLE_EVAL_ELIGIBILITY_VERSION",
+    "compare_to_map_cell_elite",
     "clean_json",
     "sample_eval_eligibility",
     "summarize_attempts",

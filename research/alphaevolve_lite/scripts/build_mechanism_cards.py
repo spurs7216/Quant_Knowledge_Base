@@ -111,8 +111,11 @@ def compact_sample_eval_summary(path: str) -> dict[str, Any]:
 
 
 def build_prompt(args: argparse.Namespace) -> dict[str, str]:
+    from research.alphaevolve_lite.mechanism_cards import mechanism_card_contract_context
+
     controller_summaries = [compact_controller_summary(path) for path in args.controller_summary]
     sample_eval_summaries = [compact_sample_eval_summary(path) for path in args.sample_eval_summary]
+    contract_context = mechanism_card_contract_context()
     notes = []
     for path in args.project_note:
         note_path = Path(path)
@@ -125,13 +128,13 @@ def build_prompt(args: argparse.Namespace) -> dict[str, str]:
         "cards": [
             {
                 "card_id": "short_stable_id",
-                "surface": "signal|ranking|portfolio|risk",
-                "intent": "controller target intent",
+                "surface": "exact allowed surface from contract_context",
+                "intent": "exact allowed intent for that surface from contract_context",
                 "priority": 0.0,
                 "status": "active",
                 "thesis": "why this mechanism is worth one 9B controller attempt",
                 "expected_effect": "observable final-weight or rank effect",
-                "required_data_fields": ["daily_stock field names only"],
+                "required_data_fields": ["exact handles from contract_context.allowed_required_data_fields"],
                 "implementation_hints": ["plain-language hints only, no code"],
                 "avoid": ["known bad or leakage-prone actions"],
                 "sample_eval_hypothesis": "what should improve parent-relative metrics",
@@ -149,11 +152,16 @@ def build_prompt(args: argparse.Namespace) -> dict[str, str]:
         "Rules:\n"
         "- Use only daily_stock_contract_v1 fields and ex-ante information.\n"
         "- Do not use forward-return availability fields or future-return filters.\n"
+        "- Use exact surface and intent names from the contract context; do not invent loose intents.\n"
+        "- Use exact required_data_fields handles such as CONTRACT.industry_primary, CONTRACT.dollar_volume, and signal.\n"
+        "- Do not use loose field names such as industry_code, avg_daily_volume, returns_1d, or signal_raw.\n"
         "- Do not promote attempt009; it improved turnover and missing-held behavior but weakened parent-relative Sharpe/return.\n"
         "- Prefer mechanisms that can improve parent-relative economics while preserving the missing-held and turnover gains.\n"
         "- Avoid no-op portfolio/risk edits and generic signal dampening.\n"
         "- Return at most "
         f"{args.card_limit} cards.\n\n"
+        "Mechanism-card contract context:\n"
+        f"{json.dumps(contract_context, indent=2, sort_keys=True)}\n\n"
         "Required JSON schema:\n"
         f"{json.dumps(schema, indent=2, sort_keys=True)}\n\n"
         "Controller summaries:\n"

@@ -123,6 +123,7 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     _ensure_repo_import()
     from research.alphaevolve_lite.controller_batch_artifacts import (
+        compare_to_map_cell_elite,
         sample_eval_eligibility,
         summarize_attempts,
         write_json,
@@ -134,6 +135,7 @@ def main() -> int:
         filter_patch_with_optional_repair,
     )
     from research.alphaevolve_lite.controller_batch_mocks import mock_patch
+    from research.alphaevolve_lite.controller_sample_eval_policy import controller_quality_score
     from research.alphaevolve_lite.controller_batch_state import (
         load_prior_attempts,
         parse_surface_schedule,
@@ -342,6 +344,7 @@ def main() -> int:
     seen_child_hashes = search_state.seen_child_hashes
     seen_patch_fingerprints = search_state.seen_patch_fingerprints
     occupied_map_cells = search_state.occupied_map_cells
+    map_cell_elite_records = search_state.map_cell_elite_records
     occupied_target_labels_by_surface = search_state.occupied_target_labels_by_surface
     accepted_patches_by_surface = search_state.accepted_patches_by_surface
     prior_seen_child_hash_count = len(seen_child_hashes)
@@ -537,6 +540,7 @@ def main() -> int:
         map_cell_key_value = None
         map_cell_already_occupied = False
         map_cell_elite_program_id = None
+        map_cell_elite_record = None
 
         identity = describe_pass_candidate(
             result=result,
@@ -803,9 +807,11 @@ def main() -> int:
                 if patch_fingerprint is not None:
                     seen_patch_fingerprints[str(patch_fingerprint)] = program_id_for_seen
                 if map_cell_key_value:
+                    map_cell_elite_record = map_cell_elite_records.get(map_cell_key_value)
                     map_cell_already_occupied = map_cell_key_value in occupied_map_cells
                     map_cell_elite_program_id = occupied_map_cells.get(map_cell_key_value)
-                    occupied_map_cells.setdefault(map_cell_key_value, program_id_for_seen)
+                    if not map_cell_already_occupied:
+                        occupied_map_cells[map_cell_key_value] = program_id_for_seen
                 actual_target_label = f"{target_surface}:{diversity_descriptor.get('patch_intent', 'unknown')}"
                 occupied_labels = occupied_target_labels_by_surface.setdefault(target_surface, set())
                 occupied_labels.add(diversity_target.cell_label)
@@ -834,6 +840,21 @@ def main() -> int:
         if result.decision == "pass" and result.child_text is not None:
             child_path = attempt_dir / "child_program.py"
             child_path.write_text(result.child_text, encoding="utf-8")
+        map_cell_elite_comparison: dict[str, Any] = {}
+        if result.decision == "pass" and map_cell_already_occupied:
+            comparison_attempt_record = dict(result_record)
+            comparison_attempt_record.update(
+                {
+                    "program_id": program_id,
+                    "controller_search_score": controller_search_score,
+                    "child_sha256": child_hash,
+                    "patch_fingerprint": patch_fingerprint,
+                }
+            )
+            map_cell_elite_comparison = compare_to_map_cell_elite(
+                comparison_attempt_record,
+                map_cell_elite_record,
+            )
 
         db_inserted = False
         if args.db_path:
@@ -884,6 +905,7 @@ def main() -> int:
                             "map_cell_key": map_cell_key_value,
                             "map_cell_already_occupied": map_cell_already_occupied,
                             "map_cell_elite_program_id": map_cell_elite_program_id,
+                            **map_cell_elite_comparison,
                             **diversity_descriptor,
                             "repair_attempted": repair_attempted,
                             "repair_succeeded": repair_succeeded,
@@ -939,6 +961,7 @@ def main() -> int:
                 "map_cell_key": map_cell_key_value,
                 "map_cell_already_occupied": map_cell_already_occupied,
                 "map_cell_elite_program_id": map_cell_elite_program_id,
+                **map_cell_elite_comparison,
                 **diversity_descriptor,
                 "initial_response_content_was_null": bool(initial_response_record.get("content_was_null", False)),
                 "initial_response_content_length": len(str(initial_response_record.get("content", "") or "")),
@@ -966,6 +989,11 @@ def main() -> int:
             }
         )
         result_record.update(sample_eval_eligibility(result_record))
+        if result.decision == "pass" and map_cell_key_value:
+            current_elite = map_cell_elite_records.get(map_cell_key_value)
+            if current_elite is None or controller_quality_score(result_record) > controller_quality_score(current_elite):
+                map_cell_elite_records[map_cell_key_value] = dict(result_record)
+                occupied_map_cells[map_cell_key_value] = program_id
         write_json(attempt_dir / "micro_filter_result.json", result_record)
         if population_policy_enabled:
             population_policy_state.record_attempt(result_record, final_diff_text=final_diff_text)

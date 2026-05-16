@@ -5,11 +5,41 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from dataclasses import fields
 from pathlib import Path
 from typing import Any, Iterable
 
+from .daily_stock_contract import DailyStockContract
+from .diversity import DIVERSITY_TARGETS
+
 
 MECHANISM_CARD_SCHEMA_VERSION = "phase4_mechanism_cards_v1"
+
+VALID_MECHANISM_SURFACES = frozenset({"any", *DIVERSITY_TARGETS.keys()})
+VALID_MECHANISM_INTENTS_BY_SURFACE = {
+    surface: frozenset({"any", *(target.intent for target in targets)})
+    for surface, targets in DIVERSITY_TARGETS.items()
+}
+VALID_MECHANISM_INTENTS_BY_SURFACE["any"] = frozenset(
+    {"any", *(target.intent for targets in DIVERSITY_TARGETS.values() for target in targets)}
+)
+LOCAL_MECHANISM_DATA_FIELDS = frozenset(
+    {
+        "signal",
+        "ranked_signal",
+        "weight",
+        "weights",
+        "final_weight",
+    }
+)
+CONTRACT_MECHANISM_DATA_FIELDS = frozenset(
+    f"CONTRACT.{field.name}"
+    for field in fields(DailyStockContract)
+    if field.name not in {"contract_id", "evidence_path"}
+)
+ALLOWED_MECHANISM_DATA_FIELDS = frozenset(
+    LOCAL_MECHANISM_DATA_FIELDS | CONTRACT_MECHANISM_DATA_FIELDS
+)
 
 
 def extract_json_object(text: str) -> dict[str, Any]:
@@ -40,6 +70,13 @@ def normalize_mechanism_card(card: dict[str, Any]) -> dict[str, Any]:
     thesis = _compact_text(card.get("thesis") or card.get("rationale") or "")
     if not surface or not intent or not thesis:
         raise ValueError("mechanism card requires surface, intent, and thesis")
+    _validate_surface_intent(surface, intent)
+    required_data_fields = _as_string_list(card.get("required_data_fields"))
+    invalid_data_fields = sorted(set(required_data_fields) - ALLOWED_MECHANISM_DATA_FIELDS)
+    if invalid_data_fields:
+        allowed = ", ".join(sorted(ALLOWED_MECHANISM_DATA_FIELDS))
+        bad = ", ".join(invalid_data_fields)
+        raise ValueError(f"mechanism card uses unknown data fields: {bad}; allowed: {allowed}")
     record = {
         "card_id": str(card.get("card_id") or _stable_card_id(surface, intent, thesis)),
         "surface": surface,
@@ -49,7 +86,7 @@ def normalize_mechanism_card(card: dict[str, Any]) -> dict[str, Any]:
         "thesis": thesis,
         "expected_effect": _compact_text(card.get("expected_effect")),
         "implementation_hints": _as_string_list(card.get("implementation_hints")),
-        "required_data_fields": _as_string_list(card.get("required_data_fields")),
+        "required_data_fields": required_data_fields,
         "avoid": _as_string_list(card.get("avoid")),
         "sample_eval_hypothesis": _compact_text(card.get("sample_eval_hypothesis")),
         "evidence": card.get("evidence", {}) if isinstance(card.get("evidence", {}), dict) else {},
@@ -69,6 +106,24 @@ def normalize_mechanism_cards(payload: dict[str, Any]) -> dict[str, Any]:
         "cards": cards,
         "source_model": payload.get("source_model"),
         "review_summary": _compact_text(payload.get("review_summary")),
+    }
+
+
+def mechanism_card_contract_context() -> dict[str, Any]:
+    """Return the exact surface, intent, and field vocabulary for card prompts."""
+
+    return {
+        "schema_version": MECHANISM_CARD_SCHEMA_VERSION,
+        "allowed_surfaces": sorted(VALID_MECHANISM_SURFACES),
+        "allowed_intents_by_surface": {
+            surface: sorted(intents)
+            for surface, intents in sorted(VALID_MECHANISM_INTENTS_BY_SURFACE.items())
+        },
+        "allowed_required_data_fields": sorted(ALLOWED_MECHANISM_DATA_FIELDS),
+        "field_handle_rule": (
+            "Use exact handles like CONTRACT.industry_primary and CONTRACT.dollar_volume, "
+            "not loose names like industry_code, avg_daily_volume, returns_1d, or signal_raw."
+        ),
     }
 
 
@@ -146,6 +201,18 @@ def _stable_card_id(surface: str, intent: str, thesis: str) -> str:
     return "mech_" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
+def _validate_surface_intent(surface: str, intent: str) -> None:
+    if surface not in VALID_MECHANISM_SURFACES:
+        allowed = ", ".join(sorted(VALID_MECHANISM_SURFACES))
+        raise ValueError(f"mechanism card surface must be one of {allowed}; got {surface}")
+    allowed_intents = VALID_MECHANISM_INTENTS_BY_SURFACE[surface]
+    if intent not in allowed_intents:
+        allowed = ", ".join(sorted(allowed_intents))
+        raise ValueError(
+            f"mechanism card intent for surface {surface} must be one of {allowed}; got {intent}"
+        )
+
+
 def _compact_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "").strip())
 
@@ -167,8 +234,14 @@ def _as_float(value: Any, *, default: float) -> float:
 
 
 __all__ = [
+    "ALLOWED_MECHANISM_DATA_FIELDS",
+    "CONTRACT_MECHANISM_DATA_FIELDS",
+    "LOCAL_MECHANISM_DATA_FIELDS",
     "MECHANISM_CARD_SCHEMA_VERSION",
+    "VALID_MECHANISM_INTENTS_BY_SURFACE",
+    "VALID_MECHANISM_SURFACES",
     "extract_json_object",
+    "mechanism_card_contract_context",
     "mechanism_card_ids",
     "normalize_mechanism_cards",
     "read_mechanism_cards",

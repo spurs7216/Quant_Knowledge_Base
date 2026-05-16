@@ -403,6 +403,39 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
         },
         "created_at": "2026-05-14T00:00:00+00:00",
     },
+    {
+        "skill_name": "Avoid repeated attempt017 industry-neutral rank",
+        "skill_type": "avoid_strategy",
+        "confidence": "avoid",
+        "status": "active",
+        "pattern": (
+            "Attempt017 ranking/industry_neutral_rank children repeat the attempt009 mechanism or "
+            "sample metrics while weakening parent-relative return and Sharpe."
+        ),
+        "strategy": (
+            "Prefer an underfilled non-industry-neutral mechanism cell. If industry_neutral_rank is "
+            "proposed again, require occupied-MAP-cell elite improvement, material behavior difference, "
+            "and prior-sample equivalence checks before sample evaluation."
+        ),
+        "prompt_rule": (
+            "Do not use industry_neutral_rank as the main attempt017 mechanism after attempt009/attempt011; "
+            "choose an underfilled non-industry-neutral cell unless the patch is explicitly different and "
+            "prior sample equivalence is checked."
+        ),
+        "applicability": {
+            "source_stage": ["controller_static", "remote_sample_eval"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["ranking"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 2,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md"
+            ],
+        },
+        "created_at": "2026-05-15T00:00:00+00:00",
+    },
 ]
 
 

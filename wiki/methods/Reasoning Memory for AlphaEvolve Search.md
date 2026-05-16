@@ -2,7 +2,7 @@
 title: Reasoning Memory for AlphaEvolve Search
 type: method
 status: active
-updated: 2026-05-04
+updated: 2026-05-15
 tags:
   - method
   - alphaevolve
@@ -153,6 +153,8 @@ which artifact proves it
 ```
 
 Then retrieve only the relevant active lessons for the next prompt.
+
+When a sample-evaluated child repeats a prior sibling, store the lesson as negative memory even if some diagnostics improved. The memory should distinguish "this mechanism is impossible" from "this parent/branch has already spent sample-eval budget on this mechanism without promotion evidence." For example, a repeated attempt017 `industry_neutral_rank` child is an avoid lesson for that branch unless it beats the occupied MAP-cell elite and is not metric-equivalent to prior sibling summaries.
 
 ## Related Notes
 

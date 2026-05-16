@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-14
+updated: 2026-05-15
 tags:
   - project
   - phase4
@@ -43,6 +43,9 @@ sources:
   - "controller_attempt017_mechanism_rerun_remote_instructions_20260514.md"
   - "controller_attempt017_mechanism_rerun_review_20260514.md"
   - "controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md"
+  - "remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md"
+  - "sample_eval_novelty_hardening_20260515.md"
+  - "controller_attempt017_novelty_smoke_remote_instructions_20260516.md"
 ---
 # Phase 4 Current State
 
@@ -81,7 +84,7 @@ The focused attempt017 round generated one target-matched child worth sample eva
 
 The local search-control patch was tested in `controller_attempt017_search_control_rerun_20260511`. The controller path is healthy, but the batch did not produce a sample-eval candidate. Four children passed controller-static gates; two were off-target, and the two target-matched passes did not change final portfolio weights. The only material portfolio-delta signal child was another generic magnitude dampener, which remains negative evidence for the attempt017 branch.
 
-The better next research move is documented in [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md) and wired into the controller vocabulary. The new target families are daily-stock-only mechanisms with plausible final-weight effects: liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled risk caps. Controller summaries now also report deterministic sample-eval eligibility so off-target, no-final-weight-delta, and known-bad dampening children are not accidentally treated as evaluation candidates.
+The better next research move is documented in [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md) and wired into the controller vocabulary. The new target families are daily-stock-only mechanisms with plausible final-weight effects: liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled risk caps. Controller summaries now also report deterministic sample-eval eligibility so off-target and no-final-weight-delta children are not accidentally treated as evaluation candidates.
 
 The first mechanism batch, reviewed in [controller_attempt017_mechanism_batch_review_20260514.md](controller_attempt017_mechanism_batch_review_20260514.md), produced exactly one sample-eval-eligible child, `PROG-20260513-A017-MECH-0007`, and the remote operator evaluated only that child. The controller selection rule worked, but the child was not promotable: it was worse than attempt017 on Sharpe, annualized return, turnover-aware score, drawdown, and missing-held exposure. The batch also exposed a controller prompt/smoke problem: portfolio, ranking, and risk mechanism patches often tried to read daily-stock fields from local frames that do not carry those columns.
 
@@ -89,7 +92,7 @@ The local repair is now implemented in [controller_prompt_smoke_repair_20260514.
 
 The mechanism rerun, reviewed in [controller_attempt017_mechanism_rerun_review_20260514.md](controller_attempt017_mechanism_rerun_review_20260514.md), produced one sample-eval-eligible child, `PROG-20260514-A017-MECHFIX-0009`. The child was an industry-neutral ranking mechanism that correctly used `panel.loc[group.index, CONTRACT.industry_primary]` and materially changed the book. It improved turnover, drawdown, breadth, and missing-held behavior versus attempt017, but weakened parent-relative annualized return and Sharpe and had a negative train Sharpe. It is useful evidence, not a promotion.
 
-The next search move is 27B-assisted but not 27B-direct-code. `Qwen/Qwen3.5-27B-FP8` should synthesize attempt017, attempt007, attempt009, and controller diagnostics into JSON mechanism cards. `Qwen/Qwen3.5-9B` should then generate strict SEARCH/REPLACE children conditioned on those cards. The code now supports this through `build_mechanism_cards.py`, `--mechanism-card-path`, and prompt-side medium-model mechanism-card injection.
+The 27B-card batch follow-up is reviewed in [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md). Its sample-evaluated child repeated the prior attempt009 industry-neutral ranking mechanism closely enough that it should be treated as occupied-cell replay, not new alpha evidence. The follow-up hardening is documented in [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md): controller sample-eval eligibility now requires occupied-MAP-cell elite comparison, remote sample eval can compare against prior sibling summaries, mechanism cards must use exact surfaces/intents/data-field handles, and reasoning memory now carries the negative repeat lesson.
 
 The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
@@ -101,7 +104,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_27b_mechanism_cards_then_9b_controller_batch_after_sync
+next_stage: remote_controller_only_novelty_smoke_after_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -179,7 +182,7 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `controller_evaluator_hardening_smoke_20260510` | 2/6 controller pass, 4/6 exact smoke no-op rejects, no duplicate rejects, parent-offspring accounting correct, MAP delta buckets reported. The only nontrivial child, attempt004, sample-reviewed worse than attempt017 and still failed max missing-held-weight at 0.12. | The no-op gate is useful. Do not promote or further evaluate this batch. Fix child sample-eval lineage and signal intent classification before the next remote run. |
 | `controller_attempt017_focused_round_20260511` | 3/12 controller pass, 7 behavioral no-op rejects, one exact-search failure, one near-duplicate reject, no empty Qwen output, DB insert 1.0. The only target-matched child, `PROG-20260511-A017-FOCUS-0000`, improved missing-held weight but failed parent-relative performance and turnover-aware criteria badly in sample eval. | Missing-held-weight improvement alone is not alpha evidence. Treat generic signal dampening as controller-safe but market-unproven/negative for the attempt017 branch. Patch prompt/memory to require preservation of parent-relative return and turnover-aware score before another focused run. |
 | `attempt017_search_control_patch_20260511` | Local prompt, reasoning-memory, and skill-library defaults now carry the negative attempt017 repair lesson. Retrieval checks confirm signal prompts retrieve the generic-dampening avoid rule and portfolio/risk prompts retrieve final-weight no-op guardrails. | The next remote action can be a small focused controller-only rerun after GitHub sync. Sample-evaluate at most one target-matched, behaviorally nontrivial child with plausible parent-relative economics. |
-| `controller_attempt017_search_control_rerun_20260511` | 4/12 controller pass, no empty Qwen output, no duplicate child rejects, DB insert 1.0, but 6 behavioral no-op rejects, 1 exact-search failure, 1 near-duplicate patch, and 2 target-intent mismatch passes. The target-matched passes had no final-weight delta. | Do not sample-evaluate this batch. Prompt memory alone is not enough; add deterministic sample-eval eligibility gates for target-intent match and final-weight effect, and harden avoid-skill handling for known-bad focused repair families. |
+| `controller_attempt017_search_control_rerun_20260511` | 4/12 controller pass, no empty Qwen output, no duplicate child rejects, DB insert 1.0, but 6 behavioral no-op rejects, 1 exact-search failure, 1 near-duplicate patch, and 2 target-intent mismatch passes. The target-matched passes had no final-weight delta. | Do not sample-evaluate this batch. Prompt memory alone is not enough; add deterministic sample-eval eligibility gates for target-intent match and final-weight effect. Treat known-bad focused repair families as prompt/review warnings, not hard sample-eval filters for the next novelty smoke. |
 | `attempt017_mechanism_design_20260513` | Attempt017 evidence was translated into concrete daily-stock-only mechanisms: portfolio liquidity weighting, signal persistence gating, industry-neutral ranking, liquidity-adjusted reversal confidence, and liquidity-scaled caps. The target vocabulary, intent classifier, prompt guidance, and sample-eval eligibility summary are patched locally. | Stop asking Qwen for generic dampeners. Give it mechanism targets that use ex-ante price, volume, dollar-volume, market-cap, status, exchange, or industry fields and should affect final weights. |
 | `controller_attempt017_mechanism_batch_20260513` plus attempt007 sample eval | 5/12 controller pass, target-intent match 1.0, no duplicate pressure, but vector smoke and portfolio semantic pass rates were only 0.5. The only sample-eval candidate, `PROG-20260513-A017-MECH-0007`, was broad and non-equivalent but worse than attempt017 on parent-relative Sharpe, return, turnover-aware score, drawdown, and missing-held exposure. | The controller eligibility rule worked, but the mechanism prompt did not specify local data-scope contracts for each EVOLVE block. Repair prompt/smoke fixtures before another remote generation batch. |
 | `controller_prompt_smoke_repair_20260514` | Local prompt/smoke repair implemented surface-local data-access guidance, panel.loc repair prompts, multi-industry and wider-liquidity smoke fixtures, active reasoning memory, high-confidence skill rule, and remote Git hygiene policy. Local checks passed. | After GitHub sync, run one small controller-only rerun focused on direct portfolio/risk/ranking mechanisms. Sample-evaluate at most one eligible direct-mechanism child. |
@@ -216,7 +219,7 @@ Keep these lessons in future prompt and controller design:
 - Missing-held-weight repairs must not use evaluator-only forward-return availability fields such as `fwd_ret`, `fwd_date`, `fwd_vwretd`, `next_market_date`, or `one_day_forward`.
 - Improving missing-held weight alone is not promotion evidence. `PROG-20260511-A017-FOCUS-0000` improved that diagnostic but failed parent-relative performance and turnover-aware criteria badly.
 - Generic signal dampening (`bounded_tanh_dampening`, `clipped_magnitude_dampening`) can create controller-visible portfolio deltas without improving alpha. Treat it as market-unproven and now negative evidence for the attempt017 branch unless it also improves parent-relative economics.
-- Avoid skills are currently prompt guidance, not hard filters. The search-control rerun still generated clipped magnitude dampening despite retrieving the avoid skill, so focused repair mode needs deterministic eligibility or rejection rules for known-bad patch families.
+- Avoid skills are currently prompt guidance, not hard filters. The search-control rerun still generated clipped magnitude dampening despite retrieving the avoid skill, so focused repair mode should surface that as review context rather than silently treating the family as alpha evidence.
 - Target-matched controller passes can still be useless if final weights are unchanged. For sample-eval eligibility, require target-intent match plus final-weight delta or an explicit pre-declared reason why raw-signal/ranking changes should matter in full data.
 - Mechanism prompts must name the surface-local data-access contract. Portfolio and risk blocks may have `panel` available but local `data`, `group`, or `valid` frames may not include `CONTRACT.dollar_volume`, `CONTRACT.volume`, `CONTRACT.market_cap`, or industry fields. Use `panel.loc[index, CONTRACT.field]` with aligned indices when the local frame lacks the field.
 - Controller smoke fixtures must exercise the mechanism being targeted. A one-industry smoke panel cannot prove that industry neutralization affects final weights, and a smoke panel that only checks generic pass/fail can miss data-scope prompt defects.
@@ -240,44 +243,52 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not test evaluation. The first 27B mechanism-card run
-started correctly after raising the serving context to 16384, but `model_response.json` recorded
-`prompt_tokens: 8143`, `completion_tokens: 1536`, and `finish_reason: length`; the JSON was
-truncated mid-card rather than truly malformed. After GitHub sync, rerun the 27B-assisted
-mechanism-card workflow in
-[controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md)
-with the corrected 27B context and completion settings.
+The next step is not broad validation and not test evaluation. After GitHub sync, run a small
+controller-only novelty smoke from the latest code before spending another sample evaluation.
+The smoke should use prior controller summaries so occupied MAP cells are seeded. Do not actively
+schedule `ranking/industry_neutral_rank`; local tests cover that occupied-cell guard, and a live
+remote negative-control cell is not needed for this proof run.
+For this next smoke, exclude the whole `ranking` surface from the generation schedule. Treat
+ranking as a duplicate/replay-heavy area until the novelty guard is proven on cleaner
+underfilled cells.
+Make this a six-attempt proof run, not a larger candidate batch. Inspect the controller artifact
+before deciding whether to run a larger controller-only batch.
 
 ```yaml
 next_remote_run:
-  type: qwen27b_mechanism_cards_then_qwen9b_controller_batch
+  type: qwen9b_controller_only_novelty_smoke
   parent: PROG-20260430-CHILD-0017
-  reviewer_model: Qwen3.5-27B-FP8
   generator_model: Qwen3.5-9B
-  medium_model_output: JSON mechanism cards only
-  reviewer_serving:
-    max_model_len_minimum: 16384
-    gpu_memory_utilization: 0.90
-    build_mechanism_cards_max_tokens: 4096
+  reviewer_model: none
+  attempt_count: 6
+  surface_schedule: portfolio,portfolio,risk,risk,signal,signal
   preferred_surfaces:
-    - ranking/industry_neutral_rank
     - portfolio/liquidity_weighted_sides
     - portfolio/persistence_trade_gate
     - risk/liquidity_scaled_cap
+    - signal/liquidity_adjusted_reversal
+  excluded_surfaces:
+    - ranking
   sample_eval_limit_after_review: 0_or_1
+  sample_eval_only_if:
+    - controller artifact reviewed locally
+    - sample_eval_eligible is true under sample_eval_candidate_eligibility_v2
+    - occupied MAP cell, if any, beat and differs from elite
+    - remote_sample_eval command includes prior sibling --prior-sample-summary inputs
   broad_validation: false
   full_validation: false
 starting_evidence:
   - controller_attempt017_mechanism_batch_20260513
   - controller_attempt017_mechanism_rerun_20260514
   - remote_sample_eval_controller_attempt017_mechanism_rerun_20260514_attempt_009
-structural_lead: "attempt_017 causal signal smoothing"
-main_defect_to_check: "mechanism cards propose ways to keep attempt009 implementation-shape gains without sacrificing attempt017 parent-relative return and Sharpe"
+  - remote_sample_eval_controller_attempt017_27b_card_batch_20260514_attempt_011
+structural_lead: "underfilled non-industry-neutral mechanism cells"
+main_defect_to_check: "controller selection should not spend a sample eval on occupied/equivalent siblings"
 checks_to_inspect:
-  - mechanism_cards.json is valid JSON and contains no code patches
-  - 9B prompts include mechanism_card_ids
+  - sample_eval_eligibility_version is sample_eval_candidate_eligibility_v2
+  - occupied MAP cells include elite comparison fields
+  - no ranking attempts are scheduled
   - controller artifact records git_head_matches_origin_main
-  - sample eval artifacts include program_snapshot.py and program_sha256
   - no-final-weight-delta passes stay sample-eval ineligible
 test_set_used: false
 ```
@@ -288,9 +299,11 @@ Required evaluator behavior before that run:
 remote_sample_eval_hardening:
   active_portfolio_day_coverage_gate: true
   optional_reference_metric_equivalence_gate: true
+  optional_prior_sample_metric_equivalence_gate: true
   exposure_diagnostics_reported: true
   report_sample_coverage: true
   report_reference_comparison: true
+  report_prior_sample_comparison: true
 ```
 
 After the hardening smoke passes, the focused loop should generate only a small number of children. It should either mutate the `attempt_017` child directly or use it as prompt evidence, but it must treat `attempt_017` as `sample_review`, not as a promoted parent.
@@ -304,6 +317,6 @@ Controller smoke-test Sharpe must not be used as alpha evidence. It is only an i
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
-- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md)
-- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md)
+- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

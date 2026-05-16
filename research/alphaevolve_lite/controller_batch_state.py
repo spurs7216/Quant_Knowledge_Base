@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Iterable
 
+from .controller_sample_eval_policy import controller_quality_score
+
 
 @dataclass
 class ControllerSearchState:
@@ -15,6 +17,7 @@ class ControllerSearchState:
     seen_child_hashes: dict[str, str] = field(default_factory=dict)
     seen_patch_fingerprints: dict[str, str] = field(default_factory=dict)
     occupied_map_cells: dict[str, str] = field(default_factory=dict)
+    map_cell_elite_records: dict[str, dict[str, Any]] = field(default_factory=dict)
     occupied_target_labels_by_surface: dict[str, set[str]] = field(default_factory=dict)
     accepted_patches_by_surface: dict[str, list[str]] = field(default_factory=dict)
     prior_attempt_count: int = 0
@@ -75,7 +78,11 @@ def seed_controller_search_state(prior_attempts: Iterable[dict[str, Any]]) -> Co
             state.seen_patch_fingerprints.setdefault(str(patch_fingerprint), program_id)
         map_cell_key = attempt.get("map_cell_key")
         if map_cell_key:
-            state.occupied_map_cells.setdefault(str(map_cell_key), program_id)
+            key = str(map_cell_key)
+            current_elite = state.map_cell_elite_records.get(key)
+            if current_elite is None or controller_quality_score(attempt) > controller_quality_score(current_elite):
+                state.occupied_map_cells[key] = program_id
+                state.map_cell_elite_records[key] = dict(attempt)
 
         surface = attempt.get("target_surface")
         patch_intent = attempt.get("patch_intent")
