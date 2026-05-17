@@ -2,12 +2,43 @@ from __future__ import annotations
 
 import unittest
 
+from research.alphaevolve_lite.controller_batch_state import (
+    parse_target_cell_schedule,
+    target_cell_for_attempt,
+)
 from research.alphaevolve_lite.controller_sample_eval_policy import (
     compare_to_map_cell_elite,
     sample_eval_eligibility,
 )
 from research.alphaevolve_lite.mechanism_cards import normalize_mechanism_cards
 from research.alphaevolve_lite.sample_eval_metrics import compare_search_sample_to_references
+
+
+class TargetCellScheduleTests(unittest.TestCase):
+    def test_forced_target_cell_schedule_cycles_exact_surface_and_intent(self) -> None:
+        schedule = parse_target_cell_schedule(
+            "portfolio/liquidity_weighted_sides,risk/liquidity_scaled_cap",
+            available_surfaces={"signal", "ranking", "portfolio", "risk"},
+        )
+
+        first = target_cell_for_attempt(0, schedule)
+        second = target_cell_for_attempt(1, schedule)
+        third = target_cell_for_attempt(2, schedule)
+
+        self.assertEqual(first.surface, "portfolio")
+        self.assertEqual(first.intent, "liquidity_weighted_sides")
+        self.assertEqual(first.cell_label, "portfolio:liquidity_weighted_sides")
+        self.assertEqual(second.surface, "risk")
+        self.assertEqual(second.intent, "liquidity_scaled_cap")
+        self.assertEqual(third.surface, "portfolio")
+        self.assertEqual(third.intent, "liquidity_weighted_sides")
+
+    def test_forced_target_cell_schedule_rejects_unknown_intent_before_generation(self) -> None:
+        with self.assertRaises(ValueError):
+            parse_target_cell_schedule(
+                "portfolio/industry_neutral_rank",
+                available_surfaces={"signal", "ranking", "portfolio", "risk"},
+            )
 
 
 class SampleEvalEligibilityTests(unittest.TestCase):

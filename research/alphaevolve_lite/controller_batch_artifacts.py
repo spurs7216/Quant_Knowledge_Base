@@ -71,6 +71,20 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
     empty_retry_successes = [item for item in empty_retries if item.get("empty_retry_succeeded")]
     duplicate_retries = [item for item in attempts if item.get("duplicate_retry_attempted")]
     duplicate_retry_successes = [item for item in duplicate_retries if item.get("duplicate_retry_succeeded")]
+    duplicate_retry_terminal_categories = {
+        str(category): sum(
+            1
+            for item in duplicate_retries
+            if item.get("duplicate_retry_terminal_failure_category") == category
+        )
+        for category in sorted(
+            {
+                item.get("duplicate_retry_terminal_failure_category")
+                for item in duplicate_retries
+                if item.get("duplicate_retry_terminal_failure_category")
+            }
+        )
+    }
     map_cells = {
         item.get("map_cell_key")
         for item in attempts
@@ -140,6 +154,7 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "duplicate_retry_success_rate": (
             len(duplicate_retry_successes) / len(duplicate_retries) if duplicate_retries else 0.0
         ),
+        "duplicate_retry_terminal_failure_categories": duplicate_retry_terminal_categories,
         "map_cell_count": len(map_cells),
         "map_cell_duplicate_count": sum(1 for item in attempts if item.get("map_cell_already_occupied")),
         "failure_categories": {
@@ -189,6 +204,8 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- behavioral_noop_count: `{summary['behavioral_noop_count']}`",
         f"- duplicate_retry_attempt_rate: `{summary['duplicate_retry_attempt_rate']}`",
         f"- duplicate_retry_success_rate: `{summary['duplicate_retry_success_rate']}`",
+        f"- duplicate_retry_terminal_failure_categories: "
+        f"`{summary.get('duplicate_retry_terminal_failure_categories', {})}`",
         f"- map_cell_count: `{summary['map_cell_count']}`",
         f"- map_cell_duplicate_count: `{summary['map_cell_duplicate_count']}`",
         f"- db_insert_pass_rate: `{summary['db_insert_pass_rate']}`",
@@ -197,6 +214,8 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         lines.extend(
             [
                 f"- surface_schedule: `{summary.get('surface_schedule')}`",
+                f"- target_cell_schedule_enabled: `{summary.get('target_cell_schedule_enabled', False)}`",
+                f"- target_cell_schedule: `{summary.get('target_cell_schedule', [])}`",
                 f"- git_commit: `{summary.get('git_commit')}`",
                 f"- git_origin_main_commit: `{summary.get('git_origin_main_commit')}`",
                 f"- git_head_matches_origin_main: `{summary.get('git_head_matches_origin_main')}`",

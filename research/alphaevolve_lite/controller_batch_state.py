@@ -8,6 +8,26 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .controller_sample_eval_policy import controller_quality_score
+from .diversity import DIVERSITY_TARGETS, DiversityTarget
+
+
+@dataclass(frozen=True)
+class ControllerTargetCell:
+    """One exact surface/intent target requested by a controller batch caller."""
+
+    surface: str
+    target: DiversityTarget
+
+    @property
+    def cell_label(self) -> str:
+        return self.target.cell_label
+
+    @property
+    def intent(self) -> str:
+        return self.target.intent
+
+    def to_cli_value(self) -> str:
+        return f"{self.surface}/{self.intent}"
 
 
 @dataclass
@@ -37,6 +57,73 @@ def parse_surface_schedule(raw_schedule: str, *, available_surfaces: Iterable[st
         bad = ", ".join(invalid)
         raise ValueError(f"surface schedule contains unknown surfaces: {bad}; allowed: {allowed}")
     return schedule
+
+
+def parse_target_cell_schedule(
+    raw_schedule: str,
+    *,
+    available_surfaces: Iterable[str],
+) -> tuple[ControllerTargetCell, ...]:
+    """Parse exact ``surface/intent`` cells for deterministic controller targeting."""
+
+    if not raw_schedule.strip():
+        return ()
+
+    available = set(available_surfaces)
+    cells: list[ControllerTargetCell] = []
+    for raw_part in raw_schedule.split(","):
+        part = raw_part.strip()
+        if not part:
+            continue
+        surface, intent = _split_target_cell(part)
+        if surface not in available:
+            allowed = ", ".join(sorted(available))
+            raise ValueError(
+                f"target-cell schedule contains unknown surface {surface!r}; allowed surfaces: {allowed}"
+            )
+        targets = DIVERSITY_TARGETS.get(surface)
+        if not targets:
+            raise ValueError(f"target-cell schedule cannot force intents for surface {surface!r}")
+        target_by_intent = {target.intent: target for target in targets}
+        try:
+            target = target_by_intent[intent]
+        except KeyError as exc:
+            allowed = ", ".join(sorted(target_by_intent))
+            raise ValueError(
+                f"target-cell schedule contains unknown intent {intent!r} for surface {surface!r}; "
+                f"allowed intents: {allowed}"
+            ) from exc
+        cells.append(ControllerTargetCell(surface=surface, target=target))
+    if not cells:
+        raise ValueError("target-cell schedule must include at least one surface/intent cell")
+    return tuple(cells)
+
+
+def target_cell_for_attempt(
+    attempt_index: int,
+    target_cell_schedule: tuple[ControllerTargetCell, ...],
+) -> ControllerTargetCell:
+    """Return the exact forced target cell for an attempt, cycling the schedule."""
+
+    if not target_cell_schedule:
+        raise ValueError("target-cell schedule must include at least one cell")
+    return target_cell_schedule[attempt_index % len(target_cell_schedule)]
+
+
+def _split_target_cell(raw_cell: str) -> tuple[str, str]:
+    if "/" in raw_cell:
+        surface, intent = raw_cell.split("/", 1)
+    elif ":" in raw_cell:
+        surface, intent = raw_cell.split(":", 1)
+    else:
+        raise ValueError(
+            f"target-cell schedule item {raw_cell!r} must use surface/intent or surface:intent"
+        )
+    surface = surface.strip()
+    intent = intent.strip()
+    if not surface or not intent:
+        raise ValueError(f"target-cell schedule item {raw_cell!r} has an empty surface or intent")
+    return surface, intent
 
 
 def load_prior_attempts(summary_paths: Iterable[str | Path]) -> list[dict[str, Any]]:
@@ -108,7 +195,10 @@ def _read_patch_text(raw_path: Any) -> str | None:
 
 __all__ = [
     "ControllerSearchState",
+    "ControllerTargetCell",
     "load_prior_attempts",
     "parse_surface_schedule",
+    "parse_target_cell_schedule",
     "seed_controller_search_state",
+    "target_cell_for_attempt",
 ]

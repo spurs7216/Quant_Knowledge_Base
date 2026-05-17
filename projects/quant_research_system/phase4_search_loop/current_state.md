@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-15
+updated: 2026-05-17
 tags:
   - project
   - phase4
@@ -46,6 +46,9 @@ sources:
   - "remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md"
   - "sample_eval_novelty_hardening_20260515.md"
   - "controller_attempt017_novelty_smoke_remote_instructions_20260516.md"
+  - "controller_attempt017_novelty_smoke_review_20260517.md"
+  - "forced_target_cell_schedule_patch_20260517.md"
+  - "controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md"
 ---
 # Phase 4 Current State
 
@@ -96,6 +99,10 @@ The 27B-card batch follow-up is reviewed in [remote_sample_eval_controller_attem
 
 The CodeEvolve, ShinkaEvolve, and ThetaEvolve readthrough confirms that duplicate and lazy-output issues should be treated as population/database policy problems, not only prompt wording problems. `controller_population_policy_v2` is the active controller policy: it tracks parent offspring counts, surface/intent saturation, prompt-card duplicate rates, prompt-card fitness, deterministic lazy penalties for invalid/duplicate/off-target outputs, and edit-signature near duplicates before market evaluation.
 
+The controller-only novelty smoke, reviewed in [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), passed as an infrastructure proof but produced zero sample-eval candidates. It confirmed clean Git reproducibility, eligibility-v2 fields, no ranking attempts, no automatic sample eval, no empty Qwen outputs, no-final-weight no-op rejection, and occupied-MAP-cell elite comparison. It also exposed a target-routing gap: the remote command forced surfaces only, so the sampler selected `portfolio/signal_weighted_sides`, `risk/max_weight_tightening`, and `risk/cap_shape_change` instead of the preferred underfilled cells.
+
+The local forced-cell patch is now implemented in [forced_target_cell_schedule_patch_20260517.md](forced_target_cell_schedule_patch_20260517.md). `run_child_batch.py` accepts `--target-cell-schedule`, validates exact `surface/intent` pairs before generation, keeps duplicate retry inside the forced cell, and records target-cell schedule fields plus duplicate-retry terminal diagnostics in artifacts. Local unit tests and a mock runner smoke passed.
+
 Current evolution status:
 
 ```yaml
@@ -104,7 +111,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_controller_only_novelty_smoke_after_sync
+next_stage: remote_forced_cell_controller_smoke_after_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -187,6 +194,8 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `controller_attempt017_mechanism_batch_20260513` plus attempt007 sample eval | 5/12 controller pass, target-intent match 1.0, no duplicate pressure, but vector smoke and portfolio semantic pass rates were only 0.5. The only sample-eval candidate, `PROG-20260513-A017-MECH-0007`, was broad and non-equivalent but worse than attempt017 on parent-relative Sharpe, return, turnover-aware score, drawdown, and missing-held exposure. | The controller eligibility rule worked, but the mechanism prompt did not specify local data-scope contracts for each EVOLVE block. Repair prompt/smoke fixtures before another remote generation batch. |
 | `controller_prompt_smoke_repair_20260514` | Local prompt/smoke repair implemented surface-local data-access guidance, panel.loc repair prompts, multi-industry and wider-liquidity smoke fixtures, active reasoning memory, high-confidence skill rule, and remote Git hygiene policy. Local checks passed. | After GitHub sync, run one small controller-only rerun focused on direct portfolio/risk/ranking mechanisms. Sample-evaluate at most one eligible direct-mechanism child. |
 | `controller_attempt017_mechanism_rerun_20260514` plus attempt009 sample eval | 2/12 controller pass, 7 behavioral no-op rejects, 1 duplicate child reject, 2 vector-smoke rejects, and exactly one sample-eval candidate. Attempt009 was a target-matched industry-neutral ranking child with material final-weight delta. Sample eval narrowly failed missing-held tolerance at 0.0512, improved turnover/drawdown/breadth versus attempt017, but reduced annualized return and Sharpe and showed negative train Sharpe. | Do not promote. Use 27B as a medium reviewer to propose mechanism cards that preserve attempt009 implementation-shape gains without giving up attempt017 parent-relative alpha metrics. Add program snapshots and `HEAD == origin/main` reproducibility capture. |
+| `controller_attempt017_novelty_smoke_20260516` | 1/6 controller pass, 4 behavioral no-op rejects, 1 duplicate child reject, 0 sample-eval candidates, all core mechanics pass, clean `HEAD == origin/main`, no ranking attempts, no automatic sample eval. The only pass, `PROG-20260516-A017-NOVELTY-0004`, was `signal/liquidity_adjusted_reversal` and was rejected for sample eval because it landed in an occupied MAP cell without beating the elite. | Eligibility-v2 and Git reproducibility wiring are healthy. Do not sample-evaluate this run. Patch the runner so remote instructions can force exact target cells instead of only surface schedules. |
+| `forced_target_cell_schedule_patch_20260517` | Local runner patch added `--target-cell-schedule`, exact `surface/intent` validation, forced-cell duplicate retry, summary schedule fields, and duplicate-retry terminal diagnostics. Unit tests and a local mock runner smoke passed. | The next remote run can be a controller-only forced-cell smoke. Do not use 27B or sample evaluation until the forced-cell controller artifact is reviewed locally. |
 
 ## Failure Memory
 
@@ -227,6 +236,8 @@ Keep these lessons in future prompt and controller design:
 - `PROG-20260514-A017-MECHFIX-0009` shows the opposite tradeoff: a direct industry-neutral mechanism can improve implementation shape, turnover, drawdown, breadth, and missing-held weight while weakening parent-relative return and Sharpe. Do not confuse cleaner portfolio construction with stronger alpha.
 - A clean remote worktree is insufficient if `HEAD` is an unpushed commit. Remote controller and sample-eval artifacts must record `git_origin_main_commit`, `git_head_matches_origin_main`, and code snapshots/hashes.
 - 27B should be used as a mechanism reviewer before direct generation. Prior evidence showed 27B can be useful for medium-depth review but is not the default strict patch generator.
+- Surface schedules are not enough when the research instruction names exact underfilled mechanism cells. `controller_attempt017_novelty_smoke_20260516` asked for preferred cells but the runner only forced surfaces, so it sampled absorbed portfolio/risk cells and produced no sample-eval candidates.
+- Portfolio signal-weighted-side edits can be no-ops after downstream max-weight clipping and side renormalization. Risk cap-shape edits can also be no-ops if they re-clip at the same cap boundary after normalization. Treat these as search-control routing failures unless a prompt declares how final weights will actually change.
 
 ## Reasoning Memory Layer
 
@@ -243,70 +254,37 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation and not test evaluation. After GitHub sync, run a small
-controller-only novelty smoke from the latest code before spending another sample evaluation.
-The smoke should use prior controller summaries so occupied MAP cells are seeded. Do not actively
-schedule `ranking/industry_neutral_rank`; local tests cover that occupied-cell guard, and a live
-remote negative-control cell is not needed for this proof run.
-For this next smoke, exclude the whole `ranking` surface from the generation schedule. Treat
-ranking as a duplicate/replay-heavy area until the novelty guard is proven on cleaner
-underfilled cells.
-Make this a six-attempt proof run, not a larger candidate batch. Inspect the controller artifact
-before deciding whether to run a larger controller-only batch.
+The next step is not broad validation, test evaluation, sample evaluation, or 27B ideation. After
+GitHub sync, run one controller-only forced-cell smoke. The novelty smoke proved that
+eligibility-v2 and reproducibility wiring work; the immediate question is whether exact
+`surface/intent` routing can produce non-absorbed controller children in the intended underfilled
+cells.
 
 ```yaml
 next_remote_run:
-  type: qwen9b_controller_only_novelty_smoke
+  type: qwen9b_controller_only_forced_cell_smoke
   parent: PROG-20260430-CHILD-0017
-  generator_model: Qwen3.5-9B
-  reviewer_model: none
   attempt_count: 6
-  surface_schedule: portfolio,portfolio,risk,risk,signal,signal
-  preferred_surfaces:
+  target_cell_schedule:
     - portfolio/liquidity_weighted_sides
     - portfolio/persistence_trade_gate
     - risk/liquidity_scaled_cap
+    - risk/liquidity_scaled_cap
     - signal/liquidity_adjusted_reversal
-  excluded_surfaces:
-    - ranking
-  sample_eval_limit_after_review: 0_or_1
-  sample_eval_only_if:
-    - controller artifact reviewed locally
-    - sample_eval_eligible is true under sample_eval_candidate_eligibility_v2
-    - occupied MAP cell, if any, beat and differs from elite
-    - remote_sample_eval command includes prior sibling --prior-sample-summary inputs
+    - signal/liquidity_adjusted_reversal
+  expected_artifact_fields:
+    - target_cell_schedule_enabled
+    - target_cell_schedule
+    - forced_target_cell
+    - duplicate_retry_terminal_failure_category
+    - duplicate_retry_terminal_reason
+  remote_sample_eval_auto_launch: false
   broad_validation: false
   full_validation: false
-starting_evidence:
-  - controller_attempt017_mechanism_batch_20260513
-  - controller_attempt017_mechanism_rerun_20260514
-  - remote_sample_eval_controller_attempt017_mechanism_rerun_20260514_attempt_009
-  - remote_sample_eval_controller_attempt017_27b_card_batch_20260514_attempt_011
-structural_lead: "underfilled non-industry-neutral mechanism cells"
-main_defect_to_check: "controller selection should not spend a sample eval on occupied/equivalent siblings"
-checks_to_inspect:
-  - sample_eval_eligibility_version is sample_eval_candidate_eligibility_v2
-  - occupied MAP cells include elite comparison fields
-  - no ranking attempts are scheduled
-  - controller artifact records git_head_matches_origin_main
-  - no-final-weight-delta passes stay sample-eval ineligible
-test_set_used: false
+  test_set_used: false
 ```
 
-Required evaluator behavior before that run:
-
-```yaml
-remote_sample_eval_hardening:
-  active_portfolio_day_coverage_gate: true
-  optional_reference_metric_equivalence_gate: true
-  optional_prior_sample_metric_equivalence_gate: true
-  exposure_diagnostics_reported: true
-  report_sample_coverage: true
-  report_reference_comparison: true
-  report_prior_sample_comparison: true
-```
-
-After the hardening smoke passes, the focused loop should generate only a small number of children. It should either mutate the `attempt_017` child directly or use it as prompt evidence, but it must treat `attempt_017` as `sample_review`, not as a promoted parent.
+After the forced-cell controller smoke passes, the focused loop should generate only a small number of children. It should either mutate the `attempt_017` child directly or use it as prompt evidence, but it must treat `attempt_017` as `sample_review`, not as a promoted parent.
 
 Controller smoke-test Sharpe must not be used as alpha evidence. It is only an invariant smoke metric.
 
@@ -317,6 +295,6 @@ Controller smoke-test Sharpe must not be used as alpha evidence. It is only an i
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
-- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md)
-- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md)
+- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

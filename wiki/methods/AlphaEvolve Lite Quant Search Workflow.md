@@ -2,7 +2,7 @@
 title: AlphaEvolve Lite Quant Search Workflow
 type: method
 status: active
-updated: 2026-05-15
+updated: 2026-05-17
 tags:
   - method
   - alphaevolve
@@ -158,6 +158,7 @@ The first Phase 4 controller batches produced reusable operating lessons:
 - child sample evaluation should compare against the seed or parent summary when available, because code-different children can be metric-equivalent after ranking and risk controls;
 - child sample evaluation should also compare against prior sample-evaluated siblings, because a child can differ from the parent yet replay a prior occupied MAP-cell elite;
 - a controller-static pass in an occupied MAP cell should not receive another sample evaluation unless it beats and materially differs from the current cell elite;
+- when a research plan names exact underfilled mechanism cells, the controller runner should force `surface/intent` cells directly; surface-only schedules can drift into absorbed or already-saturated prompt cards;
 - medium-model mechanism cards must use exact search vocabulary: allowed surfaces, allowed target intents, and frozen `CONTRACT.*` daily-stock field handles;
 - missing-held-weight repairs must not use evaluator-only forward-return fields; reducing missingness by knowing next-day availability is lookahead;
 - signal-proportional portfolio weighting must use positive magnitudes for each side and assign negative weights to shorts explicitly;

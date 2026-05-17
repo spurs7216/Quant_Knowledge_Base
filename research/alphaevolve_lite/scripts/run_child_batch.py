@@ -45,6 +45,15 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--target-cell-schedule",
+        default="",
+        help=(
+            "Comma-separated exact surface/intent cells such as "
+            "portfolio/liquidity_weighted_sides,risk/liquidity_scaled_cap. "
+            "When supplied, this overrides --surface-schedule for target selection."
+        ),
+    )
+    parser.add_argument(
         "--prior-summary",
         action="append",
         default=[],
@@ -139,7 +148,9 @@ def main() -> int:
     from research.alphaevolve_lite.controller_batch_state import (
         load_prior_attempts,
         parse_surface_schedule,
+        parse_target_cell_schedule,
         seed_controller_search_state,
+        target_cell_for_attempt,
     )
     from research.alphaevolve_lite.controller_population_policy import (
         DEFAULT_PARENT_PROGRAM_ID,
@@ -213,13 +224,20 @@ def main() -> int:
         return 2
     parent_text = program_path.read_text(encoding="utf-8")
     try:
+        available_evolve_blocks = extract_evolve_block_bodies(parent_text)
         surface_schedule = parse_surface_schedule(
             args.surface_schedule,
-            available_surfaces=extract_evolve_block_bodies(parent_text),
+            available_surfaces=available_evolve_blocks,
+        )
+        target_cell_schedule = parse_target_cell_schedule(
+            args.target_cell_schedule,
+            available_surfaces=available_evolve_blocks,
         )
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 2
+    if target_cell_schedule:
+        surface_schedule = tuple(cell.surface for cell in target_cell_schedule)
     evaluator_summary = load_json_if_exists(args.evaluator_summary)
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -353,20 +371,27 @@ def main() -> int:
         attempt_dir.mkdir(parents=True, exist_ok=True)
         temperature = temperatures[attempt % len(temperatures)]
         parent_id = parent_program_id
-        target_surface = choose_target_surface(attempt, surface_schedule=surface_schedule)
-        if population_policy_enabled:
-            diversity_target = choose_population_diversity_target(
-                population_policy_state,
-                target_surface,
-                attempt,
-                occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
-            )
+        forced_target_cell = (
+            target_cell_for_attempt(attempt, target_cell_schedule) if target_cell_schedule else None
+        )
+        if forced_target_cell is not None:
+            target_surface = forced_target_cell.surface
+            diversity_target = forced_target_cell.target
         else:
-            diversity_target = choose_diversity_target(
-                target_surface,
-                attempt,
-                occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
-            )
+            target_surface = choose_target_surface(attempt, surface_schedule=surface_schedule)
+            if population_policy_enabled:
+                diversity_target = choose_population_diversity_target(
+                    population_policy_state,
+                    target_surface,
+                    attempt,
+                    occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+                )
+            else:
+                diversity_target = choose_diversity_target(
+                    target_surface,
+                    attempt,
+                    occupied_labels=occupied_target_labels_by_surface.get(target_surface, set()),
+                )
         target_intent = diversity_target.intent if diversity_target else "other"
         prompt_card_id = prompt_card_id_for(target_surface, target_intent)
         selected_mechanism_cards = select_mechanism_cards(
@@ -525,6 +550,10 @@ def main() -> int:
         duplicate_retry_succeeded = False
         duplicate_retry_count = 0
         duplicate_retry_reason = None
+        duplicate_retry_terminal_decision = None
+        duplicate_retry_terminal_failure_category = None
+        duplicate_retry_terminal_reason = None
+        duplicate_retry_terminal_novelty_decision: dict[str, Any] | None = None
         near_duplicate_of_program_id = None
         near_duplicate_similarity = 0.0
         novelty_decision_record: dict[str, Any] = {
@@ -581,7 +610,9 @@ def main() -> int:
                 forbidden_patches = [final_diff_text] + accepted_patches_by_surface.get(target_surface, [])[-2:]
                 for retry_index in range(1, max(0, args.duplicate_retry_attempts) + 1):
                     duplicate_retry_count += 1
-                    if population_policy_enabled:
+                    if forced_target_cell is not None:
+                        retry_target = forced_target_cell.target
+                    elif population_policy_enabled:
                         retry_target = choose_population_diversity_target(
                             population_policy_state,
                             target_surface,
@@ -701,6 +732,7 @@ def main() -> int:
                     retry_child_hash = retry_identity["child_hash"]
                     retry_patch_fingerprint = retry_identity["patch_fingerprint"]
                     retry_duplicate_reason = None
+                    retry_failure_category = None
                     retry_near_duplicate_of_program_id = None
                     retry_near_duplicate_similarity = 0.0
                     retry_novelty_decision_record = {
@@ -712,11 +744,13 @@ def main() -> int:
                         "signature_token_count": 0,
                     }
                     if retry_result.decision == "pass" and retry_child_hash in seen_child_hashes:
+                        retry_failure_category = "duplicate_child"
                         retry_duplicate_reason = (
                             "duplicate child program hash already seen for "
                             f"{seen_child_hashes[retry_child_hash]}"
                         )
                     elif retry_result.decision == "pass" and retry_patch_fingerprint in seen_patch_fingerprints:
+                        retry_failure_category = "duplicate_patch_fingerprint"
                         retry_duplicate_reason = (
                             "duplicate normalized patch fingerprint already seen for "
                             f"{seen_patch_fingerprints[str(retry_patch_fingerprint)]}"
@@ -730,9 +764,12 @@ def main() -> int:
                         )
                         retry_novelty_decision_record = retry_novelty_decision.to_record()
                         if retry_novelty_decision.is_near_duplicate:
+                            retry_failure_category = NEAR_DUPLICATE_FAILURE_CATEGORY
                             retry_near_duplicate_of_program_id = retry_novelty_decision.matched_program_id
                             retry_near_duplicate_similarity = retry_novelty_decision.similarity
                             retry_duplicate_reason = retry_novelty_decision.reason
+                    elif retry_result.decision != "pass":
+                        retry_failure_category = retry_result.failure_category
                     write_json(
                         attempt_dir / f"duplicate_retry_{retry_index}_duplicate_check.json",
                         {
@@ -747,6 +784,10 @@ def main() -> int:
                         },
                     )
                     if retry_result.decision == "pass" and retry_duplicate_reason is None:
+                        duplicate_retry_terminal_decision = "pass"
+                        duplicate_retry_terminal_failure_category = None
+                        duplicate_retry_terminal_reason = None
+                        duplicate_retry_terminal_novelty_decision = retry_novelty_decision_record
                         result = retry_result
                         response_record = retry_response_record
                         final_diff_text = str(retry_filter_record["final_diff_text"])
@@ -787,6 +828,12 @@ def main() -> int:
                         duplicate_retry_succeeded = True
                         duplicate_retry_reason = None
                         break
+                    duplicate_retry_terminal_decision = (
+                        "reject" if retry_duplicate_reason else retry_result.decision
+                    )
+                    duplicate_retry_terminal_failure_category = retry_failure_category
+                    duplicate_retry_terminal_reason = retry_duplicate_reason or retry_result.failure_reason
+                    duplicate_retry_terminal_novelty_decision = retry_novelty_decision_record
 
             if duplicate_retry_reason:
                 if duplicate_of_program_id:
@@ -890,6 +937,9 @@ def main() -> int:
                             "target_intent": target_intent,
                             "target_intent_match": target_intent_match,
                             "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                            "forced_target_cell": (
+                                forced_target_cell.to_cli_value() if forced_target_cell else None
+                            ),
                             "prompt_card_id": prompt_card_id,
                             **population_policy_snapshot,
                             "child_sha256": child_hash,
@@ -902,6 +952,14 @@ def main() -> int:
                             "duplicate_retry_attempted": duplicate_retry_attempted,
                             "duplicate_retry_succeeded": duplicate_retry_succeeded,
                             "duplicate_retry_count": duplicate_retry_count,
+                            "duplicate_retry_terminal_decision": duplicate_retry_terminal_decision,
+                            "duplicate_retry_terminal_failure_category": (
+                                duplicate_retry_terminal_failure_category
+                            ),
+                            "duplicate_retry_terminal_reason": duplicate_retry_terminal_reason,
+                            "duplicate_retry_terminal_novelty_decision": (
+                                duplicate_retry_terminal_novelty_decision
+                            ),
                             "map_cell_key": map_cell_key_value,
                             "map_cell_already_occupied": map_cell_already_occupied,
                             "map_cell_elite_program_id": map_cell_elite_program_id,
@@ -944,6 +1002,7 @@ def main() -> int:
                 "target_surface": target_surface,
                 "target_intent": target_intent,
                 "target_cell_label": diversity_target.cell_label if diversity_target else None,
+                "forced_target_cell": forced_target_cell.to_cli_value() if forced_target_cell else None,
                 "prompt_card_id": prompt_card_id,
                 **population_policy_snapshot,
                 "temperature": temperature,
@@ -958,6 +1017,10 @@ def main() -> int:
                 "duplicate_retry_attempted": duplicate_retry_attempted,
                 "duplicate_retry_succeeded": duplicate_retry_succeeded,
                 "duplicate_retry_count": duplicate_retry_count,
+                "duplicate_retry_terminal_decision": duplicate_retry_terminal_decision,
+                "duplicate_retry_terminal_failure_category": duplicate_retry_terminal_failure_category,
+                "duplicate_retry_terminal_reason": duplicate_retry_terminal_reason,
+                "duplicate_retry_terminal_novelty_decision": duplicate_retry_terminal_novelty_decision,
                 "map_cell_key": map_cell_key_value,
                 "map_cell_already_occupied": map_cell_already_occupied,
                 "map_cell_elite_program_id": map_cell_elite_program_id,
@@ -1034,6 +1097,8 @@ def main() -> int:
             "prompt_card_reroute_policy": population_policy_summary["prompt_card_reroute_policy"],
             "duplicate_heavy_intents": population_policy_summary["duplicate_heavy_intents"],
             "surface_schedule": list(surface_schedule),
+            "target_cell_schedule_enabled": bool(target_cell_schedule),
+            "target_cell_schedule": [cell.to_cli_value() for cell in target_cell_schedule],
             "prior_summary_paths": [str(path) for path in args.prior_summary],
             "prior_attempt_count": search_state.prior_attempt_count,
             "prior_pass_count": search_state.prior_pass_count,
