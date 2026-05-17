@@ -100,6 +100,7 @@ For sample_review repair parents, a missing-held-weight reduction is useful only
 Avoid generic signal compression such as bounded tanh or clipped magnitude dampening as a missing-held-weight repair unless it has a concrete mechanism that should preserve ranking economics after costs.
 Attempt017 mechanism-batch evidence: PROG-20260513-A017-MECH-0007 was a signal/liquidity_adjusted_reversal child with final-weight delta, but sample evaluation was worse than attempt017 on Sharpe, annualized return, turnover-aware score, drawdown, and missing-held exposure. Do not treat signal-side liquidity adjustment as a promoted repair for this branch.
 If the target edit is likely to be absorbed by ranking, portfolio selection, or risk normalization so final weights are unchanged, output NO_VALID_PATCH instead of a cosmetic patch.
+Controller execution-effect rule: a signal or ranking edit must change ranked signals or final weights; a portfolio or risk edit must change final weights or exposure shape after risk controls. Raw-signal-only rescaling that leaves ranks and final weights unchanged is not useful search progress.
 Full validation remains forbidden inside child generation; these rules are search-control guidance for deterministic controller and sample gates.
 """
 
@@ -108,6 +109,7 @@ Useful ex-ante daily_stock fields include CONTRACT.price, CONTRACT.volume, CONTR
 Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
 For the attempt017 branch, prefer mechanisms that change final weights through liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, or liquidity-scaled caps.
 Do not answer a liquidity, persistence, or industry-neutral target with generic tanh, clipped magnitude dampening, or raw signal shrinkage.
+Do not use inverse raw dollar volume as a uniform signal shrinker. Use bounded relative liquidity, log liquidity, market-cap percentile, or rolling/liquidity confidence logic that can change cross-sectional ordering or selected final weights.
 """
 
 SURFACE_LOCAL_DATA_ACCESS = {
@@ -149,7 +151,8 @@ SURFACE_GUIDANCE = {
         "generic bounded or clipped signal dampening as negative evidence on attempt017-style missing-held "
         "repairs unless it preserves parent-relative economics after costs. For liquidity_adjusted_reversal, "
         "use daily_stock liquidity, price, or market-cap proxies as ex-ante confidence signals rather than "
-        "a generic magnitude compressor."
+        "a generic magnitude compressor. Avoid inverse raw dollar_volume clipped to a narrow range; it usually "
+        "becomes a uniform rescale that leaves ranks and weights unchanged."
     ),
     "ranking": (
         "Edit only the ranking EVOLVE-BLOCK. Follow the target behavior cell first. Direction flips are allowed "
@@ -170,9 +173,13 @@ SURFACE_GUIDANCE = {
         "selection mask, convert it to index labels aligned to the target Series before assigning weights. Avoid "
         "threshold or sparsity edits that are absorbed downstream and leave final weights effectively unchanged. "
         "For liquidity_weighted_sides, use current-day liquidity or market-cap proxies only as positive side "
-        "magnitudes. For persistence_trade_gate, use prior-day signal or same-sign persistence and keep a fallback "
+        "magnitudes and avoid formulas that downstream max-weight caps turn back into equal weights. For "
+        "persistence_trade_gate, use prior-day signal or same-sign persistence and keep a fallback "
         "when a side becomes too thin. In this seed, read daily_stock fields through panel.loc[valid.index, ...] "
-        "or panel.loc[longs/shorts, ...], because valid does not include liquidity or market-cap columns."
+        "or panel.loc[longs/shorts, ...], because valid does not include liquidity or market-cap columns. "
+        "The signal column is local data, not a panel column: create data['prior_signal'] with "
+        "data.groupby(CONTRACT.security_id)['signal'].shift(1) before the date loop, then use "
+        "valid['prior_signal'] or data.loc[valid.index, 'prior_signal']; do not call panel.loc[..., 'signal']."
     ),
     "risk": (
         "Edit only the risk EVOLVE-BLOCK. Suitable changes include stricter concentration control, side-specific "
@@ -180,8 +187,10 @@ SURFACE_GUIDANCE = {
         "books; avoid logic that can make the portfolio one-sided or materially net long/net short. Risk edits "
         "must produce an observable portfolio-shape change after normalization; otherwise output NO_VALID_PATCH. "
         "For liquidity_scaled_cap, the cap formula must bite below current weights for low-liquidity names and "
-        "then renormalize long and short sides separately. In this seed, read daily_stock fields through "
-        "panel.loc[group.index, ...], because group does not include liquidity or market-cap columns."
+        "then renormalize long and short sides separately while preserving the max-weight cap. Use per-name "
+        "cap values no larger than max_weight, clip, side-renormalize, and clip again. In this seed, read "
+        "daily_stock fields through panel.loc[group.index, ...], because group does not include liquidity or "
+        "market-cap columns."
     ),
 }
 
@@ -410,6 +419,11 @@ MAP-Elites controller diversity:
 - Do not use a sign or direction flip unless the intended_patch_intent is direction_flip.
 - A controller-safe off-target patch is still weak evidence for the sampled prompt card; implement the target intent directly.
 
+Execution-effect gate:
+- A signal/ranking edit that changes only raw signal magnitude but leaves ranked_signal and final weights unchanged will be rejected.
+- A portfolio/risk edit that leaves final weights and exposure shape unchanged after risk controls will be rejected.
+- If the target mechanism is likely to be fully absorbed by quantile selection, max-weight clipping, or side renormalization, output NO_VALID_PATCH.
+
 Group-relative sibling role:
 - This attempt is one sibling in a matched batch from the same parent, evaluator context, data contract, and prompt policy.
 - Future skill extraction compares siblings by controller validity, uniqueness, repair burden, and MAP-cell diversity.
@@ -511,7 +525,7 @@ Surface-local data access contract:
 {data_access_guidance}
 
 Repair instruction:
-Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake; for daily_stock field KeyError failures, replace local-frame field access with panel.loc[...] access aligned to the same index. For pandas boolean indexers, assign with index labels aligned to the target Series, not with a boolean Series from a different index. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
+Shrink, retarget, or minimally correct the patch so the SEARCH text is copied exactly from the editable code body above and contains no EVOLVE marker lines, function definitions, helper code, or DEFAULT_PARAMS code. If the failure was a runtime/vector-smoke error, fix only the local API or expression mistake; for daily_stock field KeyError failures, replace local-frame field access with panel.loc[...] access aligned to the same index. For portfolio persistence gates, remember that signal is local data, not a panel field; use data.groupby(CONTRACT.security_id)["signal"].shift(1) rather than panel.loc[..., "signal"]. For pandas boolean indexers, assign with index labels aligned to the target Series, not with a boolean Series from a different index. If the failure was a portfolio semantic error, preserve both long and short exposure, keep short weights negative, keep long weights positive, and keep net exposure near zero. If the failure was execution_effect_failed, make the original mechanism observable in ranked_signal, final weights, or exposure shape after downstream controls; otherwise output NO_VALID_PATCH. Preserve the original idea only if it can be expressed safely inside this target surface. Output exactly one safe SEARCH/REPLACE block, or output exactly NO_VALID_PATCH.
 """
     return {
         "system": REPAIR_SYSTEM_PROMPT,

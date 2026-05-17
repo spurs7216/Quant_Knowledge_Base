@@ -11,6 +11,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from .controller_execution_effect import has_final_weight_effect
+
 
 SAMPLE_EVAL_ELIGIBILITY_VERSION = "sample_eval_candidate_eligibility_v2"
 
@@ -48,9 +50,7 @@ def sample_eval_eligibility(attempt: dict[str, Any]) -> dict[str, Any]:
         reasons.append("target_intent_not_matched")
 
     delta = attempt.get("behavior_delta_metrics", {}) or {}
-    weight_delta = _as_float(delta.get("weight_max_abs_delta"))
-    weight_changed_fraction = _as_float(delta.get("weight_changed_fraction"))
-    if (weight_delta or 0.0) <= 1e-12 and (weight_changed_fraction or 0.0) <= 0.0:
+    if not has_final_weight_effect(delta):
         reasons.append("no_final_weight_delta")
 
     metrics = attempt.get("vector_smoke_metrics", {}) or {}

@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .artifact_io import write_json
+from .controller_execution_effect import execution_effect_from_attempt
 from .paths import utc_now_iso
 
 
@@ -811,11 +812,33 @@ def build_controller_batch_memory_update(
     group_relative = build_group_relative_controller_report(attempts)
 
     pass_count = int(summary.get("pass_count", 0) or 0)
+    execution_effective_pass_count = sum(
+        1
+        for item in attempts
+        if item.get("decision") == "pass"
+        and execution_effect_from_attempt(item)["controller_execution_effective"]
+    )
     if pass_count:
         success_lessons.append(
             "Controller-static generated "
-            f"{pass_count} pass children across {summary.get('map_cell_count', 0)} MAP cells."
+            f"{pass_count} pass children across {summary.get('map_cell_count', 0)} MAP cells; "
+            f"{execution_effective_pass_count} had target-surface execution effect."
         )
+        if execution_effective_pass_count < pass_count:
+            failure_lessons.append(
+                "Some controller-safe passes were execution-neutral: they changed code or raw signals but were "
+                "absorbed before ranked signals, final weights, or exposure shape changed."
+            )
+            candidate_memory_topics.append(
+                {
+                    "memory_type": "failure_guardrail",
+                    "title": "execution_neutral_controller_pass",
+                    "support": {
+                        "pass_count": pass_count,
+                        "execution_effective_pass_count": execution_effective_pass_count,
+                    },
+                }
+            )
     top_siblings = group_relative.get("top_siblings", [])
     if top_siblings:
         best = top_siblings[0]
@@ -824,7 +847,7 @@ def build_controller_batch_memory_update(
             f"attempt {best.get('attempt')} on {best.get('target_surface')} with "
             f"intent {best.get('patch_intent')} and decision {best.get('decision')}."
         )
-        if best.get("decision") == "pass":
+        if best.get("decision") == "pass" and best.get("controller_execution_effective") is True:
             success_lessons.append(best_message)
             candidate_memory_topics.append(
                 {
@@ -835,6 +858,24 @@ def build_controller_batch_memory_update(
                         "target_surface": best.get("target_surface"),
                         "patch_intent": best.get("patch_intent"),
                         "relative_advantage": best.get("relative_advantage"),
+                    },
+                }
+            )
+        elif best.get("decision") == "pass":
+            failure_lessons.append(
+                best_message
+                + " It was controller-safe but execution-neutral, so it is not a promotable success skill."
+            )
+            candidate_memory_topics.append(
+                {
+                    "memory_type": "failure_guardrail",
+                    "title": "best_controller_sibling_without_execution_effect",
+                    "support": {
+                        "attempt": best.get("attempt"),
+                        "target_surface": best.get("target_surface"),
+                        "patch_intent": best.get("patch_intent"),
+                        "relative_advantage": best.get("relative_advantage"),
+                        "execution_effect_reasons": best.get("execution_effect_reasons"),
                     },
                 }
             )
@@ -963,8 +1004,8 @@ def build_group_relative_controller_report(attempts: list[dict[str, Any]]) -> di
     return {
         "score_definition": (
             "controller_static_quality_score_higher_is_better; combines decision, hard-gate pass rate, "
-            "uniqueness, repair/empty-output burden, and MAP-cell occupancy. It is for sibling comparison "
-            "only, not market validation."
+            "execution effect, uniqueness, repair/empty-output burden, and MAP-cell occupancy. It is for "
+            "sibling comparison only, not market validation."
         ),
         "attempt_count": len(scored),
         "mean_score": round(mean_score, 6),
@@ -996,6 +1037,7 @@ def _controller_attempt_relative_record(item: dict[str, Any]) -> dict[str, Any]:
         "duplicate_retry_succeeded": bool(item.get("duplicate_retry_succeeded")),
         "map_cell_already_occupied": bool(item.get("map_cell_already_occupied")),
         "controller_quality_score": round(score, 6),
+        **execution_effect_from_attempt(item),
     }
 
 
@@ -1012,6 +1054,13 @@ def _controller_quality_score(item: dict[str, Any]) -> float:
         score += 0.10
     if item.get("map_cell_already_occupied"):
         score -= 0.10
+    execution_effect = execution_effect_from_attempt(item)
+    if item.get("decision") == "pass" and not execution_effect["controller_execution_effective"]:
+        score -= 0.80
+    elif item.get("decision") == "pass" and execution_effect["final_weight_delta"]:
+        score += 0.15
+    elif item.get("decision") == "pass" and execution_effect["ranked_signal_delta"]:
+        score += 0.05
     if item.get("repair_attempted"):
         score -= 0.10
         if item.get("repair_succeeded"):
@@ -1110,6 +1159,11 @@ def _failure_category_lesson(category: str, count: Any) -> str:
         "behavioral_noop": (
             "A controller-safe code edit produced the same smoke-panel signal, ranking, and weights as its parent; "
             "treat it as lazy search evidence and ask for a behavior change that survives downstream controls."
+        ),
+        "execution_effect_failed": (
+            "The child changed something measurable but not the execution-relevant layer for its target surface; "
+            "signal/ranking edits must affect ranked signals or final weights, and portfolio/risk edits must "
+            "affect final weights or exposure shape."
         ),
         "vector_smoke_failed": "Vector-smoke failures should become repair-pattern candidates if the API mistake is local.",
         "exact_search_not_found": "Exact SEARCH mismatch means the prompt or repair must copy from the editable body only.",

@@ -20,6 +20,7 @@ REPAIRABLE_FAILURE_CATEGORIES = {
     "evolve_marker_error",
     "vector_smoke_failed",
     "portfolio_semantic_failed",
+    "execution_effect_failed",
 }
 
 

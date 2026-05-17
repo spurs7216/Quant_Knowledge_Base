@@ -10,6 +10,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .controller_execution_effect import execution_effect_from_metrics
 from .daily_stock_contract import CONTRACT
 from .diff_blocks import DiffBlockError, apply_search_replace, parse_search_replace_blocks
 from .evolve_blocks import END_MARKER, START_MARKER, EvolveBlockError, find_evolve_blocks
@@ -438,6 +439,7 @@ def run_micro_filter(
         "vector_smoke_pass": False,
         "portfolio_semantic_pass": False,
         "behavior_delta_pass": False,
+        "execution_effect_pass": False,
     }
     text = generated_text.strip()
     if not text:
@@ -573,6 +575,20 @@ def run_micro_filter(
             behavior_delta_metrics=behavior_delta_metrics,
         )
     gates["behavior_delta_pass"] = True
+    execution_effect = execution_effect_from_metrics(
+        behavior_delta_metrics,
+        target_surface=target_surface,
+    )
+    if not execution_effect["controller_execution_effective"]:
+        return _fail(
+            gates,
+            category="execution_effect_failed",
+            reason="; ".join(execution_effect["execution_effect_reasons"]),
+            parsed_block_count=parsed_count,
+            vector_smoke_metrics=smoke_metrics,
+            behavior_delta_metrics=behavior_delta_metrics,
+        )
+    gates["execution_effect_pass"] = True
 
     return MicroFilterResult(
         decision="pass",

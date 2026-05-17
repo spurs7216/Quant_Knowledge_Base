@@ -130,6 +130,7 @@ def summarize_attempts(attempts: list[dict[str, Any]]) -> dict[str, Any]:
         "vector_smoke_pass_rate": final_rate("vector_smoke_pass"),
         "portfolio_semantic_pass_rate": final_rate("portfolio_semantic_pass"),
         "behavior_delta_pass_rate": final_rate("behavior_delta_pass"),
+        "execution_effect_pass_rate": final_rate("execution_effect_pass"),
         "unique_child_pass_rate": final_rate("unique_child"),
         "target_intent_match_rate": (
             len(target_intent_matches) / len(passed) if passed else 0.0
@@ -191,6 +192,7 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         f"- vector_smoke_pass_rate: `{summary['vector_smoke_pass_rate']}`",
         f"- portfolio_semantic_pass_rate: `{summary['portfolio_semantic_pass_rate']}`",
         f"- behavior_delta_pass_rate: `{summary['behavior_delta_pass_rate']}`",
+        f"- execution_effect_pass_rate: `{summary['execution_effect_pass_rate']}`",
         f"- unique_child_pass_rate: `{summary['unique_child_pass_rate']}`",
         f"- target_intent_match_rate: `{summary['target_intent_match_rate']}`",
         f"- target_intent_mismatch_pass_count: `{summary['target_intent_mismatch_pass_count']}`",

@@ -100,7 +100,7 @@ The memory bank should store pointers back to artifact paths and database ids. T
 
 Reasoning memory becomes stronger when it uses Dr. RTL-style sibling comparison. A batch of children from the same parent under the same evaluator context is a matched group. The memory update should compare siblings by relative advantage before extracting skills.
 
-At controller-static stage this relative advantage measures validity, uniqueness, repair burden, and MAP-cell diversity. It is not market-alpha evidence. At remote sample-evaluation stage, the relative score can include net performance, cost sensitivity, null comparison, turnover, exposure, and stability.
+At controller-static stage this relative advantage measures validity, execution effect, uniqueness, repair burden, and MAP-cell diversity. It is not market-alpha evidence. A controller-safe pass that changes only raw signal magnitude while ranked signals and final weights are unchanged should become failure memory, not a success strategy. At remote sample-evaluation stage, the relative score can include net performance, cost sensitivity, null comparison, turnover, exposure, and stability.
 
 ## Integration With MAP-Elites
 

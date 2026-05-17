@@ -450,6 +450,28 @@ def build_controller_diagnostic_report(
                 avoid_actions=["do not submit cosmetic or threshold-absorbed edits as search progress"],
             )
         )
+    if int(failure_categories.get("execution_effect_failed", 0) or 0):
+        cards.append(
+            _card(
+                diagnostic_id="diag_execution_effect_failures",
+                bottleneck="execution_effect_failures",
+                severity="medium",
+                evidence={
+                    "execution_effect_failed": failure_categories.get("execution_effect_failed"),
+                    "execution_effect_pass_rate": summary.get("execution_effect_pass_rate"),
+                },
+                likely_causes=[
+                    "signal patch changed raw magnitude but not ranks or final weights",
+                    "portfolio or risk patch was absorbed by downstream clipping or side normalization",
+                ],
+                target_surfaces=["signal", "ranking", "portfolio", "risk"],
+                prompt_instruction=(
+                    "Make the target mechanism observable in ranked_signal, final weights, or exposure shape; "
+                    "otherwise output NO_VALID_PATCH."
+                ),
+                avoid_actions=["do not count raw-signal-only rescaling as useful search progress"],
+            )
+        )
     if int(summary.get("reasoning_only_empty_count", 0) or 0):
         cards.append(
             _card(

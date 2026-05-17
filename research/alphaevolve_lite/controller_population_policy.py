@@ -46,6 +46,7 @@ LAZY_PENALTY_BY_FAILURE_CATEGORY = {
     "compile_failed": -0.20,
     "vector_smoke_failed": -0.20,
     "behavior_delta_failed": -0.20,
+    "execution_effect_failed": -0.25,
     "portfolio_semantic_failed": -0.10,
     "forbidden_policy_edit": -0.50,
     "introduced_new_import": -0.50,

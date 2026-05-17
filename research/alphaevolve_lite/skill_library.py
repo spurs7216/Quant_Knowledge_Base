@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from .artifact_io import write_json
+from .controller_execution_effect import execution_effect_from_attempt
 from .paths import utc_now_iso
 
 
@@ -612,7 +613,13 @@ def build_controller_batch_skill_update(
 
     candidate_items: list[dict[str, Any]] = []
     pass_attempts = [item for item in attempts if item.get("decision") == "pass"]
-    for item in pass_attempts[:5]:
+    execution_effective_passes = [
+        item for item in pass_attempts if execution_effect_from_attempt(item)["controller_execution_effective"]
+    ]
+    execution_neutral_passes = [
+        item for item in pass_attempts if not execution_effect_from_attempt(item)["controller_execution_effective"]
+    ]
+    for item in execution_effective_passes[:5]:
         surface = str(item.get("target_surface") or "unknown")
         intent = str(item.get("patch_intent") or "unknown")
         candidate_items.append(
@@ -642,6 +649,40 @@ def build_controller_batch_skill_update(
                         "source_run_id": source_run_id,
                         "program_id": item.get("program_id"),
                         "map_cell_key": item.get("map_cell_key"),
+                    },
+                }
+            )
+        )
+    if execution_neutral_passes:
+        candidate_items.append(
+            validate_skill_item(
+                {
+                    "skill_name": "Guard against execution-neutral controller passes",
+                    "skill_type": "failure_guardrail",
+                    "confidence": "low",
+                    "status": "candidate",
+                    "pattern": (
+                        "A child passed controller-static gates but did not change the execution-relevant "
+                        "ranked signal, final weights, or exposure shape for its target surface."
+                    ),
+                    "strategy": (
+                        "Treat the child as controller-safe but not useful search progress unless a later "
+                        "artifact shows a real final-book effect."
+                    ),
+                    "prompt_rule": (
+                        "Do not promote controller passes that are absorbed before ranked_signal, final "
+                        "weights, or exposure shape change."
+                    ),
+                    "applicability": {
+                        "source_stage": "controller_static",
+                        "data_stage": "stage_0_daily_stock",
+                        "target_surface": ["signal", "ranking", "portfolio", "risk"],
+                    },
+                    "evidence": {
+                        "support_count": 0,
+                        "failure_count": len(execution_neutral_passes),
+                        "source_run_id": source_run_id,
+                        "program_ids": [item.get("program_id") for item in execution_neutral_passes[:5]],
                     },
                 }
             )
