@@ -34,7 +34,9 @@ Controller batch refactor notes:
 - `diversity.py` owns MAP descriptors, including patch intent, portfolio-shape buckets, and behavior-delta buckets.
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `mechanism_cards.py` owns mechanism-card parsing and exact contract validation for surface, intent, and `CONTRACT.*` daily-stock field handles.
+- `daily_stock_eda.py` owns the chunked daily-stock empirical map used to convert the frozen field contract into prompt-facing data guidance. It writes data-understanding artifacts only; it is not an alpha evaluator.
 - `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
+- `scripts/profile_daily_stock_data.py` is the remote CLI for the daily-stock EDA milestone. It should run on the remote data machine, not local Windows, for full-file profiling.
 
 Remote sample-evaluator refactor notes:
 

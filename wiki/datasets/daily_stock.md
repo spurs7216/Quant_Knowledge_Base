@@ -1,10 +1,10 @@
 ---
 type: dataset
-status: seeded
+status: active
 dataset: daily_stock
 domain: equities
-updated: 2026-04-18
-source_count: 5
+updated: 2026-05-18
+source_count: 7
 tags:
   - dataset
   - equities
@@ -15,6 +15,8 @@ sources:
   - "[[catalog/samples/daily_stock/gago9dveytpx6922.csv]]"
   - "[[catalog/samples/processed/eda/daily_stock_universe_summary.csv]]"
   - "[[catalog/samples/processed/eda/equity_research_eda_notes.csv]]"
+  - "[[projects/quant_research_system/phase4_search_loop/daily_stock_contract_v1.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/daily_stock_data_understanding_plan_20260518.md]]"
 ---
 # daily_stock
 
@@ -111,6 +113,18 @@ Frequently useful fields visible in the sample include:
 - `Ticker` and `CUSIP` are time-varying and can drift across corporate actions.
 - The physical file has 94 columns, but the compact EDA summary tracks a smaller analytic subset. Treat that as a mirror-summary convention, not a contradiction in the raw file.
 - Distribution and share fields mean some research workflows need careful treatment of ordinary versus extraordinary returns.
+- Phase 4 has frozen field names and eligibility rules, but full-file distributional evidence is still being collected. Do not infer cross-sectional behavior from first-N-row samples because the CSV can be security-sorted.
+
+## Phase 4 Profiling Workflow
+
+The current AlphaEvolve-lite loop uses `daily_stock` only. The active project contract is [[projects/quant_research_system/phase4_search_loop/daily_stock_contract_v1.md]].
+
+The remote empirical-map command is documented in [[projects/quant_research_system/phase4_search_loop/daily_stock_eda_remote_instructions_20260518.md]]. It uses:
+
+- `research/alphaevolve_lite/daily_stock_eda.py`
+- `research/alphaevolve_lite/scripts/profile_daily_stock_data.py`
+
+The profiler writes compact artifact tables for row counts, fixed-eligibility attrition, missingness, numeric distributions, deterministic sample quantiles, daily breadth, rolling top-500 diagnostics, and prompt-facing data cards. Those outputs are data-understanding evidence, not alpha evidence.
 
 ## Research Uses
 

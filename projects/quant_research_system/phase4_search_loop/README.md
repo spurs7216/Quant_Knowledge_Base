@@ -134,6 +134,8 @@ New implementation-policy files:
 - [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md): implementation note for the deterministic analyzer role and explicit skill-library layer.
 - [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md): CodeEvolve, ShinkaEvolve, and ThetaEvolve transfer note for duplicate control, parent sampling, novelty pressure, and deferred RL.
 - [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md): concrete daily-stock-only mechanism targets for the attempt017 branch.
+- [daily_stock_data_understanding_plan_20260518.md](daily_stock_data_understanding_plan_20260518.md): current pause-and-profile plan for turning the daily-stock contract into empirical prompt memory.
+- [daily_stock_eda_remote_instructions_20260518.md](daily_stock_eda_remote_instructions_20260518.md): remote command and artifact contract for the full-file daily-stock EDA run.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.

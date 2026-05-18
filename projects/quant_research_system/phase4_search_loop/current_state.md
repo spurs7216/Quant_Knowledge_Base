@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-17
+updated: 2026-05-18
 tags:
   - project
   - phase4
@@ -52,6 +52,9 @@ sources:
   - "controller_attempt017_forced_cell_smoke_review_20260517.md"
   - "controller_execution_effect_hardening_20260517.md"
   - "controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md"
+  - "controller_attempt017_execution_effect_smoke_review_20260518.md"
+  - "daily_stock_data_understanding_plan_20260518.md"
+  - "daily_stock_eda_remote_instructions_20260518.md"
 ---
 # Phase 4 Current State
 
@@ -108,6 +111,8 @@ The local forced-cell patch is now implemented in [forced_target_cell_schedule_p
 
 The forced-cell smoke is reviewed in [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md). It proved exact target-cell routing and clean Git reproducibility, but produced zero sample-eval candidates. The two controller passes were `signal/liquidity_adjusted_reversal` children that changed raw signal only; ranked signals and final weights were unchanged, and the occupied MAP-cell elite was not beaten. The local hardening in [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md) adds an execution-effect gate, so signal/ranking edits must affect ranked signals or final weights and portfolio/risk edits must affect final weights or exposure shape.
 
+The execution-effect smoke is reviewed in [controller_attempt017_execution_effect_smoke_review_20260518.md](controller_attempt017_execution_effect_smoke_review_20260518.md). It produced two sample-eval-eligible controller passes, but both are caveated: one is mostly liquidity-conditioned gross/exposure dampening and one is a confounded signal patch that removed multiple parent mechanisms while changing liquidity weighting. The decision is to pause child generation and build a full `daily_stock` empirical map before another attempt017 round.
+
 Current evolution status:
 
 ```yaml
@@ -116,7 +121,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_execution_effect_controller_smoke_after_sync
+next_stage: remote_daily_stock_data_understanding_v1_after_sync
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -265,40 +270,35 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation, test evaluation, sample evaluation, or 27B ideation. After
-GitHub sync, run one controller-only execution-effect forced-cell smoke. The forced-cell smoke
-proved that exact `surface/intent` routing works; the immediate question is whether the new
-execution-effect gate and prompt repairs can produce target-matched children whose effects survive
-to ranked signals, final weights, or exposure shape.
+The next step is not broad validation, test evaluation, sample evaluation, 27B ideation, or another
+attempt017 controller batch. Run the `daily_stock` data-understanding milestone first. The purpose
+is to replace assumed data intuition with artifact-backed prompt cards about missingness,
+eligibility attrition, liquidity skew, return tails, universe breadth, and industry coverage.
 
 ```yaml
 next_remote_run:
-  type: qwen9b_controller_only_execution_effect_forced_cell_smoke
-  parent: PROG-20260430-CHILD-0017
-  attempt_count: 6
-  target_cell_schedule:
-    - portfolio/liquidity_weighted_sides
-    - portfolio/persistence_trade_gate
-    - risk/liquidity_scaled_cap
-    - risk/liquidity_scaled_cap
-    - signal/liquidity_adjusted_reversal
-    - signal/liquidity_adjusted_reversal
-  expected_artifact_fields:
-    - target_cell_schedule_enabled
-    - target_cell_schedule
-    - forced_target_cell
-    - execution_effect_pass_rate
-    - duplicate_retry_terminal_failure_category
-    - duplicate_retry_terminal_reason
-  remote_sample_eval_auto_launch: false
+  type: daily_stock_empirical_map_v1
+  command_note: daily_stock_eda_remote_instructions_20260518.md
+  qwen_required: false
+  vllm_required: false
+  sample_eval_auto_launch: false
   broad_validation: false
   full_validation: false
   test_set_used: false
+  expected_artifact_fields:
+    - daily_stock_eda_summary.json
+    - daily_stock_prompt_guidance.json
+    - prompt_data_cards.md
+    - eligible_numeric_summary.csv
+    - sample_quantiles.csv
+    - daily_counts.csv
+    - deep_window/deep_window_summary.json
+    - deep_window/industry_coverage_profile.csv
 ```
 
-After the execution-effect controller smoke passes, review whether any child is target-matched, novel, and final-book-effective. Sample evaluation remains a separate human-approved next step and should evaluate at most one such child.
-
-Controller smoke-test Sharpe must not be used as alpha evidence. It is only an invariant smoke metric.
+After the EDA artifact returns, review it locally, promote only artifact-backed data lessons into
+prompt context, then decide whether to run a new data-aware attempt017 controller batch. Descriptive
+statistics are not alpha evidence; they are constraints and priors for better child proposals.
 
 ## Main Links
 
