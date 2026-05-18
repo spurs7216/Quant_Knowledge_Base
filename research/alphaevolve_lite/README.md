@@ -35,8 +35,10 @@ Controller batch refactor notes:
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `mechanism_cards.py` owns mechanism-card parsing and exact contract validation for surface, intent, and `CONTRACT.*` daily-stock field handles.
 - `daily_stock_eda.py` owns the chunked daily-stock empirical map used to convert the frozen field contract into prompt-facing data guidance. It writes data-understanding artifacts only; it is not an alpha evaluator.
+- `daily_stock_forward_coverage.py` owns the chunked rolling top-N coverage and evaluator-style forward-return availability diagnostic. It answers data-coverage and missing-held-cause questions only; it must not become an alpha evaluator.
 - `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
 - `scripts/profile_daily_stock_data.py` is the remote CLI for the daily-stock EDA milestone. It should run on the remote data machine, not local Windows, for full-file profiling.
+- `scripts/profile_daily_stock_forward_coverage.py` is the remote CLI for whole-timeline rolling top-500 coverage plus 2018-2020 forward-return availability diagnostics. It should run on the remote data machine and does not require Qwen or vLLM.
 
 Remote sample-evaluator refactor notes:
 

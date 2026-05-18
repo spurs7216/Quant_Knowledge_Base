@@ -55,6 +55,8 @@ sources:
   - "controller_attempt017_execution_effect_smoke_review_20260518.md"
   - "daily_stock_data_understanding_plan_20260518.md"
   - "daily_stock_eda_remote_instructions_20260518.md"
+  - "daily_stock_eda_full_review_20260518.md"
+  - "daily_stock_forward_coverage_remote_instructions_20260518.md"
 ---
 # Phase 4 Current State
 
@@ -113,6 +115,8 @@ The forced-cell smoke is reviewed in [controller_attempt017_forced_cell_smoke_re
 
 The execution-effect smoke is reviewed in [controller_attempt017_execution_effect_smoke_review_20260518.md](controller_attempt017_execution_effect_smoke_review_20260518.md). It produced two sample-eval-eligible controller passes, but both are caveated: one is mostly liquidity-conditioned gross/exposure dampening and one is a confounded signal patch that removed multiple parent mechanisms while changing liquidity weighting. The decision is to pause child generation and build a full `daily_stock` empirical map before another attempt017 round.
 
+The full `daily_stock` EDA is reviewed in [daily_stock_eda_full_review_20260518.md](daily_stock_eda_full_review_20260518.md), with a meeting-style notebook under [notebooks/daily_stock_eda_full_20260518_report_executed.ipynb](notebooks/daily_stock_eda_full_20260518_report_executed.ipynb). The full file has 49.65M rows, 25,139 unique PERMNOs, and 28.30M fixed-contract eligible rows. The 2018-2020 rolling top-500 deep window is much cleaner than the broad eligible universe: median 500 tradable names per day, median 53 SIC2 groups, median 15 SIC2 groups with at least 10 names, and median month-to-month membership Jaccard about 0.957. The accepted prompt lesson is to use robust date-level ranks/log/winsorized transforms and group-size-aware industry logic rather than raw-scale liquidity or market-cap dampening.
+
 Current evolution status:
 
 ```yaml
@@ -121,7 +125,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_daily_stock_data_understanding_v1_after_sync
+next_stage: remote_forward_return_availability_diagnostic_before_child_generation
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -271,14 +275,16 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 ## Current Next Step
 
 The next step is not broad validation, test evaluation, sample evaluation, 27B ideation, or another
-attempt017 controller batch. Run the `daily_stock` data-understanding milestone first. The purpose
-is to replace assumed data intuition with artifact-backed prompt cards about missingness,
-eligibility attrition, liquidity skew, return tails, universe breadth, and industry coverage.
+attempt017 controller batch. The first `daily_stock` empirical map is reviewed, but it does not
+explain missing-held-weight failures. Run one focused forward-return availability diagnostic before
+child generation resumes.
 
 ```yaml
 next_remote_run:
-  type: daily_stock_empirical_map_v1
-  command_note: daily_stock_eda_remote_instructions_20260518.md
+  type: forward_return_availability_and_missing_held_causes
+  base_artifact: daily_stock_eda_full_20260518
+  window: 2018-01-01_to_2020-12-31
+  universe: rolling_top500_market_cap_v1
   qwen_required: false
   vllm_required: false
   sample_eval_auto_launch: false
@@ -286,19 +292,23 @@ next_remote_run:
   full_validation: false
   test_set_used: false
   expected_artifact_fields:
-    - daily_stock_eda_summary.json
-    - daily_stock_prompt_guidance.json
-    - prompt_data_cards.md
-    - eligible_numeric_summary.csv
-    - sample_quantiles.csv
-    - daily_counts.csv
-    - deep_window/deep_window_summary.json
-    - deep_window/industry_coverage_profile.csv
+    - forward_coverage_summary.json
+    - top500_daily_coverage.csv
+    - top500_monthly_coverage.csv
+    - top500_permno_coverage.csv
+    - top500_membership_churn.csv
+    - forward_availability_by_date.csv
+    - forward_availability_by_bucket.csv
+    - forward_availability_by_industry.csv
+    - forward_availability_by_exchange.csv
+    - held_availability_prompt_cards.md
 ```
 
-After the EDA artifact returns, review it locally, promote only artifact-backed data lessons into
-prompt context, then decide whether to run a new data-aware attempt017 controller batch. Descriptive
-statistics are not alpha evidence; they are constraints and priors for better child proposals.
+Run handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md). Local review notebook: [notebooks/daily_stock_forward_coverage_20260518_report.ipynb](notebooks/daily_stock_forward_coverage_20260518_report.ipynb).
+
+After this diagnostic returns, promote only artifact-backed data lessons into prompt context, then
+run a small data-aware attempt017 controller batch. Descriptive statistics are not alpha evidence;
+they are constraints and priors for better child proposals.
 
 ## Main Links
 
@@ -308,5 +318,5 @@ statistics are not alpha evidence; they are constraints and priors for better ch
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md), [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md)
-- Remote handoff: [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Remote handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

@@ -136,6 +136,8 @@ New implementation-policy files:
 - [attempt017_mechanism_design_20260513.md](attempt017_mechanism_design_20260513.md): concrete daily-stock-only mechanism targets for the attempt017 branch.
 - [daily_stock_data_understanding_plan_20260518.md](daily_stock_data_understanding_plan_20260518.md): current pause-and-profile plan for turning the daily-stock contract into empirical prompt memory.
 - [daily_stock_eda_remote_instructions_20260518.md](daily_stock_eda_remote_instructions_20260518.md): remote command and artifact contract for the full-file daily-stock EDA run.
+- [daily_stock_eda_full_review_20260518.md](daily_stock_eda_full_review_20260518.md): reviewed full-file EDA findings, prompt implications, and follow-up missing-held diagnostic plan.
+- [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md): remote command and artifact contract for whole-timeline rolling top-500 coverage plus evaluator-style forward-return availability.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.

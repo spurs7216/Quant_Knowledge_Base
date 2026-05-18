@@ -4,7 +4,7 @@ status: active
 dataset: daily_stock
 domain: equities
 updated: 2026-05-18
-source_count: 7
+source_count: 8
 tags:
   - dataset
   - equities
@@ -17,6 +17,7 @@ sources:
   - "[[catalog/samples/processed/eda/equity_research_eda_notes.csv]]"
   - "[[projects/quant_research_system/phase4_search_loop/daily_stock_contract_v1.md]]"
   - "[[projects/quant_research_system/phase4_search_loop/daily_stock_data_understanding_plan_20260518.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/daily_stock_eda_full_review_20260518.md]]"
 ---
 # daily_stock
 
@@ -113,7 +114,8 @@ Frequently useful fields visible in the sample include:
 - `Ticker` and `CUSIP` are time-varying and can drift across corporate actions.
 - The physical file has 94 columns, but the compact EDA summary tracks a smaller analytic subset. Treat that as a mirror-summary convention, not a contradiction in the raw file.
 - Distribution and share fields mean some research workflows need careful treatment of ordinary versus extraordinary returns.
-- Phase 4 has frozen field names and eligibility rules, but full-file distributional evidence is still being collected. Do not infer cross-sectional behavior from first-N-row samples because the CSV can be security-sorted.
+- Do not infer cross-sectional behavior from first-N-row samples because the CSV can be security-sorted.
+- Broad eligible-universe caveats and rolling top-500 caveats are not identical. The top-500 portfolio universe is cleaner, but still has heavy-tailed liquidity, market-cap, volume, and price fields.
 
 ## Phase 4 Profiling Workflow
 
@@ -125,6 +127,48 @@ The remote empirical-map command is documented in [[projects/quant_research_syst
 - `research/alphaevolve_lite/scripts/profile_daily_stock_data.py`
 
 The profiler writes compact artifact tables for row counts, fixed-eligibility attrition, missingness, numeric distributions, deterministic sample quantiles, daily breadth, rolling top-500 diagnostics, and prompt-facing data cards. Those outputs are data-understanding evidence, not alpha evidence.
+
+The follow-up forward-coverage diagnostic is documented in [[projects/quant_research_system/phase4_search_loop/daily_stock_forward_coverage_remote_instructions_20260518.md]]. It uses:
+
+- `research/alphaevolve_lite/daily_stock_forward_coverage.py`
+- `research/alphaevolve_lite/scripts/profile_daily_stock_forward_coverage.py`
+
+This second diagnostic measures whole-timeline rolling top-500 selected-name coverage and evaluator-style one-day-forward return availability. Its outputs should be interpreted as data-coverage and missing-held-cause evidence, not as strategy performance evidence.
+
+## Phase 4 Empirical Profile 2026-05-18
+
+Reviewed artifact: [[projects/quant_research_system/phase4_search_loop/daily_stock_eda_full_review_20260518.md]].
+
+Full-file profile:
+
+- rows scanned: 49,651,441
+- date range: 2000-01-03 to 2025-11-28
+- trading dates: 6,517
+- unique `PERMNO`: 25,139
+- fixed-contract eligible rows: 28,302,925, about 57.0% of raw rows
+- unique eligible `PERMNO`: 13,342
+- median eligible rows per date: about 4,136
+
+2018-2020 rolling top-500 deep profile:
+
+- tradable top-500 rows: 367,092
+- tradable dates: 735
+- distinct `PERMNO`: 686
+- median daily tradable count: 500
+- median SIC2 groups per date: 53
+- median SIC2 groups with at least 10 names: 15
+- median largest SIC2 group share: about 13.2%
+- median month-to-month top-500 membership Jaccard: about 0.957
+
+Implementation lessons:
+
+- Use date-window or rolling-universe loaders for research claims.
+- Prefer date-level ranks, `log1p`, winsorized z-scores, or bounded transforms for `DlyPrcVol`, `DlyCap`, and `DlyVol`.
+- Treat raw return levels as outlier-prone; exact full eligible stats include extreme returns even when high sample quantiles are less severe.
+- Industry-neutral ranking is plausible in the top-500 universe only with minimum group-size fallback or shrinkage.
+- Few-day portfolios are artifacts; the top-500 evaluation universe supports broad daily activity.
+
+Open data question: the EDA does not directly explain missing-held-weight failures. A follow-up diagnostic should measure one-day-forward return availability and missing-held causes by date, price/liquidity bucket, industry group, exchange, and membership churn.
 
 ## Research Uses
 
