@@ -15,6 +15,8 @@ sources:
 ---
 # Controller Evaluator Hardening Remote Instructions 2026-05-10
 
+Supersession note: this dated handoff used the old 2018-2020 sample-evaluation window. Future sample evaluations must use the fixed 2011-2025 IS/OS policy in [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md).
+
 ## Purpose
 
 Run a small controller-only smoke/top-up after the 2026-05-10 hardening patch.

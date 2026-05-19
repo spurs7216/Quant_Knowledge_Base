@@ -2,7 +2,7 @@
 title: Phase 4 Evaluator Improvement Plan for Codex
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -40,7 +40,7 @@ The current design is: generated programs must be bounded by evolve blocks, eval
 
 ## High-Priority Implementation Changes
 
-### 1. Implement rolling top-500 universe and 70/15/15 split
+### 1. Implement rolling top-500 universe and fixed IS/OS split
 
 Files:
 

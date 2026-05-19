@@ -3,8 +3,8 @@ type: dataset
 status: active
 dataset: daily_stock
 domain: equities
-updated: 2026-05-18
-source_count: 8
+updated: 2026-05-19
+source_count: 12
 tags:
   - dataset
   - equities
@@ -17,7 +17,11 @@ sources:
   - "[[catalog/samples/processed/eda/equity_research_eda_notes.csv]]"
   - "[[projects/quant_research_system/phase4_search_loop/daily_stock_contract_v1.md]]"
   - "[[projects/quant_research_system/phase4_search_loop/daily_stock_data_understanding_plan_20260518.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/universe_and_split_policy.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/is_os_evaluation_policy_20260519.md]]"
   - "[[projects/quant_research_system/phase4_search_loop/daily_stock_eda_full_review_20260518.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/daily_stock_forward_coverage_review_20260519.md]]"
+  - "[[projects/quant_research_system/phase4_search_loop/evaluator_forward_return_contract_repair_20260519.md]]"
 ---
 # daily_stock
 
@@ -121,6 +125,15 @@ Frequently useful fields visible in the sample include:
 
 The current AlphaEvolve-lite loop uses `daily_stock` only. The active project contract is [[projects/quant_research_system/phase4_search_loop/daily_stock_contract_v1.md]].
 
+Active alpha-evolution evidence uses fixed IS/OS over the last-15-year development window:
+
+- analysis window: 2011-01-01 through 2025-12-31
+- in-sample: 2011-01-01 through 2022-12-31
+- out-of-sample: 2023-01-01 through the latest available 2025 date
+- split id: `daily_stock_top500_is_2011_2022_os_2023_2025_v1`
+
+EDA and coverage diagnostics should still use the full available 2000-2025 timeline. The older 2018-2020 window is a smoke/debug window, not a performance-evidence window.
+
 The remote empirical-map command is documented in [[projects/quant_research_system/phase4_search_loop/daily_stock_eda_remote_instructions_20260518.md]]. It uses:
 
 - `research/alphaevolve_lite/daily_stock_eda.py`
@@ -149,7 +162,7 @@ Full-file profile:
 - unique eligible `PERMNO`: 13,342
 - median eligible rows per date: about 4,136
 
-2018-2020 rolling top-500 deep profile:
+2018-2020 rolling top-500 deep smoke profile:
 
 - tradable top-500 rows: 367,092
 - tradable dates: 735
@@ -168,7 +181,41 @@ Implementation lessons:
 - Industry-neutral ranking is plausible in the top-500 universe only with minimum group-size fallback or shrinkage.
 - Few-day portfolios are artifacts; the top-500 evaluation universe supports broad daily activity.
 
-Open data question: the EDA does not directly explain missing-held-weight failures. A follow-up diagnostic should measure one-day-forward return availability and missing-held causes by date, price/liquidity bucket, industry group, exchange, and membership churn.
+## Phase 4 Forward Coverage Profile 2026-05-19
+
+Reviewed artifact: [[projects/quant_research_system/phase4_search_loop/daily_stock_forward_coverage_review_20260519.md]].
+
+Whole-timeline rolling top-500 profile:
+
+- monthly top-500 universes: 310
+- top-500 membership rows: 155,000
+- distinct rolling top-500 `PERMNO`: 1,675
+- daily coverage rows: 6,497
+- median daily observed selected names: 500
+- median daily coverage rate: 1.000
+- mean daily coverage rate: about 0.9984
+- minimum daily coverage rate: 0.986, or 493 observed selected names out of 500
+
+Membership churn:
+
+- median month-to-month top-500 Jaccard: 0.953125
+- median monthly entries: 12
+- maximum monthly entries: 49
+- minimum month-to-month Jaccard: about 0.8215
+
+2018-2020 evaluator-style forward-return availability smoke diagnostic:
+
+- forward rows: 377,592
+- available rows: 376,668
+- unavailable rows: 924
+- raw availability rate: about 0.9976
+- unavailable causes: 500 `final_visible_market_date`, 235 `security_not_observed_next_market_date`, 189 `no_next_security_row`, and 0 `missing_forward_return`
+- excluding the final visible date, availability is about 0.9989
+- 392 of 424 non-final unavailable rows occur at month-end dates inside the evaluator panel
+
+Main interpretation: missing-held-weight failures are not mainly broad raw data missingness. They are largely induced by building forward returns on the already monthly-universe-filtered panel. If a date-\(t\) holding exits the top-500 at the next month, its date-\(t+1\) row can be absent from `universe_panel` even when the raw eligible panel has the return.
+
+Evaluator implication: membership at date \(t\) should define the signal-date trading universe, but next-day returns for date-\(t\) holdings should be sourced from the eligible raw panel, not from next-month membership. This is now implemented in the Phase 4 sample evaluator as `signal_universe_t_return_source_eligible_t_plus_1_v1`. Generated child strategies still must not read evaluator-only fields such as `fwd_ret`, `fwd_date`, `next_market_date`, or `one_day_forward`.
 
 ## Research Uses
 

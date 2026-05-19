@@ -91,8 +91,9 @@ def compact_sample_eval_summary(path: str) -> dict[str, Any]:
         "parent_program_id": payload.get("parent_program_id"),
         "hard_gates": payload.get("hard_gates"),
         "search_sample": _metric_subset(metrics.get("search_sample", {})),
-        "train": _metric_subset(metrics.get("train", {})),
-        "validation": _metric_subset(metrics.get("validation", {})),
+        "in_sample": _metric_subset(metrics.get("in_sample", metrics.get("train", {}))),
+        "out_sample": _metric_subset(metrics.get("out_sample", metrics.get("validation", {}))),
+        "is_os_degradation": _metric_subset(metrics.get("is_os_degradation", {})),
         "reference_metrics": {
             key: value
             for key, value in (comparison.get("metrics") or {}).items()
@@ -307,6 +308,11 @@ def _metric_subset(metrics: dict[str, Any]) -> dict[str, Any]:
         "mean_daily_n_names",
         "mean_daily_long_count",
         "mean_daily_short_count",
+        "os_minus_is_annualized_return",
+        "os_minus_is_sharpe",
+        "os_minus_is_turnover",
+        "os_minus_is_turnover_aware_score",
+        "is_to_os_sharpe_degradation",
     ]
     return {key: metrics.get(key) for key in keys if key in metrics}
 

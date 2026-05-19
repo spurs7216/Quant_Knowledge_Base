@@ -1,173 +1,80 @@
 # Quant Knowledge Vault
 
-This repository is an Obsidian vault for building and maintaining a quantitative finance knowledge base in the style of Andrej Karpathy's April 2026 `LLM Knowledge Bases` workflow.
+A source-grounded quantitative research vault and project control layer.
 
-In this vault:
+This repository combines an Obsidian knowledge base, active research project notes, compact data catalogs, evidence artifacts, and executable research tooling. The goal is to make quantitative finance research compound across sessions: sources become durable knowledge, project work stays tied to explicit assumptions, and numerical claims remain connected to reproducible evidence.
 
-- `raw/` is the source library
-- `catalog/` is the mirrored data catalog and sample layer
-- `wiki/` is the compiled knowledge base
-- `projects/` is the active working area for research and synthesis
-- `artifacts/` is the evidence layer for outputs from data work, diagnostics, charts, and reports
-- `AGENTS.md` is the schema that tells the agent how to maintain the vault
-- `.obsidian/` is the vault frontend and plugin configuration
+The vault is not a data warehouse, broker account, or secret store. Heavy market data, GPU inference, and warehouse-scale evaluation run on the remote Linux machine. This repository holds the local control plane: reasoning, manifests, code, compact evidence, and reviewed conclusions.
 
-Inside `wiki/`, the knowledge base is now organized into:
+## What This Vault Is For
 
-- root control notes: `index.md`, `log.md`, `glossary.md`, `inbox.md`
-- `maps/` for domain entry points and reading order
-- `sources/books/` for book overview notes plus `sources/books/<Book Title>/` for chapter digests of deeply ingested books
-- `sources/papers/` and `sources/articles/` for source-tied notes that do not need a book-style chapter shelf
-- `concepts/` for durable conceptual synthesis
-- `methods/` for workflows and procedures
-- `metrics/` for evaluation quantities and research measures
-- `strategies/` for alpha, portfolio, and execution notes
-- `datasets/` and `identifiers/` for the data spine
+- Building durable math, statistics, machine learning, market microstructure, and quantitative finance knowledge.
+- Turning papers, books, and implementation experience into reusable notes under `wiki/`.
+- Managing active research systems under `projects/`, especially work that needs remote evaluation.
+- Keeping compact data contracts and dataset observability in `catalog/`.
+- Preserving bounded evidence in `artifacts/` when a result, diagnosis, or remote run needs to be reviewed later.
 
-## Karpathy-style mapping
+## Main Project
 
-The vault follows the same basic pattern:
+The flagship active project is the quant research system in [`projects/quant_research_system/`](projects/quant_research_system/).
 
-1. Collect curated sources into `raw/`
-2. Keep data mirrors and sample evidence in `catalog/`
-3. Let the agent compile durable markdown into `wiki/`
-4. Use `projects/` for live investigations and question-driven work
-5. Save bounded outputs into `artifacts/`
-6. Browse, search, link, and review everything in Obsidian
+Its purpose is to move from research ideas to increasingly realistic evidence:
 
-This is not a local warehouse clone. The heavy data still lives on the remote Linux server. The vault is the local memory and control layer.
+1. define research tasks and contracts locally
+2. run heavy data, model, and evaluator jobs on the remote Linux machine
+3. import compact artifacts for local review
+4. promote durable lessons into `wiki/`
+5. keep candidate strategies, implementation constraints, and falsification evidence inspectable
 
-## Memory lifecycle
+The current active line is the Phase 4 AlphaEvolve-lite search loop: a controller-driven alpha discovery workflow with prompt sampling, open-model generation on the remote machine, evaluator pools, a program database, semantic filters, diversity pressure, and a reasoning-memory layer.
 
-The vault now treats its layers as a memory lifecycle, not only a folder tree:
+## Repository Map
 
-- `raw/` stores source memory
-- `projects/` stores working or episodic memory while a thread is still live
-- `wiki/` stores semantic and procedural memory that should compound over time
-- `catalog/` and `artifacts/` store evidence and observability memory for numerical or operational claims
+- [`wiki/`](wiki/): durable compiled knowledge, including source notes, concepts, methods, metrics, strategies, datasets, and maps.
+- [`projects/`](projects/): active investigations and systems that are still changing.
+- [`research/`](research/): executable support code for validation, candidate registries, implementation translation, and AlphaEvolve-lite experiments.
+- [`catalog/`](catalog/): compact data catalogs, schema evidence, sample summaries, and dataset observability.
+- [`artifacts/`](artifacts/): bounded evidence outputs from remote runs, diagnostics, charts, tables, and reviews. Most generated artifacts are not tracked by git.
+- [`raw/`](raw/): local source library for books, papers, articles, and reference material. Copyrighted or bulky source files are not meant to be pushed.
+- [`agent/`](agent/): operating rules for agents and contributors.
+- [`AGENTS.md`](AGENTS.md): authoritative agent entry point and vault schema.
+- [`.obsidian/`](.obsidian/): Obsidian frontend configuration where portable and safe to track.
 
-This matters because not every observation deserves durable promotion, and durable notes should not be silently "forgotten" when they age. They should be verified, superseded, or archived honestly.
+## How To Navigate
 
-## Git policy
+Start with [`wiki/index.md`](wiki/index.md) for durable entry points.
 
-The git repository is intentionally narrower than the full local vault:
+For the quant research system, read:
 
-- track markdown notes, maps, canvases, schemas, and portable Obsidian config
-- do not track `raw/` source books and PDFs
-- do not track `catalog/samples/` mirrored data extracts
-- do not track generated `artifacts/`
-- do not track local plugin installs or plugin `data.json` files under `.obsidian/plugins/`
+- [`projects/quant_research_system/brief.md`](projects/quant_research_system/brief.md)
+- [`projects/quant_research_system/build_sequence.md`](projects/quant_research_system/build_sequence.md)
+- [`projects/quant_research_system/architecture.md`](projects/quant_research_system/architecture.md)
+- [`projects/quant_research_system/phase4_search_loop/current_state.md`](projects/quant_research_system/phase4_search_loop/current_state.md)
 
-This keeps the repo portable and avoids pushing copyrighted source materials, proprietary data samples, and local secrets.
+For agent or contributor work, start with [`AGENTS.md`](AGENTS.md), then read the relevant files under [`agent/`](agent/).
 
-## Vault layers
+## Research Standards
 
-### `raw/`
+The vault is built around a few research constraints:
 
-Use for books, papers, clipped web articles, interview notes, and other original sources.
+- Mathematical and statistical claims should be explicit enough to inspect.
+- Empirical claims should link to source notes, datasets, artifacts, or reproducible code.
+- Strategy results should account for costs, turnover, concentration, exposure, data availability, and implementation limits.
+- Remote jobs should return compact evidence, not raw warehouse data.
+- IBKR, TWS, account state, and broker execution logic are local-only concerns and must not be pushed to the remote machine.
 
-### `catalog/`
+## Git And Data Boundaries
 
-Use for:
+The git repository is intentionally narrower than the full local vault.
 
-- `csv_data_catalog.md`
-- `csv_data_inventory.csv`
-- mirrored dataset samples
-- mirrored EDA summaries
-- mirrored processed research outputs
+Tracked material should generally include markdown notes, schemas, manifests, portable Obsidian config, and research code. Do not track raw books or PDFs, warehouse data samples, generated artifact bundles, credentials, API keys, broker settings, or machine-specific secrets.
 
-This is the vault's compact substitute for opening huge remote files.
+GitHub is used as a synchronization channel when the remote machine needs to pull a specific code or manifest state. It is not the default destination after every local edit.
 
-### `wiki/`
+## Obsidian
 
-Use for durable notes the agent maintains over time:
+Obsidian is the frontend for browsing, linking, reviewing, and editing the vault. Markdown files remain the source of truth. The graph, backlinks, Bases, Dataview, canvases, and local automation are useful interfaces over the same repository structure.
 
-- maps
-- source notes
-- concept notes
-- method notes
-- metric notes
-- strategy notes
-- dataset and identifier notes
+## Status
 
-### `projects/`
-
-Use for active research work:
-
-- current questions
-- plans
-- replications
-- validation notes
-- decisions
-
-### `artifacts/`
-
-Use for bounded outputs that support claims:
-
-- query exports
-- charts
-- tables
-- backtest summaries
-- replication results
-
-## Obsidian as the frontend
-
-This vault already has an active Obsidian setup. Core capabilities enabled include:
-
-- graph view
-- backlinks
-- search
-- properties
-- daily notes
-- templates
-- bases
-- web viewer
-
-Installed community plugins include:
-
-- Dataview
-- Tasks
-- Templater
-- Excalidraw
-- Obsidian Git
-- Obsidian Local REST API
-- Table Editor
-
-Math authoring rule:
-
-- Extended MathJax is installed through `obsidian-latex`
-- shared macros now live in `preamble.sty` at the vault root
-- mathematically important notes should use MathJax equations instead of code-style pseudo-math
-
-That means the vault is already ready to serve as:
-
-- the browser for the knowledge graph
-- the note editor for human review
-- the dashboard surface for Dataview tables
-- the canvas surface for spatial knowledge maps
-- the project board for tasks and open questions
-
-## Automation note
-
-In this Codex environment there are two Obsidian execution paths:
-
-- Obsidian MCP works well for note-local reads, appends, searches, and vault maintenance
-- shell-side `obsidian` CLI commands that need the running desktop app must be executed unsandboxed, because the sandboxed shell runs under a different Windows identity than the interactive Obsidian session
-
-Use the lowest-cost tool that preserves the needed context. Direct reads or exact search are cheaper when the target is already known, Obsidian MCP is the default for note-local maintenance, QMD is for broad discovery, and the shell CLI should be used intentionally when the task needs desktop-native commands such as tab control, command execution, Bases, backlink audits, or opening canvas views.
-
-## Operating principle
-
-The human curates and asks questions.
-
-The agent reads sources, compiles notes, maintains links, finds contradictions, and updates the vault.
-
-The goal is to make knowledge compound instead of disappear into chat history.
-
-Start with [AGENTS.md](AGENTS.md), then read:
-
-- [raw/README.md](raw/README.md)
-- [catalog/README.md](catalog/README.md)
-- [wiki/README.md](wiki/README.md)
-- [projects/README.md](projects/README.md)
-- [artifacts/README.md](artifacts/README.md)
+This is an active research workspace. Some folders contain stable durable knowledge; others contain live design notes, remote-run instructions, and experiment evidence. Prefer the layer READMEs, current project state files, and artifact reviews over stale assumptions from chat history.

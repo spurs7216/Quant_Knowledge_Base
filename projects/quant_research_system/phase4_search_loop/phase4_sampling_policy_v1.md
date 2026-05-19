@@ -2,7 +2,7 @@
 title: Phase 4 Sampling Policy V1
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -26,7 +26,7 @@ sources:
 
 This note defines the program-database sampling policy for the first production AlphaEvolve-style quant-research loop.
 
-The policy is deliberately not “sample the best validation Sharpe.” That would overfit the validation interval. The database should sample useful parents and inspirations by combining score, diversity, mutation surface, data scope, failure type, and validation exposure.
+The policy is deliberately not “sample the best OS Sharpe.” That would overfit the inspected out-of-sample interval. The database should sample useful parents and inspirations by combining score, diversity, mutation surface, data scope, failure type, and validation exposure.
 
 ## Core Decision
 
@@ -38,7 +38,9 @@ search_style: data_aware_map_elites_plus_islands
 primary_goal: useful_quant_research_not_raw_sharpe
 first_data_scope: daily_stock_only
 first_universe: rolling_top500_market_cap
-split_policy: chronological_70_15_15
+split_policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+in_sample: 2011-2022
+out_sample: 2023-2025
 ```
 
 This follows AlphaEvolve's key database idea: candidates are stored with evaluation results, and the database resurfaces prior programs in future prompts while balancing exploration and exploitation.
@@ -497,10 +499,10 @@ Initial formula:
 def compute_selection_score(metrics, diagnostics, descriptors, exposure):
     score = 0.0
 
-    score += 0.30 * z_in_island(metrics.get("validation_net_sharpe"))
-    score += 0.20 * z_in_island(metrics.get("null_delta_validation_sharpe"))
+    score += 0.30 * z_in_island(metrics.get("os_net_sharpe"))
+    score += 0.20 * z_in_island(metrics.get("null_delta_os_sharpe"))
     score += 0.15 * z_in_island(metrics.get("subperiod_stability"))
-    score += 0.10 * z_in_island(metrics.get("validation_net_return"))
+    score += 0.10 * z_in_island(metrics.get("os_net_return"))
     score += 0.10 * z_in_island(metrics.get("cost_robustness_score"))
     score += 0.05 * z_in_island(metrics.get("liquidity_robustness_score"))
     score += 0.05 * z_in_island(metrics.get("concentration_safety_score"))

@@ -16,7 +16,7 @@ superseded_by: "current_state.md"
 ---
 # Phase 4 Readthrough
 
-> Current compact state: [current_state.md](current_state.md). This dated readthrough is retained as the old-plan comparison and adoption record.
+> Current compact state: [current_state.md](current_state.md). This dated readthrough is retained as the old-plan comparison and adoption record. Its split-policy discussion is superseded by [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md).
 
 ## Bottom Line
 
@@ -26,7 +26,7 @@ The old plan correctly separated a remote validation batch from the true AlphaEv
 
 - daily-stock-only first production loop;
 - rolling point-in-time top-500 market-cap universe;
-- fixed chronological 70/15/15 split with locked test set;
+- then-planned chronological split discipline, later superseded by fixed IS/OS;
 - Qwen-only measured model stack;
 - SQLite program database plus JSONL audit log;
 - data-aware MAP-Elites plus island sampling;
@@ -55,13 +55,12 @@ Clarified package:
 
 Old plan:
 
-- Required train/validation/test discipline, but did not fix the exact universe and split policy.
+- Required chronological split discipline, but did not fix the exact universe and split policy.
 
 Clarified package:
 
 - Requires rolling top-500 by lagged market cap, recomputed monthly from prior-month-end information.
-- Requires chronological 70/15/15 split over sorted unique trading dates.
-- Forbids test-set use until branch freeze.
+- Required chronological split over sorted unique trading dates at the time. This is superseded by fixed IS/OS as of 2026-05-19.
 
 This is a major improvement because it closes a large survivorship and validation-leakage channel before search starts.
 

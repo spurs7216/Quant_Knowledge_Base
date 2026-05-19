@@ -193,6 +193,6 @@ Remote controller stages:
 
 1. `controller_static`: parse SEARCH/REPLACE, exact match, EVOLVE-block boundary, compile, vector smoke.
 2. `toy_eval`: synthetic small-array validation.
-3. `remote_sample_eval`: small remote daily-stock sample.
-4. `remote_stage0_eval`: rolling top-500 validation subset.
-5. `remote_full_validation`: full Stage 0 daily-stock validation with cost/null/stability diagnostics.
+3. `remote_sample_eval`: 2011-2025 daily-stock IS/OS sample.
+4. `remote_stage0_eval`: rolling top-500 IS/OS evaluator subset.
+5. `remote_full_validation`: full Stage 0 daily-stock IS/OS validation with cost/null/stability diagnostics.

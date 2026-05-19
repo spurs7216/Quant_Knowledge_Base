@@ -2,7 +2,7 @@
 title: Phase 4 Evaluator Contract
 type: project
 status: active
-updated: 2026-05-09
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -13,6 +13,7 @@ sources:
   - "README.md"
   - "cost_model_policy.md"
   - "universe_and_split_policy.md"
+  - "evaluator_forward_return_contract_repair_20260519.md"
   - "phase4_sampling_policy_v1.md"
   - "program_database_schema.md"
 ---
@@ -40,14 +41,17 @@ The returned dictionary uses scalar metrics where larger is better. Penalties ar
 
 ```yaml
 scalar_scores:
-  validation_net_sharpe: maximize
-  validation_net_return: maximize
+  is_net_sharpe: diagnostic
+  is_net_return: diagnostic
+  os_net_sharpe: maximize
+  os_net_return: maximize
+  is_to_os_degradation: minimize
   negative_turnover: maximize
   negative_cost_drag: maximize
   negative_max_abs_weight: maximize
   negative_p99_max_abs_weight: maximize
-  parent_delta_validation_sharpe: maximize
-  null_delta_validation_sharpe: maximize
+  parent_delta_os_sharpe: maximize
+  null_delta_os_sharpe: maximize
   subperiod_stability: maximize
   cost_robustness_score: maximize
   liquidity_robustness_score: maximize
@@ -86,6 +90,7 @@ Remote data-evaluation hard gates:
 remote_hard_gates:
   date_coverage_reported: true
   split_manifest_matches_policy: true
+  forward_return_source_contract_recorded: true
   rolling_top500_universe_manifest_exists: true
   duplicate_identifier_date_check_pass: true
   lookahead_guard_pass: true
@@ -102,6 +107,16 @@ dirty_flag_recorded: true
 git_head_matches_origin_main_recorded: true
 program_sha256_recorded: true
 ```
+
+The active sample-evaluator forward-return source contract is:
+
+```yaml
+forward_return_contract: signal_universe_t_return_source_eligible_t_plus_1_v1
+signal_panel_source: rolling_top500_universe_panel
+forward_return_source: eligible_static_panel
+```
+
+Signal-date weights are restricted to rolling top-500 membership at date t. The evaluator attaches date-(t+1) returns from the statically eligible raw panel before monthly top-500 filtering, so a holding that exits next-month membership can still receive its valid next-day return. Generated strategy code must still not use evaluator-only forward fields.
 
 Dataset-added gates, locked until dataset admission exists:
 
@@ -143,7 +158,7 @@ matched_turnover_random_rank_null:
     - candidate_percentile
 ```
 
-Promotion normally requires validation Sharpe above null p95 and validation net return above null p90. Exceptions require explicit review.
+Promotion normally requires OS Sharpe above null p95, OS net return above null p90, and acceptable IS-to-OS degradation. Exceptions require explicit review.
 
 ## Cost Model
 
@@ -167,7 +182,7 @@ The evaluator must record validation exposure.
 
 ```yaml
 validation_exposure:
-  split_id: "daily_stock_top500_chrono_70_15_15_v1"
+  split_id: "daily_stock_top500_is_2011_2022_os_2023_2025_v1"
   root_candidate_id: "CAND-..."
   branch_id: "BRANCH-..."
   num_prior_children_from_same_root: 0

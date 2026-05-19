@@ -2,7 +2,7 @@
 title: Phase 4 daily_stock Contract v1
 type: project
 status: active
-updated: 2026-04-30
+updated: 2026-05-19
 tags: [phase4, alphaevolve, daily-stock, contract, schema]
 sources:
   - "remote_evidence_review_20260430.md"
@@ -120,8 +120,9 @@ python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --csv-path /home/b08303004/Desktop/WRDS/data/daily_stock/gago9dveytpx6922.csv \
   --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_seed_v2 \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
-  --start-date 2018-01-01 \
-  --end-date 2020-12-31 \
+  --start-date 2011-01-01 \
+  --end-date 2025-12-31 \
+  --out-sample-start 2023-01-01 \
   --null-seeds 10
 ```
 

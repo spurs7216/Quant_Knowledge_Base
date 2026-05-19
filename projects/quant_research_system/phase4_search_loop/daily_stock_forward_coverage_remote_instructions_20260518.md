@@ -2,7 +2,7 @@
 title: daily_stock Forward Coverage Remote Instructions 2026-05-18
 type: project
 status: active
-updated: 2026-05-18
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -26,7 +26,7 @@ Run the recommended next data exploration after the full-file `daily_stock` EDA.
 This diagnostic answers two questions:
 
 1. What is the rolling top-500 stock coverage over the whole available timeline?
-2. In the current 2018-2020 sample-evaluation window, why can evaluator-held weights miss next-day returns?
+2. In the active 2011-2025 IS/OS sample-evaluation window, why can evaluator-held weights miss next-day returns?
 
 This is data exploration, not child generation. Do not start Qwen, do not launch vLLM, do not run the controller, do not run sample evaluation, do not run full validation, and do not use the test set.
 
@@ -61,11 +61,11 @@ python research/alphaevolve_lite/scripts/profile_daily_stock_forward_coverage.py
   --out-dir artifacts/phase4_alphaevolve/daily_stock_forward_coverage_20260518 \
   --chunksize 1000000 \
   --top-n 500 \
-  --forward-start-date 2018-01-01 \
-  --forward-end-date 2020-12-31
+  --forward-start-date 2011-01-01 \
+  --forward-end-date 2025-12-31
 ```
 
-Leave `--coverage-start-date`, `--coverage-end-date`, and `--max-input-rows` unset. The coverage scan should cover the whole available timeline while the forward-return diagnostic focuses on the active sample-evaluation window.
+Leave `--coverage-start-date`, `--coverage-end-date`, and `--max-input-rows` unset. The coverage scan should cover the whole available timeline while the forward-return diagnostic focuses on the active 2011-2025 IS/OS sample-evaluation window.
 
 ## Expected Output Files
 

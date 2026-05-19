@@ -2,7 +2,7 @@
 title: Phase 4 Task 001 Search Design
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -41,7 +41,9 @@ The duplicate-policy child should be inherited as the data-cleaning baseline for
 first_loop:
   data_scope: daily_stock_only
   universe_policy: rolling_top500_market_cap_v1
-  split_policy: daily_stock_top500_chrono_70_15_15_v1
+  split_policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+  in_sample: 2011-01-01_to_2022-12-31
+  out_sample: 2023-01-01_to_latest_2025_date
   generator: Qwen3.5-9B
   repair_model: Qwen3.5-9B
   qwen_execution_location: remote_linux_gpu_server_only
@@ -72,7 +74,7 @@ Early evolve blocks may include:
 
 Early evolve blocks may not include:
 
-- train / validation / test split dates;
+- fixed IS/OS split dates;
 - rolling top-500 universe logic;
 - raw data paths;
 - duplicate policy;
@@ -134,14 +136,14 @@ evaluator_cascade:
     - evaluator summary schema
 
   remote_sample_eval:
-    - small data sample
+    - 2011-2025 IS/OS daily-stock sample
     - enough names per side
     - score not constant
     - turnover not pathological
     - compact artifacts exist
 
   remote_stage0_eval:
-    - validation subset
+    - full IS/OS comparison
     - parent comparison
     - matched-turnover null
     - cost grid
@@ -149,7 +151,7 @@ evaluator_cascade:
     - subperiod check
 
   remote_full_validation:
-    - full validation split
+    - full IS/OS evaluator battery
     - complete artifact bundle
     - cost sensitivity
     - null distribution

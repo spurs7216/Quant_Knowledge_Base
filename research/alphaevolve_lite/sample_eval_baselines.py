@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .sample_eval_metrics import portfolio_from_weights, split_metrics
+from .sample_eval_metrics import is_os_degradation_metrics, portfolio_from_weights, split_metrics
 
 
 def random_baseline_weights(panel: Any, reference_weights: Any, contract: Any, seed: int) -> Any:
@@ -37,14 +37,14 @@ def baseline_metrics_for_weights(
     panel: Any,
     weights: Any,
     contract: Any,
-    validation_end: Any,
+    analysis_end: Any,
     total_cost_bps: float,
     visible_splits: Any,
     turnover_penalty: float,
     missing_weight_penalty: float,
 ) -> dict[str, Any]:
     portfolio, _ = portfolio_from_weights(panel, weights, total_cost_bps, contract)
-    portfolio = portfolio.loc[portfolio["DlyCalDt"] <= validation_end].copy()
+    portfolio = portfolio.loc[portfolio["DlyCalDt"] <= analysis_end].copy()
     metrics = {
         split.name: split_metrics(
             portfolio,
@@ -60,8 +60,8 @@ def baseline_metrics_for_weights(
         metrics["search_sample"] = split_metrics(
             portfolio,
             "search_sample",
-            validation_end,
-            validation_end,
+            analysis_end,
+            analysis_end,
             turnover_penalty=turnover_penalty,
             missing_weight_penalty=missing_weight_penalty,
         )
@@ -74,6 +74,11 @@ def baseline_metrics_for_weights(
             turnover_penalty=turnover_penalty,
             missing_weight_penalty=missing_weight_penalty,
         )
+    if "in_sample" in metrics and "out_sample" in metrics:
+        metrics["is_os_degradation"] = is_os_degradation_metrics(
+            metrics["in_sample"],
+            metrics["out_sample"],
+        )
     return {"label": label, "metrics": metrics}
 
 
@@ -82,7 +87,7 @@ def build_baseline_records(
     panel: Any,
     reference_weights: Any,
     contract: Any,
-    validation_end: Any,
+    analysis_end: Any,
     total_cost_bps: float,
     visible_splits: Any,
     null_seeds: int,
@@ -97,7 +102,7 @@ def build_baseline_records(
             panel=panel,
             weights=-reference_weights,
             contract=contract,
-            validation_end=validation_end,
+            analysis_end=analysis_end,
             total_cost_bps=total_cost_bps,
             visible_splits=visible_splits,
             turnover_penalty=turnover_penalty,
@@ -112,7 +117,7 @@ def build_baseline_records(
                 panel=panel,
                 weights=random_weights,
                 contract=contract,
-                validation_end=validation_end,
+                analysis_end=analysis_end,
                 total_cost_bps=total_cost_bps,
                 visible_splits=visible_splits,
                 turnover_penalty=turnover_penalty,

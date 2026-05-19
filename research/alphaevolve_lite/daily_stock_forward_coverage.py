@@ -18,6 +18,7 @@ from .artifact_io import write_json
 from .daily_stock_contract import CONTRACT, DailyStockContract, unique_preserving_order, validate_columns
 from .daily_stock_loader import coerce_daily_stock_frame, static_eligibility_mask
 from .sample_eval_metrics import build_forward_returns
+from .splits import DEFAULT_ANALYSIS_END_DATE, DEFAULT_ANALYSIS_START_DATE
 
 
 FORWARD_COVERAGE_SCHEMA_VERSION = "daily_stock_forward_coverage_v1"
@@ -46,8 +47,8 @@ def profile_daily_stock_forward_coverage(
     top_n: int = 500,
     coverage_start_date: str | None = None,
     coverage_end_date: str | None = None,
-    forward_start_date: str = "2018-01-01",
-    forward_end_date: str = "2020-12-31",
+    forward_start_date: str = DEFAULT_ANALYSIS_START_DATE,
+    forward_end_date: str = DEFAULT_ANALYSIS_END_DATE,
     max_input_rows: int | None = None,
 ) -> dict[str, Any]:
     """Write rolling top-N coverage and forward-return availability artifacts."""

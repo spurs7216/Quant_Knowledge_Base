@@ -2,7 +2,7 @@
 title: daily_stock EDA Full Review 2026-05-18
 type: project
 status: reviewed
-updated: 2026-05-18
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -31,7 +31,9 @@ projects/quant_research_system/phase4_search_loop/notebooks/daily_stock_eda_full
 projects/quant_research_system/phase4_search_loop/notebooks/daily_stock_eda_full_20260518_report_executed.ipynb
 ```
 
-The artifact contains the expected EDA outputs: full summary JSON/markdown, prompt guidance, numeric summaries, categorical counts, daily counts, deterministic sample quantiles, and the 2018-2020 deep top-500 window.
+The artifact contains the expected EDA outputs: full summary JSON/markdown, prompt guidance, numeric summaries, categorical counts, daily counts, deterministic sample quantiles, and the then-active 2018-2020 deep top-500 smoke window.
+
+Split-policy caveat: after this review, Phase 4 moved alpha-evolution evidence to the fixed 2011-2025 IS/OS window. The full-file profile remains active data evidence. The 2018-2020 deep-window statistics remain useful as smoke evidence, but the top-500 deep-window profile should be rerun for 2011-2025 before treating window-specific distribution claims as prompt memory.
 
 Important reproducibility caveat: this bundle does not include `git_status.txt`, `git_diff_stat.txt`, or a run manifest. The command output is still usable as data evidence, but future data jobs should capture Git state directly in the artifact.
 
@@ -97,7 +99,7 @@ Research implication:
 
 ## Top-500 Deep Window
 
-The deep profile used the current sample-evaluation window:
+The deep profile used the historical sample-evaluation smoke window:
 
 ```yaml
 window: 2018-01-01 to 2020-12-31
@@ -126,7 +128,7 @@ The full eligible low-price caveat is real, but it is less central inside the cu
 
 ## Industry Coverage
 
-The 2018-2020 top-500 universe has:
+The 2018-2020 smoke-window top-500 universe has:
 
 ```yaml
 median_sic2_groups_per_date: 53
@@ -190,7 +192,8 @@ Do one focused remote diagnostic before new child generation:
 ```yaml
 next_data_diagnostic:
   purpose: forward_return_availability_and_missing_held_causes
-  window: 2018-01-01_to_2020-12-31
+  window: 2011-01-01_to_2025-12-31
+  split: fixed_IS_OS_with_out_sample_start_2023-01-01
   universe: rolling_top500_market_cap_v1
   outputs:
     - next_date_return_availability_by_date.csv

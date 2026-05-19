@@ -2,7 +2,7 @@
 title: Phase 4 daily_stock Data Understanding Plan 2026-05-18
 type: project
 status: reviewed
-updated: 2026-05-18
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -16,6 +16,7 @@ sources:
   - "remote_csv_execution_policy.md"
   - "daily_stock_eda_full_review_20260518.md"
   - "daily_stock_forward_coverage_remote_instructions_20260518.md"
+  - "daily_stock_forward_coverage_review_20260519.md"
   - "../../../catalog/README.md"
   - "../../../wiki/datasets/daily_stock.md"
 ---
@@ -100,7 +101,7 @@ Status: implemented and passed on 2026-05-18.
 
 ### D2. Remote full-file empirical map
 
-Run one remote full-file chunked profile with a deep top-500 window matching the current sample-evaluation period.
+Run one remote full-file chunked profile. EDA should cover the whole available 2000-2025 timeline; deep-window diagnostics may additionally focus on the active alpha-evolution window.
 
 Primary output target:
 
@@ -133,15 +134,19 @@ separate diagnostic before prompt integration:
 - scan rolling top-500 coverage over the whole available timeline;
 - report daily, monthly, and PERMNO-level coverage for the selected universe;
 - report month-to-month top-500 membership churn;
-- compute evaluator-style one-day-forward return availability in the 2018-2020 sample window;
+- compute evaluator-style one-day-forward return availability in the active 2011-2025 IS/OS sample window;
 - attribute unavailable held rows to structural causes such as `security_not_observed_next_market_date`, `no_next_security_row`, `missing_forward_return`, or `final_visible_market_date`;
 - break forward availability down by price, dollar volume, market cap, industry, exchange, and next-month membership status.
 
-Status: implemented locally. Remote handoff is [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md). The review notebook is [notebooks/daily_stock_forward_coverage_20260518_report.ipynb](notebooks/daily_stock_forward_coverage_20260518_report.ipynb).
+Status: completed. Reviewed in [daily_stock_forward_coverage_review_20260519.md](daily_stock_forward_coverage_review_20260519.md). The executed review notebook is [notebooks/daily_stock_forward_coverage_20260518_report_executed.ipynb](notebooks/daily_stock_forward_coverage_20260518_report_executed.ipynb).
 
 ### D5. Prompt integration
 
-Only after review, wire selected data cards into prompt construction. The prompt sampler should receive compact rules such as:
+Do not wire new missing-held prompt cards yet. The forward-coverage review shows that most non-final missing-held rows are induced by month-end universe transitions in the evaluator's forward-return construction.
+
+Before prompt integration, repair the evaluator contract so signal-date membership and next-day return availability are separated correctly. After that repair, rerun seed and attempt017-family sample evaluations under the fixed 2011-2025 IS/OS split and only then decide which data cards belong in prompt context.
+
+When prompt integration resumes, the prompt sampler should receive compact rules such as:
 
 - use date-level ranks or log transforms for highly skewed liquidity fields;
 - use winsorized or ranked return-derived signals when tail behavior is extreme;
@@ -169,7 +174,8 @@ The data-understanding milestone is complete when:
 - at least one project review note states which data lessons are accepted, rejected, or still uncertain;
 - prompt data cards are updated from artifact evidence, not assumptions;
 - the forward-return availability diagnostic has either explained missing-held-weight causes or clearly stated that they are not concentrated in observable buckets;
-- no child-generation or validation decision used the test set.
+- evaluator-induced missing-held effects from month-end universe exits are repaired or explicitly isolated before child generation resumes;
+- IS and OS metrics are both reported for alpha-evolution evidence.
 
 ## Non-Goals
 
@@ -180,16 +186,16 @@ This stage does not:
 - run sample evaluation;
 - run full validation;
 - add non-daily-stock datasets;
-- change the fixed universe or split policy;
+- change the fixed universe or IS/OS split policy;
 - treat descriptive statistics as alpha evidence.
 
 ## Open Questions For Review
 
 - Are `DlyPrcVol` and `DlyCap` so skewed that raw-scale child edits should be discouraged? Yes. Use log, rank, winsorized, or bounded transforms.
-- How often do low-price or low-liquidity names survive the fixed filters and rolling top-500 universe? They survive the broad fixed filters, but the 2018-2020 top-500 universe is much cleaner. Low-price risk is a broad-universe caveat, not the dominant top-500 issue.
+- How often do low-price or low-liquidity names survive the fixed filters and rolling top-500 universe? They survive the broad fixed filters, but the rolling top-500 universe is much cleaner. Low-price risk is a broad-universe caveat, not the dominant top-500 issue.
 - Does SIC2 have enough daily group breadth for industry-neutral ranking without fragile small-group behavior? Partly. There are many SIC2 groups, but median names per group are low; use minimum group-size fallback or shrinkage.
-- Do return flags or missing-return fields explain missing-held-weight failures? Not yet answered. This needs a forward-return availability diagnostic.
-- Does the top-500 universe have stable enough daily breadth across regimes to support broad long/short books? Yes in the 2018-2020 deep window: median daily tradable count is 500.
+- Do return flags or missing-return fields explain missing-held-weight failures? Mostly no. The diagnostic found zero direct `missing_forward_return` rows after fixed eligibility filtering; non-final unavailability concentrates at month-end universe exits.
+- Does the top-500 universe have stable enough daily breadth across regimes to support broad long/short books? Whole-timeline top-500 coverage is excellent, with median daily selected-name coverage of 500 and minimum observed selected-name coverage of 493.
 - Which transform primitives should become active prompt rules, and which should remain caveats? Active: log/rank/winsorized transforms for liquidity/size and group-size-aware industry logic. Caveat: exact missing-held causes remain unknown.
 
 ## Related Notes

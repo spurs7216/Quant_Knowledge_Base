@@ -2,7 +2,7 @@
 title: Phase 4 Remote CSV Execution Policy
 type: project
 status: active
-updated: 2026-05-14
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -72,7 +72,9 @@ program_id: "PROG-YYYYMMDD-000123"
 parent_program_id: "PROG-YYYYMMDD-000001"
 root_candidate_id: "CAND-20260423-001"
 branch_id: "BRANCH-CAND-20260423-001-001"
-split_id: "daily_stock_top500_chrono_70_15_15_v1"
+split_id: "daily_stock_top500_is_2011_2022_os_2023_2025_v1"
+analysis_window: "2011-01-01 through 2025-12-31"
+out_sample_start: "2023-01-01"
 universe_policy: "rolling_top500_market_cap_v1"
 data_scope: "daily_stock_only"
 input_paths:
@@ -213,11 +215,11 @@ For Stage 0:
 stage_0_resource_policy:
   data_scope: daily_stock_only
   first_sample_eval:
-    date_window: small
-    universe_slice: small_or_top500_sample
+    date_window: 2011-2025_IS_OS
+    universe_slice: rolling_top500
   full_validation:
     universe: rolling_top500
-    splits: 70_15_15
+    splits: fixed_IS_OS
   parallelism: conservative_initially
 ```
 

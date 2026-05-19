@@ -152,7 +152,7 @@ universe_membership_monthly.csv or parquet
 split_manifest.yaml
 ```
 
-Do not hardcode final split dates manually. Compute them from cleaned sorted trading dates after duplicate policy and basic validity checks, then compute rolling universe membership inside each split.
+Use the active fixed IS/OS split contract from `universe_and_split_policy.md`: 2011-2025 analysis window, `in_sample` before 2023-01-01, and `out_sample` on or after 2023-01-01. Compute first/last cleaned trading dates from the loaded panel rather than manually inserting artifact-specific trading days. Rolling universe membership must still use point-in-time prior-month formation data.
 
 ## Task G. Implement Seed Strategy
 

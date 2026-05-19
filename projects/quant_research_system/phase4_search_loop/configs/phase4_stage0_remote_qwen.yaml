@@ -127,14 +127,17 @@ model_stack:
 data_policy:
   first_loop_scope: daily_stock_only
   split_policy:
-    type: chronological
-    train_fraction: 0.70
-    validation_fraction: 0.15
-    test_fraction: 0.15
+    split_id: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+    type: fixed_calendar_is_os
+    analysis_start_date: 2011-01-01
+    analysis_end_date: 2025-12-31
+    out_sample_start_date: 2023-01-01
+    pristine_final_test_defined: false
     construction_order:
       - clean_daily_stock_trading_dates
-      - build_chronological_splits
-      - compute_universe_membership_inside_each_split
+      - restrict_to_analysis_window
+      - build_fixed_is_os_splits
+      - compute_point_in_time_monthly_universe_membership
   universe_policy:
     type: rolling_top_n_by_market_cap
     n: 500
@@ -287,12 +290,15 @@ model_routing:
 alphaevolve_stage0:
   data_stage: daily_stock_only
   split_policy:
-    type: chronological_by_cleaned_trading_dates
-    train_fraction: 0.70
-    validation_fraction: 0.15
-    test_fraction: 0.15
-    test_locked: true
-    forbid_test_until_branch_freeze: true
+    split_id: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+    type: fixed_calendar_is_os
+    analysis_start_date: 2011-01-01
+    analysis_end_date: 2025-12-31
+    out_sample_start_date: 2023-01-01
+    in_sample_rule: dates_before_out_sample_start
+    out_sample_rule: dates_on_or_after_out_sample_start
+    out_sample_used_for_search_feedback: true
+    pristine_final_test_defined: false
     construct_after_cleaning: true
   universe_policy:
     type: rolling_top_n_by_market_cap
@@ -421,15 +427,15 @@ evaluator_cascade:
       remote_required: true
       uses_large_data: false
     remote_sample_eval:
-      description: small daily-stock sample evaluation
+      description: 2011-2025 daily-stock IS/OS sample evaluation
       remote_required: true
       uses_large_data: true
     remote_stage0_eval:
-      description: rolling top-500 validation subset
+      description: rolling top-500 IS/OS evaluator subset
       remote_required: true
       uses_large_data: true
     remote_full_validation:
-      description: full Stage 0 evaluator battery
+      description: full Stage 0 IS/OS evaluator battery
       remote_required: true
       uses_large_data: true
 

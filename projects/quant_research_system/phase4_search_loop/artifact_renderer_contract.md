@@ -2,7 +2,7 @@
 title: Phase 4 Artifact Renderer Contract
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -40,7 +40,7 @@ Minimum schema:
   "parent_program_id": "PROG-YYYYMMDD-000001",
   "root_candidate_id": "CAND-20260423-001",
   "branch_id": "BRANCH-CAND-20260423-001-001",
-  "split_id": "daily_stock_top500_chrono_70_15_15_v1",
+  "split_id": "daily_stock_top500_is_2011_2022_os_2023_2025_v1",
   "eval_stage": "controller_static|toy_eval|remote_sample_eval|remote_stage0_eval|remote_full_validation",
   "decision": "reject|revise|survive_for_mutation|promote_to_candidate_registry|record_only",
   "selection_score": null,
@@ -83,8 +83,10 @@ Template:
 
 | metric | value |
 | --- | ---: |
-| validation_net_sharpe | ... |
-| null_delta_validation_sharpe | ... |
+| is_net_sharpe | ... |
+| os_net_sharpe | ... |
+| os_turnover | ... |
+| os_drawdown | ... |
 | turnover | ... |
 | cost_drag | ... |
 | max_abs_weight_p99 | ... |
@@ -139,7 +141,7 @@ Schema:
 {
   "schema_version": "phase4_search_state_summary_v1",
   "root_candidate_id": "CAND-20260423-001",
-  "split_id": "daily_stock_top500_chrono_70_15_15_v1",
+  "split_id": "daily_stock_top500_is_2011_2022_os_2023_2025_v1",
   "num_children": 0,
   "num_local_pass": 0,
   "num_remote_sample_eval_pass": 0,

@@ -2,7 +2,7 @@
 title: Phase 4 Task 002 Kalman Reversal Evaluator Seed
 type: project
 status: active
-updated: 2026-04-27
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -28,7 +28,9 @@ This task is explicitly not the AlphaEvolve loop. It is a pre-evolution evaluato
 Task 002 must align with:
 
 ```yaml
-split_policy: chronological_70_15_15
+split_policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+in_sample: 2011-2022
+out_sample: 2023-2025
 universe_policy: rolling_top500_market_cap_v1
 data_scope: daily_stock_only
 cost_grid_bps_total: [0.0, 2.5, 5.0, 10.0]

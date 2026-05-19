@@ -16,6 +16,8 @@ sources:
 
 # Controller Batch 001 Attempt 017 Repair Remote Instructions 2026-05-09
 
+Supersession note: this dated handoff used the old 2018-2020 sample-evaluation window. Future sample evaluations must use the fixed 2011-2025 IS/OS policy in [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md).
+
 ## Purpose
 
 Run a small controller-only repair/generation slice around the only useful data-backed lead from the curated sample eval: `attempt_017`, the causal-smoothing child.

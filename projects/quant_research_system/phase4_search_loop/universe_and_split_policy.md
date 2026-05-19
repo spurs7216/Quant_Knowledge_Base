@@ -2,7 +2,7 @@
 title: Phase 4 Universe and Split Policy
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -13,6 +13,7 @@ sources:
   - "README.md"
   - "dataset_context.md"
   - "csv_data_catalog.md"
+  - "evaluator_forward_return_contract_repair_20260519.md"
 ---
 # Phase 4 Universe and Split Policy
 
@@ -32,12 +33,17 @@ artifacts/phase4_alphaevolve/data_schema/daily_stock_field_mapping.yaml
 
 ```yaml
 split_policy:
-  type: chronological_by_cleaned_trading_dates
-  proportions: [0.70, 0.15, 0.15]
+  split_id: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+  type: fixed_calendar_in_sample_out_sample
+  analysis_window_start: 2011-01-01
+  analysis_window_end: 2025-12-31
+  in_sample: 2011-01-01 through 2022-12-31
+  out_sample: 2023-01-01 through latest available 2025 date
   unit: cleaned_unique_trading_dates
   construct_after_duplicate_policy: true
   construct_after_basic_validity_checks: true
-  test_set_locked_until_branch_freeze: true
+  out_sample_used_for_search_feedback: true
+  pristine_final_test_defined: false
 
 universe_policy:
   name: rolling_top500_market_cap
@@ -118,7 +124,9 @@ No smoothing, filtering, ranking, or universe selection may use observations aft
 
 ## Split Construction
 
-The split is computed once from cleaned sorted unique trading dates after duplicate policy, basic validity checks, and date parsing, not per candidate.
+The active Phase 4 evaluator uses a fixed in-sample / out-of-sample split over the last-15-year development window. The split is computed once from cleaned sorted unique trading dates after duplicate policy, basic validity checks, and date parsing, not per candidate.
+
+The earlier chronological 70/15/15 policy is now legacy design history. The 2018-2020 window is a debugging window only; it is not performance evidence for alpha evolution.
 
 Construction order:
 
@@ -129,37 +137,44 @@ Construction order:
 4. apply basic validity checks
 5. derive cleaned trading-date calendar
 6. sort trading dates
-7. cut chronological 70/15/15 split by trading-date count
-8. compute rolling universe membership inside each split using only prior/available information
+7. restrict alpha-evolution evidence to 2011-01-01 through 2025-12-31
+8. assign dates before 2023-01-01 to `in_sample`
+9. assign dates on or after 2023-01-01 to `out_sample`
+10. compute rolling universe membership with point-in-time prior-month formation dates
 ```
 
 Persist as:
 
 ```yaml
-split_id: daily_stock_top500_chrono_70_15_15_v1
+split_id: daily_stock_top500_is_2011_2022_os_2023_2025_v1
 split_unit: cleaned_unique_trading_dates
-train_start: <computed>
-train_end: <computed>
-validation_start: <computed>
-validation_end: <computed>
-test_start: <computed>
-test_end: <computed>
+split_policy: fixed_calendar_is_os
+analysis_start: 2011-01-01
+analysis_end: <latest available date <= 2025-12-31>
+in_sample_start: <first cleaned trading date >= 2011-01-01>
+in_sample_end: <last cleaned trading date < 2023-01-01>
+out_sample_start: <first cleaned trading date >= 2023-01-01>
+out_sample_end: <latest available date <= 2025-12-31>
 ```
 
-Do not manually choose dates after seeing results. The exact boundaries should be computed by the script and recorded in the artifact bundle.
+Do not manually choose dates after seeing results. The exact first/last cleaned trading dates should be computed by the script and recorded in the artifact bundle.
 
-## Test-Set Rules
+## Out-Sample Rules
 
 ```yaml
-test_set_policy:
-  accessible_during_search: false
-  unlock_requires_branch_freeze: true
-  mutation_after_test_evaluation_allowed: false
-  prompt_sampler_may_read_test_metrics: false
-  test_metrics_storage: candidate_registry_only_after_unlock
+out_sample_policy:
+  used_during_search_feedback: true
+  role: validation_oos_not_pristine_final_test
+  report_required_metrics:
+    - os_sharpe
+    - os_turnover
+    - os_drawdown
+    - os_max_weight
+    - os_missing_held_weight
+  repeated_use_caveat: repeated OS use creates validation overfit risk
 ```
 
-The program database may store that a branch has test evaluation, but child sampling from test-informed results is forbidden.
+Because the OS window is inspected during search, it is not a pristine final test. If the project later needs a publication-style final test, freeze a branch first and define a separate locked test protocol.
 
 ## Universe Artifact Requirements
 
@@ -195,7 +210,7 @@ If Parquet dependencies are unavailable, CSV fallback is acceptable.
 
 Candidates may not change:
 
-- split proportions
+- IS/OS split dates
 - split dates
 - universe recompute frequency
 - top-500 count
@@ -207,6 +222,16 @@ Candidates may not change:
 ## Missing-Return Policy
 
 Do not forward-fill returns. Do not silently drop held names. Do not silently renormalize surviving names without reporting the missing-held weight.
+
+For sample evaluation, rolling top-500 membership defines the signal-date universe only. One-day-forward returns are attached from the duplicate-resolved statically eligible raw panel before monthly top-500 filtering:
+
+```yaml
+forward_return_contract: signal_universe_t_return_source_eligible_t_plus_1_v1
+signal_panel_source: rolling_top500_universe_panel
+forward_return_source: eligible_static_panel
+```
+
+This prevents a stock that exits next-month top-500 membership from being falsely counted as missing when its next-day eligible raw return exists. It does not permit strategy code to read evaluator-only forward fields.
 
 Default policy:
 
@@ -228,7 +253,8 @@ A future explicit project task may revise universe policy, but generated childre
 
 Implement tests that assert:
 
-- no date in validation or test is used to construct training-time universe membership;
+- the active split manifest records `daily_stock_top500_is_2011_2022_os_2023_2025_v1`;
+- in-sample dates end before 2023-01-01 and out-sample dates start on or after 2023-01-01;
 - monthly membership for month `M` uses only prior-month-end information;
 - top-500 membership changes over time;
 - delisted or disappearing names are not silently removed from historical membership before disappearance;

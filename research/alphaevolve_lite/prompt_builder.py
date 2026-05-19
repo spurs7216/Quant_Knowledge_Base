@@ -33,7 +33,7 @@ Rules:
 - Do not include function definitions in the SEARCH block.
 - Do not include # EVOLVE-BLOCK-START or # EVOLVE-BLOCK-END in the SEARCH block.
 - Do not introduce new imports, new global names, file I/O, data loading, or undeclared dependencies.
-- Do not change train/validation/test split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
+- Do not change fixed IS/OS split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
 - Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
 - Do not add broker, IBKR, TWS, account, position, order, or credential logic.
 - If the prompt provides a Target behavior cell, implement that intended patch intent. Do not substitute an easier patch intent.
@@ -66,7 +66,7 @@ Rules:
 """
 
 
-IMMUTABLE_RULES = """You may not change train/validation/test split dates or split proportions.
+IMMUTABLE_RULES = """You may not change fixed IS/OS split dates or split policy.
 You may not change the rolling top-500-by-market-cap universe policy.
 You may not change raw data paths.
 You may not remove or weaken transaction costs.
@@ -357,7 +357,7 @@ Target mutation surface: {surface}
 Allowed mutation surface: {surface} only
 Data scope: daily_stock_only
 Universe policy: rolling_top500_market_cap_v1
-Split policy: daily_stock_top500_chrono_70_15_15_v1
+Split policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
 daily_stock contract: daily_stock_contract_v1
 
 Relevant evaluator feedback:

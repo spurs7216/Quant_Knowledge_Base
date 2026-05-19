@@ -2,7 +2,7 @@
 title: daily_stock EDA Remote Instructions 2026-05-18
 type: project
 status: active
-updated: 2026-05-18
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -52,12 +52,12 @@ python research/alphaevolve_lite/scripts/profile_daily_stock_data.py \
   --chunksize 1000000 \
   --sample-modulus 200 \
   --max-sample-rows 300000 \
-  --deep-start-date 2018-01-01 \
-  --deep-end-date 2020-12-31 \
+  --deep-start-date 2011-01-01 \
+  --deep-end-date 2025-12-31 \
   --deep-top-n 500
 ```
 
-Leave `--start-date`, `--end-date`, and `--max-input-rows` unset for this run. The full scan should cover the whole file; the deep profile should focus on the current sample-evaluation window.
+Leave `--start-date`, `--end-date`, and `--max-input-rows` unset for this run. The full scan should cover the whole file; the deep profile should focus on the active 2011-2025 IS/OS sample-evaluation window.
 
 ## Expected Output Files
 

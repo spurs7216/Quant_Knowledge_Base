@@ -15,6 +15,8 @@ sources:
 ---
 # Controller Attempt017 Search-Control Remote Instructions 2026-05-11
 
+Supersession note: this dated handoff used the old 2018-2020 sample-evaluation window. Future sample evaluations must use the fixed 2011-2025 IS/OS policy in [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md).
+
 ## Purpose
 
 Run one small controller-only focused attempt017 round after the search-control patch.

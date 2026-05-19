@@ -30,6 +30,55 @@ Operational implication:
 - let repeated, verified, or high-leverage material crystallize upward
 - do not solve "memory rot" in `wiki/` by silent forgetting; use explicit stale, conflicted, or superseded handling instead
 
+## GitHub Synchronization
+
+GitHub is a synchronization and code-version channel, especially for work that must be pulled by the remote Linux machine. It is not the heavy-data channel and it is not the default destination after every local edit.
+
+Use GitHub synchronization only when:
+
+- the user explicitly asks for a push
+- the remote machine needs the update
+- a workflow explicitly requires GitHub synchronization
+
+Never write tokens, PATs, SSH keys, broker credentials, or account-specific secrets into the vault, scripts, notes, shell history helpers, or tracked config.
+
+### Push Troubleshooting: Credential And Ownership Errors
+
+Lesson from the May 2026 push failure: a GitHub push error can be caused by Windows identity, credential-manager, or git safe-directory boundaries, not only by a bad token.
+
+Observed failure pattern:
+
+- sandboxed git push failed with `SEC_E_NO_CREDENTIALS`
+- `gh auth status` reported an invalid or inaccessible credential
+- direct PAT injection was blocked by environment policy
+- GitHub API write paths could fail with `403 Resource not accessible`
+- the scratch push clone was created by one Windows identity but later accessed by another
+- git then reported `detected dubious ownership in repository`
+
+Operational response:
+
+1. Do not store or paste the token into tracked files or durable notes.
+2. Check the current execution identity with `whoami` when a push path behaves differently across sandboxed and escalated shells.
+3. Check the exact repository path being pushed from, especially scratch clones under `.codex/memories`.
+4. If git reports dubious ownership for a trusted scratch clone, add only that exact absolute path to `safe.directory`; do not use a wildcard.
+5. Retry the normal authenticated push from the trusted clone after the ownership issue is fixed.
+6. Treat a failed `gh auth status` as diagnostic evidence, not proof that the PAT itself is bad.
+
+The successful resolution in that incident was to mark the exact scratch clone path as a safe directory, then run the normal `git push origin main` from that clone. The lesson is to diagnose identity and repository ownership before rotating credentials.
+
+### Remote Machine Git Hygiene
+
+Remote-machine runs should be reproducible from a commit that the local vault can fetch from GitHub.
+
+Before a remote controller or evaluator run, the remote operator should:
+
+1. pull the intended branch;
+2. record `git rev-parse HEAD`, `git status --short --branch`, and whether `HEAD` equals `origin/main`;
+3. keep the worktree clean, or explicitly write `git_dirty: true`, `git_status.txt`, and `git_diff_stat.txt` into the artifact;
+4. avoid unpushed local commits before research runs.
+
+If the remote machine needs a hygiene-only commit such as ignoring `.codex/`, either push it before the run or record in the artifact review that the manifest commit is `origin/main` plus an unpushed hygiene commit. Do not combine hygiene commits with research-code changes.
+
 ## Initialize
 
 Use initialize mode when a shelf, folder, or sub-area needs basic control notes or structure.
@@ -78,7 +127,8 @@ Treat these as event-like maintenance triggers even when the workflow is still m
 
 - `overview_source`: whole-source note for a book, long report, survey, or large article
 - `chapter_digest`: chapter-level or section-level note for large sources
-- `article_source`: bounded article, paper, essay, or shorter source
+- `paper_source`: journal article, conference paper, working paper, or serious preprint with scholarly claims, methods, evidence, or proofs
+- `article_source`: bounded non-academic article, essay, clipped web source, or shorter source
 - `metadata_stub`: provisional note created from metadata or weak extraction only
 
 Do not let `metadata_stub` notes masquerade as deep knowledge.
@@ -93,6 +143,41 @@ For books, long papers, long reports, and long markdown sources:
    Decide which chapters, sections, proofs, appendices, examples, or exercises are load-bearing. Deepen the selected chapters to theorem-level detail. Rescan the non-selected parts and deepen any local theorem, derivation, caveat, or concept that still matters.
 3. `promotion pass`
    Promote the strongest reusable material into `wiki/concepts/`, `wiki/methods/`, `wiki/metrics/`, or `wiki/strategies/`.
+
+### Paper ingest flow
+
+Journal papers, conference papers, working papers, and serious preprints are often shorter than books but denser in context. Do not treat short page count as permission for shallow ingest.
+
+Use a paper-adapted three-pass workflow, informed by [Keshav's three-pass paper-reading guide](https://dl.acm.org/doi/10.1145/1273445.1273458) and paper-discussion guidance such as [MIT 6.5950/6.5951](https://shd.mit.edu/2024/paperReadingGuidance.html):
+
+1. `context and triage pass`
+   Read the title, abstract, introduction, section headings, conclusion, figures/tables at a glance, and references. Classify the paper type, research question, contribution claims, required background, related literature, data or proof basis, and whether the paper deserves deeper ingest.
+2. `section-by-section scan pass`
+   Read every section in order. For each section, capture its role, main claims, definitions, assumptions, equations, empirical design, figures, tables, and caveats. A paper source note must not skip a section merely because the paper is short.
+3. `deep critique or reimplementation pass`
+   For selected high-value papers or load-bearing sections, reconstruct the estimator, model, theorem, proof skeleton, algorithm, portfolio rule, or table logic. Challenge assumptions, identify hidden conditioning, and write down what would be needed to replicate or falsify the result.
+4. `promotion pass`
+   Keep the source-tied paper note in `wiki/sources/papers/`, then promote only reusable concepts, methods, metrics, strategy ideas, or implementation caveats into durable notes.
+
+For empirical quant papers, preserve at minimum:
+
+- universe, sample period, frequency, identifiers, and filtering rules
+- target variable, feature or signal construction, label timing, and rebalancing convention
+- estimation method, validation split, benchmark model, and hyperparameter or model-selection logic
+- transaction costs, shorting, turnover, capacity, latency, or other implementation assumptions when relevant
+- table and figure interpretations, including which result is central and which is robustness-only
+- statistical uncertainty, multiple-testing issues, and whether claims are out-of-sample or only in-sample
+
+For theoretical or methodological papers, preserve at minimum:
+
+- primitives, state variables, objective, equilibrium concept, or optimization problem
+- theorem/proposition statements when they matter
+- assumptions and boundary conditions
+- proof idea or derivation skeleton
+- algorithmic steps and computational complexity when relevant
+- failure modes, limiting cases, and places where a quant implementation could misuse the result
+
+If the paper relies heavily on appendices, online supplements, code, or data definitions, treat those materials as part of the source boundary before promoting claims outward.
 
 ### Theorem-level standard
 
@@ -187,6 +272,8 @@ If a sensitive source matters structurally:
 - store chapter digests under `wiki/sources/books/<Book Title>/`
 - keep chapter titles predictable and source-linked
 - use the same parent-note plus child-folder pattern only when the source truly needs many subordinate notes
+- keep standalone paper notes at `wiki/sources/papers/<Paper Title>.md`
+- create child folders under `wiki/sources/papers/<Paper Title>/` only when appendices, proofs, replications, or section digests are too large for one inspectable paper note
 
 ### Full-source overview note rule
 

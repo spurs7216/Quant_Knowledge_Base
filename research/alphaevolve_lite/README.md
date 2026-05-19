@@ -35,16 +35,18 @@ Controller batch refactor notes:
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `mechanism_cards.py` owns mechanism-card parsing and exact contract validation for surface, intent, and `CONTRACT.*` daily-stock field handles.
 - `daily_stock_eda.py` owns the chunked daily-stock empirical map used to convert the frozen field contract into prompt-facing data guidance. It writes data-understanding artifacts only; it is not an alpha evaluator.
-- `daily_stock_forward_coverage.py` owns the chunked rolling top-N coverage and evaluator-style forward-return availability diagnostic. It answers data-coverage and missing-held-cause questions only; it must not become an alpha evaluator.
+- `daily_stock_forward_coverage.py` owns the chunked rolling top-N coverage and evaluator-style forward-return availability diagnostic. It answers data-coverage and missing-held-cause questions only; it must not become an alpha evaluator. Its default forward-availability window now matches the active 2011-2025 IS/OS evaluator window.
+- `splits.py` owns the active Phase 4 split contract: fixed IS/OS with 2011-2022 in-sample and 2023-2025 out-of-sample. The old 70/15/15 builder is retained only for legacy diagnostics.
 - `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
 - `scripts/profile_daily_stock_data.py` is the remote CLI for the daily-stock EDA milestone. It should run on the remote data machine, not local Windows, for full-file profiling.
-- `scripts/profile_daily_stock_forward_coverage.py` is the remote CLI for whole-timeline rolling top-500 coverage plus 2018-2020 forward-return availability diagnostics. It should run on the remote data machine and does not require Qwen or vLLM.
+- `scripts/profile_daily_stock_forward_coverage.py` is the remote CLI for whole-timeline rolling top-500 coverage plus active-window forward-return availability diagnostics. It should run on the remote data machine and does not require Qwen or vLLM.
 
 Remote sample-evaluator refactor notes:
 
 - `sample_eval_metrics.py` owns one-day-forward return construction, portfolio accounting, split metrics, scorecards, and cost sensitivity.
+- `sample_eval_metrics.py` separates signal-date universe rows from next-day return source rows for remote sample evaluation. The active contract is `signal_universe_t_return_source_eligible_t_plus_1_v1`: strategies trade rolling top-500 names at date t, while evaluator accounting sources date-(t+1) returns from the statically eligible raw panel.
 - `sample_eval_metrics.py` also owns active portfolio-day coverage diagnostics so sparse few-day sample artifacts cannot pass as broad daily-stock evidence.
 - `sample_eval_metrics.py` reports gross/net/long/short exposure diagnostics so de-grossing artifacts are visible in parent-relative comparisons.
 - `sample_eval_metrics.py` owns search-sample equivalence checks against seed/parent references and prior sample-evaluated siblings.
 - `sample_eval_baselines.py` owns sign-flip and matched-random null baseline construction.
-- `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, lineage validation, and database writes there unless a new reusable contract appears. Child sample evaluations must use explicit child `--program-id`, should provide `--parent-program-id`, and should pass prior sibling summaries with `--prior-sample-summary` when checking a follow-up branch.
+- `scripts/remote_sample_eval.py` should remain the remote CLI orchestration entry point; keep loading, hard gates, artifact routing, lineage validation, and database writes there unless a new reusable contract appears. Its default analysis window is 2011-2025 with fixed IS/OS metrics. Child sample evaluations must use explicit child `--program-id`, should provide `--parent-program-id`, and should pass prior sibling summaries with `--prior-sample-summary` when checking a follow-up branch.

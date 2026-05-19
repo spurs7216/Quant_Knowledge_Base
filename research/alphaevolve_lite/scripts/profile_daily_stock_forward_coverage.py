@@ -14,6 +14,14 @@ def _ensure_repo_import() -> None:
         sys.path.insert(0, str(repo_root))
 
 
+_ensure_repo_import()
+
+from research.alphaevolve_lite.splits import (  # noqa: E402
+    DEFAULT_ANALYSIS_END_DATE,
+    DEFAULT_ANALYSIS_START_DATE,
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
@@ -43,12 +51,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--forward-start-date",
-        default="2018-01-01",
+        default=DEFAULT_ANALYSIS_START_DATE,
         help="Start date for evaluator-style next-day return availability diagnostics.",
     )
     parser.add_argument(
         "--forward-end-date",
-        default="2020-12-31",
+        default=DEFAULT_ANALYSIS_END_DATE,
         help="End date for evaluator-style next-day return availability diagnostics.",
     )
     parser.add_argument(

@@ -283,12 +283,42 @@ def split_metrics(
     }
 
 
+def is_os_degradation_metrics(
+    in_sample: dict[str, float],
+    out_sample: dict[str, float],
+) -> dict[str, float]:
+    """Summarize how out-of-sample behavior changes versus in-sample behavior."""
+
+    fields = [
+        "annualized_return",
+        "sharpe",
+        "max_drawdown",
+        "turnover",
+        "max_missing_held_weight",
+        "max_weight",
+        "turnover_aware_score",
+    ]
+    result: dict[str, float] = {}
+    for field in fields:
+        is_value = _finite_float(in_sample.get(field))
+        os_value = _finite_float(out_sample.get(field))
+        result[f"os_minus_is_{field}"] = (
+            float(os_value - is_value) if is_value is not None and os_value is not None else float("nan")
+        )
+    is_sharpe = _finite_float(in_sample.get("sharpe"))
+    os_sharpe = _finite_float(out_sample.get("sharpe"))
+    result["is_to_os_sharpe_degradation"] = (
+        float(is_sharpe - os_sharpe) if is_sharpe is not None and os_sharpe is not None else float("nan")
+    )
+    return result
+
+
 def portfolio_day_coverage_diagnostics(
     portfolio: Any,
     panel: Any,
     contract: Any,
     *,
-    validation_end: Any,
+    analysis_end: Any,
     min_portfolio_days: int,
     min_portfolio_day_coverage: float,
 ) -> dict[str, Any]:
@@ -306,7 +336,7 @@ def portfolio_day_coverage_diagnostics(
     if not 0.0 < min_portfolio_day_coverage <= 1.0:
         raise ValueError("min_portfolio_day_coverage must be in (0, 1]")
 
-    visible_panel = panel.loc[panel[contract.date] <= validation_end]
+    visible_panel = panel.loc[panel[contract.date] <= analysis_end]
     visible_universe_days = int(visible_panel[contract.date].dropna().nunique())
     if portfolio.empty or "DlyCalDt" not in portfolio.columns:
         portfolio_days = 0
@@ -340,8 +370,86 @@ def portfolio_day_coverage_diagnostics(
     }
 
 
+def _temporary_column_name(columns: Any, base: str) -> str:
+    name = base
+    while name in columns:
+        name = f"_{name}"
+    return name
+
+
+def build_forward_returns_from_source(signal_panel: Any, return_source_panel: Any, contract: Any) -> Any:
+    """Attach next-market-day returns from a separate eligible return source.
+
+    `signal_panel` owns the date-t tradable universe and must already reflect
+    the rolling top-N membership used by the strategy. `return_source_panel`
+    owns the date-(t+1) pricing source and should be the statically eligible,
+    duplicate-resolved raw panel before monthly top-N membership filtering.
+    This preserves membership timing while avoiding false missing-held weight
+    when a date-t holding exits the next month's top-N universe.
+    """
+
+    import pandas as pd
+
+    forward_columns = ["next_market_date", "fwd_ret", "fwd_date", "fwd_vwretd", "one_day_forward"]
+    data = signal_panel.drop(
+        columns=[column for column in forward_columns if column in signal_panel.columns]
+    ).copy()
+    source = return_source_panel.sort_values(
+        [contract.security_id, contract.date],
+        kind="mergesort",
+    ).drop_duplicates([contract.security_id, contract.date], keep="first")
+
+    trading_dates = pd.Index(source[contract.date].dropna().drop_duplicates().sort_values())
+    next_date_map = pd.Series(trading_dates[1:].to_numpy(), index=trading_dates[:-1])
+    data["next_market_date"] = data[contract.date].map(next_date_map)
+
+    row_order_column = _temporary_column_name(data.columns, "_alphaevolve_signal_row_order")
+    source_date_column = _temporary_column_name(
+        set(data.columns) | set(source.columns),
+        "_alphaevolve_return_source_date",
+    )
+    data[row_order_column] = range(len(data))
+    source_forward = source[
+        [
+            contract.security_id,
+            contract.date,
+            contract.ex_dividend_return,
+            contract.benchmark_return_primary,
+        ]
+    ].rename(
+        columns={
+            contract.date: source_date_column,
+            contract.ex_dividend_return: "fwd_ret",
+            contract.benchmark_return_primary: "fwd_vwretd",
+        }
+    )
+    merged = data.merge(
+        source_forward,
+        left_on=[contract.security_id, "next_market_date"],
+        right_on=[contract.security_id, source_date_column],
+        how="left",
+        sort=False,
+    )
+    if len(merged) != len(signal_panel):
+        raise RuntimeError("forward-return source join changed signal-panel row count")
+
+    source_match = merged[source_date_column].notna()
+    merged["fwd_date"] = merged["next_market_date"]
+    merged["one_day_forward"] = source_match & merged["next_market_date"].notna()
+    merged = merged.sort_values(row_order_column, kind="mergesort").drop(
+        columns=[row_order_column, source_date_column]
+    )
+    merged.index = signal_panel.index
+    return merged
+
+
 def build_forward_returns(panel: Any, contract: Any) -> Any:
-    """Attach one-trading-day-forward returns under the frozen daily-stock contract."""
+    """Attach one-trading-day-forward returns using `panel` as both universe and source.
+
+    This legacy wrapper is kept for diagnostics that intentionally want
+    same-panel forward availability. Remote sample evaluation should use
+    `build_forward_returns_from_source` with a separate eligible return source.
+    """
 
     import pandas as pd
 
@@ -503,10 +611,12 @@ def cost_sensitivity_rows(
 
 __all__ = [
     "build_forward_returns",
+    "build_forward_returns_from_source",
     "compare_search_sample_to_reference",
     "compare_search_sample_to_references",
     "cost_sensitivity_rows",
     "empty_split_metrics",
+    "is_os_degradation_metrics",
     "portfolio_day_coverage_diagnostics",
     "portfolio_from_weights",
     "scorecard_from_metrics",

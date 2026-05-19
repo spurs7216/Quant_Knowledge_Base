@@ -11,7 +11,9 @@ Thumbs.db
 # Raw source library: keep the structure docs, not the source files
 raw/**
 !raw/
+!raw/**/
 !raw/README.md
+!raw/**/README.md
 
 # Local data mirrors and samples from the remote warehouse
 catalog/samples/**
@@ -23,6 +25,7 @@ artifacts/**
 
 # Local scratch outputs
 tmp/**
+.codex_tmp/
 
 # Python local execution artifacts
 __pycache__/

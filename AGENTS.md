@@ -8,6 +8,7 @@ The detailed operating rules are split into smaller files under [`agent/`](agent
 - [agent/operations.md](agent/operations.md): ingest, query, lint, crystallize, govern, provenance, and contradiction handling
 - [agent/notes.md](agent/notes.md): folder doctrine, note standards, frontmatter, and edit scope
 - [agent/obsidian.md](agent/obsidian.md): Obsidian usage, links, Bases, tags, MCP / CLI, and plugin-aware conventions
+- [agent/coding_principles.md](agent/coding_principles.md): mandatory coding principles for implementation, refactoring, controller/evaluator work, prompt-contract code, dataset-contract code, and tooling changes
 
 Read this file first. Then read the relevant subfile for the task.
 
@@ -76,6 +77,14 @@ Push only when:
 
 Local edits and commits may remain local until one of those conditions holds.
 
+If a push fails, check the GitHub synchronization troubleshooting rules in [agent/operations.md](agent/operations.md) before assuming the token is wrong or asking for a new credential.
+
+### 8. Code work follows the coding-principles layer
+
+Before implementation, refactoring, controller/evaluator changes, prompt-contract code, dataset-contract code, or tooling changes, read [agent/coding_principles.md](agent/coding_principles.md).
+
+Use [wiki/methods/Coding Principles for Quant Research Systems.md](wiki/methods/Coding%20Principles%20for%20Quant%20Research%20Systems.md) as the durable reference. Favor deep modules, information hiding, precise names, explicit research contracts, focused tests, and existing codebase patterns. Do not refactor code just to make it look tidy; refactor only when a concrete boundary, duplication, hidden-assumption, or failure-mode problem is in scope.
+
 ## Vault Map
 
 - `raw/`: source library
@@ -93,6 +102,7 @@ Always read this file first, then:
 - read [agent/notes.md](agent/notes.md) before creating or restructuring notes
 - read [agent/obsidian.md](agent/obsidian.md) when the task is Obsidian-native
 - read [agent/core.md](agent/core.md) when the task affects mission, standards, or governance
+- read [agent/coding_principles.md](agent/coding_principles.md) before code implementation, refactoring, controller/evaluator changes, prompt-contract code, dataset-contract code, or tooling changes
 
 Also read the relevant layer README files before editing:
 

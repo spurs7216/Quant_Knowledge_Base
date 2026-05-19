@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-18
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -57,6 +57,10 @@ sources:
   - "daily_stock_eda_remote_instructions_20260518.md"
   - "daily_stock_eda_full_review_20260518.md"
   - "daily_stock_forward_coverage_remote_instructions_20260518.md"
+  - "daily_stock_forward_coverage_review_20260519.md"
+  - "is_os_evaluation_policy_20260519.md"
+  - "evaluator_forward_return_contract_repair_20260519.md"
+  - "remote_sample_eval_is_os_forward_repair_rerun_20260519.md"
 ---
 # Phase 4 Current State
 
@@ -72,7 +76,7 @@ The first production loop is:
 data_scope: daily_stock_only
 seed_family: Kalman innovation / reversal
 universe: rolling top-500 by lagged DlyCap
-split: chronological 70/15/15
+split: fixed IS/OS, 2011-2022 IS and 2023-2025 OS
 generator: Qwen3.5-9B on remote Linux/GPU server
 mutation_format: SEARCH/REPLACE inside named evolve-block bodies
 controller_gate: controller_static before any data-backed child evaluation
@@ -87,7 +91,7 @@ artifacts/remote_sample_eval_controller_batch_001.zip
 
 `controller_batch_001` produced 35/50 unique controller-static pass children but missed the uniqueness gate because 15 attempts were duplicate rejects, mostly in `ranking/direction_flip`. The follow-up `controller_batch_001_diversity_topup` used prior-summary duplicate seeding and added 13/20 unique controller-static pass children, bringing the aggregate unique controller-static population to 48. The top-up met the aggregate controller population gate and reduced duplicate concentration, but exposed localized signal/portfolio repair lessons and a MAP-intent accounting bug now patched locally.
 
-`remote_sample_eval_controller_batch_001` evaluated the seed and five curated children. It found no promote-ready child. `attempt_000` was a sparse 3-portfolio-day artifact; `attempt_004`, `attempt_010`, and `attempt_011` were effectively metric-identical to the seed; `attempt_017` was the only broad-coverage child with better Sharpe, but it failed the missing-held-weight sample tolerance and has mixed train/validation behavior.
+`remote_sample_eval_controller_batch_001` evaluated the seed and five curated children under the old split/window. It found no promote-ready child. `attempt_000` was a sparse 3-portfolio-day artifact; `attempt_004`, `attempt_010`, and `attempt_011` were effectively metric-identical to the seed; `attempt_017` was the only broad-coverage child with better Sharpe, but it failed the missing-held-weight sample tolerance and had mixed old train/validation behavior.
 
 This is now a partial data-backed evolution probe, not a completed AlphaEvolve improvement round. The attempt017 repair run confirmed that Qwen/controller mechanics are healthy but also showed off-target children, gross-exposure dampeners, and exact smoke no-ops. The follow-up hardening smoke confirmed the new behavior-delta gate and parent-offspring accounting, then sample-evaluated one nontrivial signal child. That child underperformed attempt017 and did not fix missing-held-weight risk.
 
@@ -117,6 +121,12 @@ The execution-effect smoke is reviewed in [controller_attempt017_execution_effec
 
 The full `daily_stock` EDA is reviewed in [daily_stock_eda_full_review_20260518.md](daily_stock_eda_full_review_20260518.md), with a meeting-style notebook under [notebooks/daily_stock_eda_full_20260518_report_executed.ipynb](notebooks/daily_stock_eda_full_20260518_report_executed.ipynb). The full file has 49.65M rows, 25,139 unique PERMNOs, and 28.30M fixed-contract eligible rows. The 2018-2020 rolling top-500 deep window is much cleaner than the broad eligible universe: median 500 tradable names per day, median 53 SIC2 groups, median 15 SIC2 groups with at least 10 names, and median month-to-month membership Jaccard about 0.957. The accepted prompt lesson is to use robust date-level ranks/log/winsorized transforms and group-size-aware industry logic rather than raw-scale liquidity or market-cap dampening.
 
+The forward-coverage diagnostic is reviewed in [daily_stock_forward_coverage_review_20260519.md](daily_stock_forward_coverage_review_20260519.md), with an executed report notebook under [notebooks/daily_stock_forward_coverage_20260518_report_executed.ipynb](notebooks/daily_stock_forward_coverage_20260518_report_executed.ipynb). Whole-timeline rolling top-500 coverage is excellent: median daily observed selected names are 500 and the minimum daily coverage is 493/500. The important finding is not broad raw missingness. In the historical 2018-2020 smoke window, forward availability is 99.755% raw and about 99.888% after excluding the final visible date; 392 of 424 non-final unavailable rows occur at month-end. Names that do not continue into next-month membership account for 419 non-final unavailable rows. This points to an evaluator forward-return construction issue: next-day returns are being built after monthly-universe filtering, so a date-\(t\) holding that exits next month's top-500 can look missing even when raw eligible data may have its next-day return.
+
+The active evaluation split is now fixed IS/OS rather than chronological 70/15/15. EDA and coverage work should use the full available 2000-2025 timeline, but AlphaEvolve performance feedback should use the 2011-2025 development window: in-sample is 2011-01-01 through 2022-12-31, and out-of-sample starts on 2023-01-01 and runs through the latest available 2025 date. The 2018-2020 window is retained only as a historical smoke/debug window.
+
+The evaluator forward-return source repair is implemented in [evaluator_forward_return_contract_repair_20260519.md](evaluator_forward_return_contract_repair_20260519.md). Signal-date weights still use rolling top-500 membership at date t, but one-day-forward returns are now sourced from the duplicate-resolved statically eligible raw panel. This should remove the month-end universe-exit missing-held artifact before any more attempt017-family market evidence is interpreted.
+
 Current evolution status:
 
 ```yaml
@@ -125,7 +135,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: remote_forward_return_availability_diagnostic_before_child_generation
+next_stage: remote_seed_and_attempt017_is_os_forward_repair_rerun
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -274,48 +284,43 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is not broad validation, test evaluation, sample evaluation, 27B ideation, or another
-attempt017 controller batch. The first `daily_stock` empirical map is reviewed, but it does not
-explain missing-held-weight failures. Run one focused forward-return availability diagnostic before
-child generation resumes.
+The next step is not another attempt017 controller batch. The local evaluator repair is complete, so the next milestone is remote sample-evaluator evidence under the repaired forward-return source contract and fixed IS/OS split.
 
 ```yaml
-next_remote_run:
-  type: forward_return_availability_and_missing_held_causes
-  base_artifact: daily_stock_eda_full_20260518
-  window: 2018-01-01_to_2020-12-31
-  universe: rolling_top500_market_cap_v1
-  qwen_required: false
-  vllm_required: false
-  sample_eval_auto_launch: false
-  broad_validation: false
-  full_validation: false
+next_remote_task:
+  type: seed_and_attempt017_is_os_forward_repair_rerun
+  instruction_file: remote_sample_eval_is_os_forward_repair_rerun_20260519.md
+  required_runs:
+    - canonical seed
+    - attempt_017 parent lead
+  optional_runs_if_paths_are_reproducible:
+    - PROG-20260513-A017-MECH-0007
+    - PROG-20260514-A017-MECHFIX-0009
+    - PROG-20260514-A017-27BCARD-0011
+    - PROG-20260511-A017-FOCUS-0000
+  required_behavior:
+    - no Qwen
+    - no vLLM
+    - no controller generation
+    - no child promotion from this rerun alone
+    - sample evaluation uses 2011-01-01 through 2025-12-31
+    - IS metrics cover dates before 2023-01-01
+    - OS metrics cover dates on or after 2023-01-01
+    - signal-date weights remain restricted to rolling top-500 membership at date t
+    - next-day returns for date-t holdings are sourced from the eligible raw panel
+  review_questions:
+    - did attempt017 still improve broad-sample economics after missing-held repair?
+    - did max_missing_held_weight fall materially versus old artifacts?
+    - are IS and OS behavior directionally consistent enough to keep attempt017 as a parent lead?
   test_set_used: false
-  expected_artifact_fields:
-    - forward_coverage_summary.json
-    - top500_daily_coverage.csv
-    - top500_monthly_coverage.csv
-    - top500_permno_coverage.csv
-    - top500_membership_churn.csv
-    - forward_availability_by_date.csv
-    - forward_availability_by_bucket.csv
-    - forward_availability_by_industry.csv
-    - forward_availability_by_exchange.csv
-    - held_availability_prompt_cards.md
 ```
-
-Run handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md). Local review notebook: [notebooks/daily_stock_forward_coverage_20260518_report.ipynb](notebooks/daily_stock_forward_coverage_20260518_report.ipynb).
-
-After this diagnostic returns, promote only artifact-backed data lessons into prompt context, then
-run a small data-aware attempt017 controller batch. Descriptive statistics are not alpha evidence;
-they are constraints and priors for better child proposals.
 
 ## Main Links
 
 - Active design: [README.md](README.md), [task_001_search_design.md](task_001_search_design.md), [task_004_seed_strategy_program.md](task_004_seed_strategy_program.md)
 - Contracts: [daily_stock_contract_v1.md](daily_stock_contract_v1.md), [prompt_contracts.md](prompt_contracts.md), [evaluator_contract.md](evaluator_contract.md), [program_database_schema.md](program_database_schema.md)
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
-- Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [cost_model_policy.md](cost_model_policy.md)
+- Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md), [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md)
 - Remote handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)

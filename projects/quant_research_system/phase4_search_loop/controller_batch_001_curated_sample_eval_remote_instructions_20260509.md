@@ -16,6 +16,8 @@ sources:
 ---
 # Controller Batch 001 Curated Sample Eval Remote Instructions
 
+Supersession note: this dated handoff used the old 2018-2020 sample-evaluation window. Future sample evaluations must use the fixed 2011-2025 IS/OS policy in [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md).
+
 ## Purpose
 
 Run the first data-backed child evaluation on a small, diverse subset of controller-static pass children.

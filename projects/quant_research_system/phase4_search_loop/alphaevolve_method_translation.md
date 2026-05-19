@@ -2,7 +2,7 @@
 title: Phase 4 AlphaEvolve Method Translation
 type: project
 status: active
-updated: 2026-04-29
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -64,15 +64,15 @@ AlphaEvolve works best when candidates can be automatically evaluated. Quant alp
 
 Therefore, Phase 4 must add protections not emphasized in generic algorithmic benchmarks:
 
-- fixed chronological splits;
+- fixed IS/OS split for current search feedback;
 - rolling point-in-time universe;
 - strict cost grid;
 - matched-turnover nulls;
 - liquidity and sector buckets;
 - concentration diagnostics;
 - point-in-time join checks;
-- validation-overuse penalties;
-- branch freeze before test evaluation.
+- OS-overuse/validation-overuse penalties;
+- branch freeze before any future pristine final-test protocol.
 
 ## Initial Abstraction Level
 
@@ -105,8 +105,11 @@ Use multiple scalar scores for search, but keep hard gates separate.
 
 Scalar scores:
 
-- validation net Sharpe;
-- validation net return;
+- IS net Sharpe;
+- IS net return;
+- OS net Sharpe;
+- OS net return;
+- IS-to-OS degradation;
 - negative turnover;
 - negative cost drag;
 - negative concentration;
@@ -193,4 +196,4 @@ controller_static
 -> test evaluation, if unlocked
 ```
 
-The test set is never part of ordinary search feedback.
+The active OS window is validation-style out-of-sample because it is inspected during search. If a separate final test is later defined, it must not be part of ordinary search feedback.

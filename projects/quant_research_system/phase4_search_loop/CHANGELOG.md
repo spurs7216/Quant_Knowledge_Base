@@ -2,13 +2,26 @@
 title: Phase 4 Markdown Package Changelog
 type: project
 status: active
-updated: 2026-05-11
+updated: 2026-05-19
 tags:
   - project
   - phase4
   - changelog
 ---
 # Phase 4 Markdown Package Changelog
+
+## 2026-05-19 Forward-Return Contract Repair
+
+- Added `build_forward_returns_from_source` so rolling top-500 signal rows are priced from the duplicate-resolved statically eligible raw panel.
+- Updated `remote_sample_eval.py` to record `signal_universe_t_return_source_eligible_t_plus_1_v1` in manifests, evaluator summaries, and database descriptors.
+- Added regression tests for month-end universe exits and missing next-day security rows.
+- Added the remote handoff for seed and attempt017 reruns under repaired 2011-2025 IS/OS evaluation.
+
+## 2026-05-19 IS/OS Split Policy Update
+
+- Replaced the active 70/15/15 split policy with fixed IS/OS: 2011-2022 in-sample and 2023-2025 out-of-sample.
+- Reclassified 2018-2020 runs as smoke/debug evidence, not alpha performance evidence.
+- Updated evaluator, prompt, database, artifact, and remote CSV contracts to report IS and OS metrics.
 
 ## 2026-05-11 Hardening Smoke Review Patch
 
@@ -42,7 +55,7 @@ This package updates the prior Phase 4 markdown zip using the latest project dec
 - Clarified that `task_004_seed_strategy_program.md` implements Task 001 and does not replace it.
 - Added `phase4_sampling_policy_v1.md` for data-aware MAP-Elites + island sampling.
 - Added `program_database_schema.md` with SQLite tables and JSONL audit requirements.
-- Added `universe_and_split_policy.md` with chronological 70/15/15 splits and rolling top-500 market-cap universe.
+- Added `universe_and_split_policy.md` with the then-active chronological split and rolling top-500 market-cap universe; this was superseded on 2026-05-19 by fixed IS/OS.
 - Added `dataset_admission_policy.md` with staged dataset unlock and point-in-time join gates.
 - Added `processed_outputs_policy.md` to prevent processed CSV outputs from being treated as parent programs without source-script validation.
 - Added `remote_csv_execution_policy.md` to handle remote CSV warehouse constraints and no external `.exe` assumption.
@@ -58,7 +71,7 @@ This package updates the prior Phase 4 markdown zip using the latest project dec
 phase4_active_design:
   first_loop_data_scope: daily_stock_only
   universe: rolling_top500_market_cap_v1
-  split: chronological_70_15_15
+  split: daily_stock_top500_is_2011_2022_os_2023_2025_v1
   inner_loop_model: Qwen3.5-9B
   repair_model: Qwen3.5-9B
   medium_reviewer: Qwen3.5-27B-FP8 optional

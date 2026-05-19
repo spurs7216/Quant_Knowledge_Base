@@ -8,20 +8,25 @@ It contains the materials the agent reads from but does not treat as the compile
 
 Current source areas include:
 
+- `Alpha_evolve/`
 - `books_cn/`
+- `coding_principal/`
 - `econometrics/`
 - `finance_microstructure/`
 - `interview_questions/`
 - `LLM Knowledge Bases/`
 - `machine_learning/`
 - `math_statistics/`
+- `Obsidian/`
 - `quantitative_finance/`
 
 These are domain-oriented shelves inside the vault's source library.
 
 Shelf notes:
 
-- `math_statistics/README.md` tracks the ordered source inventory and active ingest status for the math/statistics shelf, including books, bridge tutorials, and compact references rather than only formal books.
+- each domain shelf should maintain a local `README.md` with an ordered source inventory
+- `math_statistics/README.md` is the mature example: it tracks books, bridge tutorials, compact references, and active ingest status in one ordered table
+- paper-heavy shelves should mark `journal_paper`, `working_paper`, `conference_paper`, or related classes explicitly instead of pretending papers are book chapters
 
 ## What this folder is for
 
@@ -70,3 +75,5 @@ If a source needs interpretation:
 1. keep the original in `raw/`
 2. create or update the understanding in `wiki/`
 3. use `projects/` if the interpretation is still evolving
+
+Keep source-like files inside the domain shelf that best matches their research role. The `raw/` root should stay a controller layer, not a mixed holding area for loose papers.

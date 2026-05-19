@@ -2,7 +2,7 @@
 title: Phase 4 Prompt Contracts
 type: project
 status: active
-updated: 2026-05-04
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -75,7 +75,7 @@ model_routing:
 Every prompt must include these immutable rules:
 
 ```text
-You may not change train/validation/test split dates or split proportions.
+You may not change fixed IS/OS split dates or split policy.
 You may not change the rolling top-500-by-market-cap universe policy.
 You may not change raw data paths.
 You may not remove or weaken transaction costs.
@@ -108,7 +108,7 @@ Rules:
 - Do not include function definitions in the SEARCH block unless the prompt explicitly allows whole-block replacement.
 - Do not include # EVOLVE-BLOCK-START or # EVOLVE-BLOCK-END in the SEARCH block.
 - Do not introduce new imports, new global names, or undeclared dependencies.
-- Do not change train/validation/test split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
+- Do not change fixed IS/OS split logic, universe logic, data paths, duplicate policy, cost accounting, or artifact writing.
 - Do not add broker, IBKR, TWS, account, position, order, or credential logic.
 - If no valid change is possible, output exactly: NO_VALID_PATCH.
 ```
@@ -121,7 +121,7 @@ Allowed mutation surface: {mutation_surface.primary}
 Allowed secondary surfaces: {mutation_surface.secondary}
 Data scope: {data_scope}
 Universe policy: rolling_top500_market_cap_v1
-Split policy: daily_stock_top500_chrono_70_15_15_v1
+Split policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
 
 Parent program metrics:
 {parent_prompt_card}

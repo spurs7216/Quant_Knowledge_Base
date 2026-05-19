@@ -2,7 +2,7 @@
 title: Phase 4 Task 004 Seed Strategy Program and Qwen Loop
 type: project
 status: active
-updated: 2026-04-30
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -77,7 +77,7 @@ Non-evolvable skeleton owns:
 
 - CSV data loading;
 - rolling top-500 universe construction;
-- chronological 70/15/15 split;
+- fixed 2011-2025 IS/OS split;
 - duplicate policy;
 - return timing;
 - cost model;
@@ -312,7 +312,7 @@ This remains a controller-only batch. It must not launch child `remote_sample_ev
 
 ### 9. First Child Sample Evaluation
 
-After `controller_static` and `toy_eval` success, run a small historical `remote_sample_eval` on remote CSV data.
+After `controller_static` and `toy_eval` success, run historical `remote_sample_eval` on remote CSV data using the fixed IS/OS evaluator window.
 
 Use:
 
@@ -323,12 +323,13 @@ python research/alphaevolve_lite/scripts/remote_sample_eval.py \
   --out-dir artifacts/phase4_alphaevolve/remote_sample_eval_child_NNN \
   --db-path artifacts/phase4_alphaevolve/program_database.sqlite \
   --program-id PROG-20260430-CHILD-NNNN \
-  --start-date 2018-01-01 \
-  --end-date 2020-12-31 \
+  --start-date 2011-01-01 \
+  --end-date 2025-12-31 \
+  --out-sample-start 2023-01-01 \
   --null-seeds 10
 ```
 
-The sample evaluator must report duplicate-row conflict diagnostics, git dirty status detail, random null baselines, sign-flipped baseline, and `turnover_aware_score`.
+The sample evaluator must report duplicate-row conflict diagnostics, git dirty status detail, random null baselines, sign-flipped baseline, IS Sharpe/turnover, OS Sharpe/turnover, and `turnover_aware_score`.
 
 Do not run full remote validation until:
 
@@ -345,7 +346,7 @@ Task 004 is complete only if:
 
 - seed strategy module compiles;
 - rolling top-500 universe builder compiles and writes manifest;
-- chronological 70/15/15 split builder compiles and writes manifest;
+- fixed IS/OS split builder compiles and writes manifest;
 - evolve blocks are detected;
 - generation-zero record inserted into SQLite;
 - Qwen3.5-9B produces at least one valid child patch;

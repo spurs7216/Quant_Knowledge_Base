@@ -24,6 +24,16 @@ def _ensure_repo_import() -> None:
         sys.path.insert(0, str(repo_root))
 
 
+_ensure_repo_import()
+
+from research.alphaevolve_lite.splits import (  # noqa: E402
+    DEFAULT_ANALYSIS_END_DATE,
+    DEFAULT_ANALYSIS_START_DATE,
+    DEFAULT_OUT_SAMPLE_START_DATE,
+    IS_OS_SPLIT_ID,
+)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Remote sample-evaluate a Phase 4 strategy program.")
     parser.add_argument("--csv-path", required=True)
@@ -50,8 +60,21 @@ def parse_args() -> argparse.Namespace:
         default=1e-9,
         help="Absolute tolerance for optional search-sample metric equivalence to the reference summary.",
     )
-    parser.add_argument("--start-date", default="2018-01-01")
-    parser.add_argument("--end-date", default="2020-12-31")
+    parser.add_argument(
+        "--start-date",
+        default=DEFAULT_ANALYSIS_START_DATE,
+        help="Inclusive analysis-window start. The active Phase 4 IS/OS window starts in 2011.",
+    )
+    parser.add_argument(
+        "--end-date",
+        default=DEFAULT_ANALYSIS_END_DATE,
+        help="Inclusive analysis-window end. The active Phase 4 window ends with available 2025 data.",
+    )
+    parser.add_argument(
+        "--out-sample-start",
+        default=DEFAULT_OUT_SAMPLE_START_DATE,
+        help="First calendar date assigned to the out-of-sample split.",
+    )
     parser.add_argument("--chunksize", type=int, default=1_000_000)
     parser.add_argument("--max-input-rows", type=int)
     parser.add_argument("--top-n", type=int, default=500)
@@ -226,16 +249,17 @@ def main() -> int:
         summarize_baselines,
     )
     from research.alphaevolve_lite.sample_eval_metrics import (
-        build_forward_returns,
+        build_forward_returns_from_source,
         compare_search_sample_to_reference,
         compare_search_sample_to_references,
         cost_sensitivity_rows,
+        is_os_degradation_metrics,
         portfolio_from_weights,
         portfolio_day_coverage_diagnostics,
         scorecard_from_metrics,
         split_metrics,
     )
-    from research.alphaevolve_lite.splits import build_chronological_splits, write_split_manifest
+    from research.alphaevolve_lite.splits import build_is_os_splits, write_split_manifest
     from research.alphaevolve_lite.universe import (
         UNIVERSE_POLICY_ID,
         apply_monthly_universe,
@@ -311,31 +335,31 @@ def main() -> int:
         if eligible.empty:
             raise RuntimeError("no eligible rows after daily_stock_contract_v1 filters")
 
-        splits = build_chronological_splits(eligible[CONTRACT.date])
+        splits = build_is_os_splits(eligible[CONTRACT.date], out_sample_start=args.out_sample_start)
         membership, universe_summary = build_monthly_rolling_universe(eligible, top_n=args.top_n)
         universe_panel = apply_monthly_universe(eligible, membership)
         if universe_panel.empty:
             raise RuntimeError("rolling universe produced no sample rows")
 
-        eval_panel = build_forward_returns(universe_panel, CONTRACT)
+        eval_panel = build_forward_returns_from_source(universe_panel, eligible, CONTRACT)
         strategy_params = dict(strategy_module.DEFAULT_PARAMS)
         signal = strategy_module.compute_signal(eval_panel, strategy_params)
         ranked = strategy_module.rank_or_transform_signal(signal, eval_panel, strategy_params)
         raw_weights = strategy_module.construct_portfolio(ranked, eval_panel, strategy_params)
         weights = strategy_module.apply_risk_controls(raw_weights, eval_panel, strategy_params)
         full_portfolio, positions = portfolio_from_weights(eval_panel, weights, args.total_cost_bps, CONTRACT)
-        validation_end = splits[1].end
-        portfolio = full_portfolio.loc[full_portfolio["DlyCalDt"] <= validation_end].copy()
-        positions = positions.loc[positions[CONTRACT.date] <= validation_end].copy()
+        analysis_end = splits[-1].end
+        portfolio = full_portfolio.loc[full_portfolio["DlyCalDt"] <= analysis_end].copy()
+        positions = positions.loc[positions[CONTRACT.date] <= analysis_end].copy()
         if portfolio.empty:
             raise RuntimeError("seed produced no nonzero portfolio returns")
 
-        visible_splits = [split for split in splits if split.name in {"train", "validation"}]
+        visible_splits = [split for split in splits if split.name in {"in_sample", "out_sample"}]
         portfolio_coverage = portfolio_day_coverage_diagnostics(
             portfolio,
             universe_panel,
             CONTRACT,
-            validation_end=validation_end,
+            analysis_end=analysis_end,
             min_portfolio_days=args.min_portfolio_days,
             min_portfolio_day_coverage=args.min_portfolio_day_coverage,
         )
@@ -362,12 +386,16 @@ def main() -> int:
             turnover_penalty=args.turnover_penalty,
             missing_weight_penalty=args.missing_weight_penalty,
         )
+        metrics["is_os_degradation"] = is_os_degradation_metrics(
+            metrics["in_sample"],
+            metrics["out_sample"],
+        )
 
         baseline_records = build_baseline_records(
             panel=eval_panel,
             reference_weights=weights,
             contract=CONTRACT,
-            validation_end=validation_end,
+            analysis_end=analysis_end,
             total_cost_bps=args.total_cost_bps,
             visible_splits=visible_splits,
             null_seeds=args.null_seeds,
@@ -405,6 +433,7 @@ def main() -> int:
             "git_worktree_clean": not bool(git_status.get("git_dirty")),
             "git_head_matches_origin_main": bool(git_status.get("git_head_matches_origin_main")),
             "code_snapshot_recorded": (out_dir / str(program_snapshot["program_snapshot_path"])).exists(),
+            "forward_return_source_contract_recorded": True,
             "null_baselines_written": (out_dir / "null_baselines.csv").exists(),
             "turnover_aware_score_reported": "turnover_aware_score" in metrics["search_sample"],
             "exposure_diagnostics_reported": "mean_gross_exposure" in metrics["search_sample"],
@@ -434,6 +463,8 @@ def main() -> int:
             calendar_count=int(eligible[CONTRACT.date].nunique()),
             universe_policy=UNIVERSE_POLICY_ID,
             duplicate_policy=dup_diag,
+            split_id=IS_OS_SPLIT_ID,
+            split_policy="fixed_calendar_is_os",
         )
         portfolio.to_csv(out_dir / "returns_by_split.csv", index=False)
         positions.head(5000).to_csv(out_dir / "positions_sample.csv", index=False)
@@ -454,6 +485,8 @@ def main() -> int:
             "csv_path": args.csv_path,
             "start_date": args.start_date,
             "end_date": args.end_date,
+            "out_sample_start": args.out_sample_start,
+            "split_id": IS_OS_SPLIT_ID,
             "top_n": args.top_n,
             "total_cost_bps": args.total_cost_bps,
             "cost_grid_bps": costs,
@@ -464,6 +497,9 @@ def main() -> int:
             "min_portfolio_day_coverage": args.min_portfolio_day_coverage,
             "portfolio_coverage": portfolio_coverage,
             "daily_stock_contract": CONTRACT.contract_id,
+            "signal_panel_source": "rolling_top500_universe_panel",
+            "forward_return_source": "eligible_static_panel",
+            "forward_return_contract": "signal_universe_t_return_source_eligible_t_plus_1_v1",
             "universe_policy": UNIVERSE_POLICY_ID,
             "eligibility_filters": eligibility_query_description(),
             **git_status,
@@ -509,6 +545,11 @@ def main() -> int:
                         "equivalent_reference_program_ids"
                     ],
                     "universe_policy": UNIVERSE_POLICY_ID,
+                    "split_id": IS_OS_SPLIT_ID,
+                    "out_sample_start": args.out_sample_start,
+                    "signal_panel_source": "rolling_top500_universe_panel",
+                    "forward_return_source": "eligible_static_panel",
+                    "forward_return_contract": "signal_universe_t_return_source_eligible_t_plus_1_v1",
                     "data_scope": "daily_stock_only",
                     "portfolio_day_coverage": portfolio_coverage["portfolio_day_coverage"],
                     "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
@@ -519,7 +560,7 @@ def main() -> int:
                     "git_origin_main_commit": git_status["git_origin_main_commit"],
                     "git_head_matches_origin_main": git_status["git_head_matches_origin_main"],
                 },
-                "next_prompt_hint": "If sample_pass, compare against seed, null baselines, and sibling children before any stage-0/full validation. Do not use test metrics for prompt sampling.",
+                "next_prompt_hint": "If sample_pass, compare IS and OS behavior against seed, null baselines, and sibling children before promotion. Do not treat OS as a pristine final test after repeated use.",
                 "artifact_paths": {
                     "scorecard": "scorecard.csv",
                     "diagnostics": "diagnostics.csv",
@@ -566,6 +607,12 @@ def main() -> int:
                 f"- rows_after_static_eligibility: `{eligibility_diag.get('rows_after_static_eligibility')}`",
                 f"- universe_rows: `{len(universe_panel)}`",
                 f"- portfolio_days: `{len(portfolio)}`",
+                f"- split_id: `{IS_OS_SPLIT_ID}`",
+                "- signal_panel_source: `rolling_top500_universe_panel`",
+                "- forward_return_source: `eligible_static_panel`",
+                "- forward_return_contract: `signal_universe_t_return_source_eligible_t_plus_1_v1`",
+                f"- in_sample_range: `{splits[0].start.date().isoformat()} to {splits[0].end.date().isoformat()}`",
+                f"- out_sample_range: `{splits[1].start.date().isoformat()} to {splits[1].end.date().isoformat()}`",
                 f"- visible_universe_days: `{portfolio_coverage['visible_universe_days']}`",
                 f"- portfolio_day_coverage: `{portfolio_coverage['portfolio_day_coverage']}`",
                 f"- min_required_portfolio_days: `{portfolio_coverage['min_required_portfolio_days']}`",
@@ -576,6 +623,11 @@ def main() -> int:
                     "- prior_sample_equivalent_program_ids: `"
                     f"{prior_sample_comparison['equivalent_reference_program_ids']}`"
                 ),
+                f"- is_sharpe: `{metrics['in_sample']['sharpe']}`",
+                f"- is_turnover: `{metrics['in_sample']['turnover']}`",
+                f"- os_sharpe: `{metrics['out_sample']['sharpe']}`",
+                f"- os_turnover: `{metrics['out_sample']['turnover']}`",
+                f"- is_to_os_sharpe_degradation: `{metrics['is_os_degradation']['is_to_os_sharpe_degradation']}`",
                 f"- search_sample_sharpe: `{metrics['search_sample']['sharpe']}`",
                 f"- turnover_aware_score: `{metrics['search_sample']['turnover_aware_score']}`",
                 f"- max_weight: `{metrics['search_sample']['max_weight']}`",
@@ -617,6 +669,11 @@ def main() -> int:
                             "equivalent_reference_program_ids"
                         ],
                         "portfolio_coverage": portfolio_coverage,
+                        "split_id": IS_OS_SPLIT_ID,
+                        "out_sample_start": args.out_sample_start,
+                        "signal_panel_source": "rolling_top500_universe_panel",
+                        "forward_return_source": "eligible_static_panel",
+                        "forward_return_contract": "signal_universe_t_return_source_eligible_t_plus_1_v1",
                         "mean_gross_exposure": metrics["search_sample"].get("mean_gross_exposure"),
                         "max_gross_exposure": metrics["search_sample"].get("max_gross_exposure"),
                         "max_abs_net_exposure": metrics["search_sample"].get("max_abs_net_exposure"),
@@ -628,6 +685,7 @@ def main() -> int:
                     "validation_exposure": {
                         "remote_sample_eval": True,
                         "remote_full_validation": False,
+                        "split_id": IS_OS_SPLIT_ID,
                         "test_set_used": False,
                     },
                     "failure_reason": failure_reason,

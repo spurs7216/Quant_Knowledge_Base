@@ -14,6 +14,7 @@ superseded_by: "current_state.md"
 # Phase 4 Remote Sample Eval Hardening 2026-04-30
 
 > Current compact state: [current_state.md](current_state.md). This dated note is retained as supporting evidence for evaluator hardening before child generation.
+> Future sample evaluations must use the fixed 2011-2025 IS/OS policy in [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md), not the old 2018-2020 hardening window below.
 
 ## Why
 

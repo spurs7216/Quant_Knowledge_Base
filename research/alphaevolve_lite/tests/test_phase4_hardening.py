@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
+import pandas as pd
+
+from research.alphaevolve_lite.daily_stock_contract import CONTRACT
 from research.alphaevolve_lite.controller_batch_state import (
     parse_target_cell_schedule,
     target_cell_for_attempt,
@@ -14,8 +19,93 @@ from research.alphaevolve_lite.controller_sample_eval_policy import (
     sample_eval_eligibility,
 )
 from research.alphaevolve_lite.mechanism_cards import normalize_mechanism_cards
-from research.alphaevolve_lite.sample_eval_metrics import compare_search_sample_to_references
+from research.alphaevolve_lite.sample_eval_metrics import (
+    build_forward_returns_from_source,
+    compare_search_sample_to_references,
+    is_os_degradation_metrics,
+)
 from research.alphaevolve_lite.skill_library import build_controller_batch_skill_update
+from research.alphaevolve_lite.splits import IS_OS_SPLIT_ID, build_is_os_splits, write_split_manifest
+
+
+class SplitContractTests(unittest.TestCase):
+    def test_builds_fixed_is_os_split_without_fractional_test_window(self) -> None:
+        dates = pd.date_range("2022-12-19", "2023-01-10", freq="B")
+
+        splits = build_is_os_splits(dates, out_sample_start="2023-01-01")
+
+        self.assertEqual([split.name for split in splits], ["in_sample", "out_sample"])
+        self.assertEqual(splits[0].end, pd.Timestamp("2022-12-30"))
+        self.assertEqual(splits[1].start, pd.Timestamp("2023-01-02"))
+
+    def test_split_manifest_records_active_is_os_contract(self) -> None:
+        dates = pd.date_range("2022-12-19", "2023-01-10", freq="B")
+        splits = build_is_os_splits(dates)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = write_split_manifest(
+                Path(tmp) / "split_manifest.yaml",
+                splits=splits,
+                calendar_count=len(dates),
+                universe_policy="rolling_top500_market_cap",
+                duplicate_policy={"duplicate_permno_date_count": 0},
+            )
+            text = path.read_text(encoding="utf-8")
+
+        self.assertIn(f"split_id: {IS_OS_SPLIT_ID}", text)
+        self.assertIn("split_policy: fixed_calendar_is_os", text)
+        self.assertIn("name: in_sample", text)
+        self.assertIn("name: out_sample", text)
+
+
+class ForwardReturnSourceContractTests(unittest.TestCase):
+    def test_attaches_next_day_return_after_month_end_universe_exit(self) -> None:
+        signal_panel = pd.DataFrame(
+            {
+                CONTRACT.security_id: [10001],
+                CONTRACT.date: [pd.Timestamp("2022-01-31")],
+                CONTRACT.ex_dividend_return: [0.01],
+                CONTRACT.benchmark_return_primary: [0.001],
+            }
+        )
+        return_source = pd.DataFrame(
+            {
+                CONTRACT.security_id: [10001, 10001],
+                CONTRACT.date: [pd.Timestamp("2022-01-31"), pd.Timestamp("2022-02-01")],
+                CONTRACT.ex_dividend_return: [0.01, 0.05],
+                CONTRACT.benchmark_return_primary: [0.001, 0.002],
+            }
+        )
+
+        result = build_forward_returns_from_source(signal_panel, return_source, CONTRACT)
+
+        self.assertEqual(result.loc[0, "fwd_date"], pd.Timestamp("2022-02-01"))
+        self.assertAlmostEqual(result.loc[0, "fwd_ret"], 0.05)
+        self.assertAlmostEqual(result.loc[0, "fwd_vwretd"], 0.002)
+        self.assertTrue(bool(result.loc[0, "one_day_forward"]))
+
+    def test_marks_missing_next_day_security_row_on_next_market_date(self) -> None:
+        signal_panel = pd.DataFrame(
+            {
+                CONTRACT.security_id: [10001],
+                CONTRACT.date: [pd.Timestamp("2022-01-31")],
+                CONTRACT.ex_dividend_return: [0.01],
+                CONTRACT.benchmark_return_primary: [0.001],
+            }
+        )
+        return_source = pd.DataFrame(
+            {
+                CONTRACT.security_id: [10001, 10002],
+                CONTRACT.date: [pd.Timestamp("2022-01-31"), pd.Timestamp("2022-02-01")],
+                CONTRACT.ex_dividend_return: [0.01, 0.03],
+                CONTRACT.benchmark_return_primary: [0.001, 0.002],
+            }
+        )
+
+        result = build_forward_returns_from_source(signal_panel, return_source, CONTRACT)
+
+        self.assertEqual(result.loc[0, "fwd_date"], pd.Timestamp("2022-02-01"))
+        self.assertTrue(pd.isna(result.loc[0, "fwd_ret"]))
+        self.assertFalse(bool(result.loc[0, "one_day_forward"]))
 
 
 class TargetCellScheduleTests(unittest.TestCase):
@@ -216,6 +306,16 @@ class PriorSampleEquivalenceTests(unittest.TestCase):
 
         self.assertTrue(result["metric_equivalent_to_any_reference"])
         self.assertEqual(result["equivalent_reference_program_ids"], ["PROG-PRIOR"])
+
+    def test_is_os_degradation_reports_os_minus_is_and_sharpe_degradation(self) -> None:
+        result = is_os_degradation_metrics(
+            {"sharpe": 1.5, "turnover": 0.4},
+            {"sharpe": 0.7, "turnover": 0.6},
+        )
+
+        self.assertAlmostEqual(result["os_minus_is_sharpe"], -0.8)
+        self.assertAlmostEqual(result["os_minus_is_turnover"], 0.2)
+        self.assertAlmostEqual(result["is_to_os_sharpe_degradation"], 0.8)
 
 
 class MechanismCardValidationTests(unittest.TestCase):

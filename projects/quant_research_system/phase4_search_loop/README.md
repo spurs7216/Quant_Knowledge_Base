@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-14
+updated: 2026-05-19
 tags:
   - project
   - phase4
@@ -55,7 +55,10 @@ The first production loop is daily-stock-only.
 ```yaml
 phase4_first_loop:
   data_scope: daily_stock_only
-  split_policy: chronological_70_15_15
+  split_policy: daily_stock_top500_is_2011_2022_os_2023_2025_v1
+  analysis_window: 2011-01-01_to_2025-12-31
+  in_sample: 2011-01-01_to_2022-12-31
+  out_sample: 2023-01-01_to_latest_2025_date
   universe_policy: rolling_top500_market_cap
   universe_recompute: monthly_from_prior_month_end
   candidate_unit: executable_seed_strategy_module
@@ -123,7 +126,9 @@ New implementation-policy files:
 - [phase4_sampling_policy_v1.md](phase4_sampling_policy_v1.md): data-aware MAP-Elites + island sampling policy.
 - [daily_stock_contract_v1.md](daily_stock_contract_v1.md): frozen `daily_stock` field mapping, fixed eligibility filters, and seed evaluator command.
 - [program_database_schema.md](program_database_schema.md): SQLite schema, JSONL audit log, and descriptor fields.
-- [universe_and_split_policy.md](universe_and_split_policy.md): 70/15/15 split and rolling top-500 universe rules.
+- [universe_and_split_policy.md](universe_and_split_policy.md): fixed IS/OS split and rolling top-500 universe rules.
+- [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md): active 2011-2025 IS/OS evidence policy.
+- [evaluator_forward_return_contract_repair_20260519.md](evaluator_forward_return_contract_repair_20260519.md): implemented repair separating rolling top-500 signal rows from eligible raw-panel forward-return rows.
 - [dataset_admission_policy.md](dataset_admission_policy.md): staged dataset unlock and point-in-time join requirements.
 - [processed_outputs_policy.md](processed_outputs_policy.md): how to use processed research CSV outputs and validate source scripts.
 - [remote_csv_execution_policy.md](remote_csv_execution_policy.md): remote CSV execution, artifact, and storage rules.
@@ -138,6 +143,8 @@ New implementation-policy files:
 - [daily_stock_eda_remote_instructions_20260518.md](daily_stock_eda_remote_instructions_20260518.md): remote command and artifact contract for the full-file daily-stock EDA run.
 - [daily_stock_eda_full_review_20260518.md](daily_stock_eda_full_review_20260518.md): reviewed full-file EDA findings, prompt implications, and follow-up missing-held diagnostic plan.
 - [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md): remote command and artifact contract for whole-timeline rolling top-500 coverage plus evaluator-style forward-return availability.
+- [daily_stock_forward_coverage_review_20260519.md](daily_stock_forward_coverage_review_20260519.md): reviewed forward-coverage findings; missing-held risk is mainly a month-end evaluator forward-return construction issue.
+- [remote_sample_eval_is_os_forward_repair_rerun_20260519.md](remote_sample_eval_is_os_forward_repair_rerun_20260519.md): current remote handoff for evaluator-only seed and attempt017 reruns under the repaired forward-return source contract and fixed IS/OS split.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
@@ -231,7 +238,7 @@ The first loop is complete when:
 
 - seed program exists with at least signal and portfolio evolve blocks
 - the rolling top-500-by-market-cap universe is reproducible and point-in-time safe
-- the 70/15/15 chronological split is fixed under a named `split_id`
+- the fixed 2011-2025 IS/OS split is recorded under a named `split_id`
 - `Qwen3.5-9B` first produces a small auditable controller dry run, then can generate 50+ children through the remote server's localhost vLLM API
 - every child is stored in the program database with lineage and result status
 - malformed/oversized patches are repaired once or rejected
