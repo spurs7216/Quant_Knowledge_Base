@@ -560,6 +560,43 @@ DEFAULT_MEMORY_ITEMS: list[dict[str, Any]] = [
         "status": "active",
         "created_at": "2026-05-15T00:00:00+00:00",
     },
+    {
+        "source_run_id": "remote_sample_eval_is_os_forward_repair_20260519",
+        "source_stage": ["controller_static", "remote_sample_eval"],
+        "source_outcome": "partial_success",
+        "memory_type": "evaluator_caveat",
+        "title": "Attempt017 repaired lead targets cost robustness",
+        "description": "Use for the repaired attempt017 branch after the forward-return source fix.",
+        "content": (
+            "The repaired 2011-2025 IS/OS sample rerun kept attempt017 as the active parent lead, with "
+            "positive OS Sharpe and positive turnover-aware score, but this is not promotion. Missing-held "
+            "weight is no longer the main objective after the eligible-panel forward-return repair. Future "
+            "children should preserve the attempt017 OS lead while improving IS robustness, turnover, and "
+            "cost sensitivity through broad-book portfolio/risk mechanisms rather than sparse books or "
+            "generic signal dampening."
+        ),
+        "applicability": {
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+            "island": ["portfolio_risk_turnover", "repair_near_miss", "neutralization_liquidity"],
+        },
+        "evidence": {
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_is_os_forward_repair_review_20260520.md"
+            ],
+            "program_ids": ["PROG-20260430-CHILD-0017-ISOSREPAIR"],
+            "metrics": {
+                "is_sharpe": 0.1589,
+                "os_sharpe": 0.5061,
+                "search_sample_sharpe": 0.2244,
+                "turnover": 0.5602,
+                "turnover_aware_score": 0.0322,
+                "max_missing_held_weight": 0.0104,
+            },
+        },
+        "status": "active",
+        "created_at": "2026-05-21T00:00:00+00:00",
+    },
 ]
 
 

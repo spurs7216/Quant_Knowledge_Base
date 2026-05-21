@@ -84,6 +84,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--turnover-penalty", type=float, default=0.25)
     parser.add_argument("--missing-weight-penalty", type=float, default=5.0)
     parser.add_argument(
+        "--program-kind",
+        choices=["auto", "seed", "child"],
+        default="auto",
+        help=(
+            "How to record the evaluated program. auto preserves legacy behavior: the canonical seed path "
+            "is a seed, other paths are children. Use seed for deterministic seed-zoo parents."
+        ),
+    )
+    parser.add_argument(
+        "--strategy-family",
+        default="",
+        help="Optional strategy-family descriptor. Defaults to STRATEGY_FAMILY in the program module.",
+    )
+    parser.add_argument(
         "--min-portfolio-days",
         type=int,
         default=252,
@@ -307,12 +321,25 @@ def main() -> int:
     try:
         strategy_module, resolved_program_path = load_strategy_module(args.program_path)
         program_snapshot = capture_program_snapshot(resolved_program_path, out_dir)
-        is_seed_program = is_seed_program_path(resolved_program_path)
+        canonical_seed_path = is_seed_program_path(resolved_program_path)
+        if args.program_kind == "seed":
+            is_seed_program = True
+        elif args.program_kind == "child":
+            is_seed_program = False
+        else:
+            is_seed_program = canonical_seed_path
+        if is_seed_program and args.parent_program_id:
+            raise RuntimeError("seed sample evaluation must not set --parent-program-id")
         if not is_seed_program and args.program_id == DEFAULT_SEED_PROGRAM_ID:
             raise RuntimeError(
                 "child sample evaluation requires --program-id; refusing to record a child under the seed id"
             )
         resolved_parent_program_id = None if is_seed_program else child_parent_program_id(args, reference_summary)
+        strategy_family = (
+            args.strategy_family
+            or str(getattr(strategy_module, "STRATEGY_FAMILY", "") or "kalman_innovation_reversal")
+        )
+        strategy_id = str(getattr(strategy_module, "STRATEGY_ID", resolved_program_path.stem))
         raw, load_diag = load_daily_stock_window(
             args.csv_path,
             start_date=args.start_date,
@@ -477,6 +504,9 @@ def main() -> int:
             "program_id": args.program_id,
             "parent_program_id": resolved_parent_program_id,
             "stage": "remote_sample_eval",
+            "program_kind": "seed" if is_seed_program else "child",
+            "strategy_family": strategy_family,
+            "strategy_id": strategy_id,
             "program_path": str(resolved_program_path),
             **program_snapshot,
             "reference_summary_path": args.reference_summary,
@@ -536,7 +566,8 @@ def main() -> int:
                 "prior_sample_comparison": prior_sample_comparison,
                 "descriptors": {
                     "daily_stock_contract": CONTRACT.contract_id,
-                    "strategy_family": "kalman_innovation_reversal",
+                    "strategy_family": strategy_family,
+                    "strategy_id": strategy_id,
                     "program_path": str(resolved_program_path),
                     "program_snapshot_path": program_snapshot["program_snapshot_path"],
                     "program_sha256": program_snapshot["program_sha256"],
@@ -653,7 +684,9 @@ def main() -> int:
                     "branch_id": "BRANCH-CAND-20260423-001-001",
                     "generation": 0 if is_seed_program else 1,
                     "island": "daily_stock_signal",
-                    "mutation_surface": "seed" if is_seed_program else "child_program",
+                    "mutation_surface": "seed_zoo" if is_seed_program and not canonical_seed_path else (
+                        "seed" if is_seed_program else "child_program"
+                    ),
                     "data_scope": "daily_stock_only",
                     "status": "seed_sample_evaluated" if is_seed_program else "child_sample_evaluated",
                     "program_path": str(resolved_program_path),
@@ -661,6 +694,8 @@ def main() -> int:
                     "metrics": metrics,
                     "descriptors": {
                         "daily_stock_contract": CONTRACT.contract_id,
+                        "strategy_family": strategy_family,
+                        "strategy_id": strategy_id,
                         "program_path": str(resolved_program_path),
                         "program_snapshot_path": program_snapshot["program_snapshot_path"],
                         "program_sha256": program_snapshot["program_sha256"],

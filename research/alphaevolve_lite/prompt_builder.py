@@ -98,6 +98,7 @@ PARENT_RELATIVE_SEARCH_RULES = """Search-sample and controller metrics are evalu
 Do not optimize a single diagnostic caveat while degrading parent-relative Sharpe, annualized return, turnover-aware score, broad active-day coverage, or max-weight discipline.
 For sample_review repair parents, a missing-held-weight reduction is useful only when the child also preserves or improves parent-relative economics and does not create a sparse or metric-equivalent book.
 Avoid generic signal compression such as bounded tanh or clipped magnitude dampening as a missing-held-weight repair unless it has a concrete mechanism that should preserve ranking economics after costs.
+Repaired IS/OS evidence update: PROG-20260430-CHILD-0017-ISOSREPAIR is the active attempt017 parent lead after the forward-return source repair, but sample_pass is not promotion. Missing-held weight is no longer the main branch objective; preserve the attempt017 OS lead while improving IS robustness, turnover, and cost sensitivity.
 Attempt017 mechanism-batch evidence: PROG-20260513-A017-MECH-0007 was a signal/liquidity_adjusted_reversal child with final-weight delta, but sample evaluation was worse than attempt017 on Sharpe, annualized return, turnover-aware score, drawdown, and missing-held exposure. Do not treat signal-side liquidity adjustment as a promoted repair for this branch.
 If the target edit is likely to be absorbed by ranking, portfolio selection, or risk normalization so final weights are unchanged, output NO_VALID_PATCH instead of a cosmetic patch.
 Controller execution-effect rule: a signal or ranking edit must change ranked signals or final weights; a portfolio or risk edit must change final weights or exposure shape after risk controls. Raw-signal-only rescaling that leaves ranks and final weights unchanged is not useful search progress.
@@ -107,7 +108,7 @@ Full validation remains forbidden inside child generation; these rules are searc
 STAGE0_DAILY_STOCK_MECHANISM_GUIDANCE = """Stage-0 executable children may use only the supplied daily_stock panel and CONTRACT fields.
 Useful ex-ante daily_stock fields include CONTRACT.price, CONTRACT.volume, CONTRACT.dollar_volume, CONTRACT.market_cap, CONTRACT.industry_primary, CONTRACT.exchange, and existing status/return-missing flags when present in the panel.
 Do not use evaluator-only forward-return fields such as fwd_ret, fwd_date, fwd_vwretd, next_market_date, or one_day_forward.
-For the attempt017 branch, prefer mechanisms that change final weights through liquidity-weighted side weights, signal-persistence trade gates, industry-neutral ranking, or liquidity-scaled caps.
+For the repaired attempt017 branch, prefer mechanisms that change final weights through persistence/no-trade gates, liquidity-weighted side weights, or liquidity-scaled caps. Use industry-neutral ranking only when the target cell explicitly requests it; prior industry-neutral children were cleaner portfolio-shape evidence, not promoted alpha evidence.
 Do not answer a liquidity, persistence, or industry-neutral target with generic tanh, clipped magnitude dampening, or raw signal shrinkage.
 Do not use inverse raw dollar volume as a uniform signal shrinker. Use bounded relative liquidity, log liquidity, market-cap percentile, or rolling/liquidity confidence logic that can change cross-sectional ordering or selected final weights.
 """
@@ -160,7 +161,9 @@ SURFACE_GUIDANCE = {
         "rank/percentile transform, winsorization, monotone transform, or cross-sectional shrinkage family. "
         "For industry_neutral_rank, use native daily_stock industry fields such as CONTRACT.industry_primary "
         "with a fallback when a date-industry group is too small. In this seed, read industry from "
-        "panel.loc[group.index, CONTRACT.industry_primary], not from group[CONTRACT.industry_primary]."
+        "panel.loc[group.index, CONTRACT.industry_primary], not from group[CONTRACT.industry_primary]. "
+        "For the attempt017 branch, repeated industry-neutral ranking is weak/replay evidence unless the patch "
+        "beats the occupied-cell elite and preserves parent-relative economics."
     ),
     "portfolio": (
         "Edit only the portfolio EVOLVE-BLOCK. Suitable changes include tighter selection thresholds, "
@@ -175,7 +178,10 @@ SURFACE_GUIDANCE = {
         "For liquidity_weighted_sides, use current-day liquidity or market-cap proxies only as positive side "
         "magnitudes and avoid formulas that downstream max-weight caps turn back into equal weights. For "
         "persistence_trade_gate, use prior-day signal or same-sign persistence and keep a fallback "
-        "when a side becomes too thin. In this seed, read daily_stock fields through panel.loc[valid.index, ...] "
+        "when a side becomes too thin. "
+        "For no_trade_band_or_sparsity, use a bounded signal margin or persistence condition with a fallback "
+        "that keeps both sides broad; do not turn the book into a few-day sparse artifact. "
+        "In this seed, read daily_stock fields through panel.loc[valid.index, ...] "
         "or panel.loc[longs/shorts, ...], because valid does not include liquidity or market-cap columns. "
         "The signal column is local data, not a panel column: create data['prior_signal'] with "
         "data.groupby(CONTRACT.security_id)['signal'].shift(1) before the date loop, then use "

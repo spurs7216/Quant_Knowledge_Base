@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-19
+updated: 2026-05-21
 tags:
   - project
   - phase4
@@ -144,7 +144,11 @@ New implementation-policy files:
 - [daily_stock_eda_full_review_20260518.md](daily_stock_eda_full_review_20260518.md): reviewed full-file EDA findings, prompt implications, and follow-up missing-held diagnostic plan.
 - [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md): remote command and artifact contract for whole-timeline rolling top-500 coverage plus evaluator-style forward-return availability.
 - [daily_stock_forward_coverage_review_20260519.md](daily_stock_forward_coverage_review_20260519.md): reviewed forward-coverage findings; missing-held risk is mainly a month-end evaluator forward-return construction issue.
-- [remote_sample_eval_is_os_forward_repair_rerun_20260519.md](remote_sample_eval_is_os_forward_repair_rerun_20260519.md): current remote handoff for evaluator-only seed and attempt017 reruns under the repaired forward-return source contract and fixed IS/OS split.
+- [remote_sample_eval_is_os_forward_repair_rerun_20260519.md](remote_sample_eval_is_os_forward_repair_rerun_20260519.md): remote handoff for evaluator-only seed and attempt017 reruns under the repaired forward-return source contract and fixed IS/OS split.
+- [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md): reviewed repaired IS/OS rerun; attempt017 remains the active parent lead, but the objective shifts from missing-held repair to cost robustness and IS stability.
+- [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md): current controller-only remote handoff for exact-cell attempt017 cost-robustness generation.
+- [seed_zoo_parent_discovery_20260521.md](seed_zoo_parent_discovery_20260521.md): deterministic parent-discovery implementation for 10 daily-stock seed candidates before more LLM evolution.
+- [seed_zoo_remote_instructions_20260521.md](seed_zoo_remote_instructions_20260521.md): current remote handoff for seed-zoo IS/OS sample evaluation.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
@@ -179,6 +183,8 @@ Dated review records retained as evidence, not active plans:
 - [controller_attempt017_mechanism_rerun_remote_instructions_20260514.md](controller_attempt017_mechanism_rerun_remote_instructions_20260514.md): remote rerun handoff after the prompt/smoke repair, including Git hygiene preflight.
 - [controller_attempt017_mechanism_rerun_review_20260514.md](controller_attempt017_mechanism_rerun_review_20260514.md): rerun plus attempt009 sample-eval review; attempt009 improved implementation shape but weakened parent-relative return and Sharpe.
 - [controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md](controller_attempt017_27b_mechanism_cards_remote_instructions_20260514.md): next remote handoff using Qwen3.5-27B-FP8 for JSON mechanism cards and Qwen3.5-9B for strict patches.
+- [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md): repaired 2011-2025 sample evidence; no promotion, attempt017 kept as parent lead.
+- [seed_zoo_parent_discovery_20260521.md](seed_zoo_parent_discovery_20260521.md): implemented seed-zoo parent discovery to widen the search roots after the attempt017 stall.
 
 ## Search Principle
 

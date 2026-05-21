@@ -432,10 +432,43 @@ DEFAULT_SKILL_ITEMS: list[dict[str, Any]] = [
             "support_count": 1,
             "failure_count": 2,
             "artifact_paths": [
-                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md"
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md",
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_is_os_forward_repair_review_20260520.md",
             ],
         },
         "created_at": "2026-05-15T00:00:00+00:00",
+    },
+    {
+        "skill_name": "Target attempt017 cost robustness after repair",
+        "skill_type": "diagnostic_rule",
+        "confidence": "high",
+        "status": "active",
+        "pattern": (
+            "The repaired attempt017 parent passes sample hard gates but remains cost-sensitive and only "
+            "modestly positive after transaction costs."
+        ),
+        "strategy": (
+            "Use broad-book portfolio or risk mechanisms that can lower turnover or improve execution shape "
+            "while preserving the attempt017 OS lead and balanced long/short exposure."
+        ),
+        "prompt_rule": (
+            "For repaired attempt017, do not optimize missing-held weight alone; prioritize persistence or "
+            "no-trade gates, liquidity-weighted side weights, or liquidity-scaled caps that keep a broad, "
+            "balanced book and improve cost robustness."
+        ),
+        "applicability": {
+            "source_stage": ["remote_sample_eval", "controller_static"],
+            "data_stage": "stage_0_daily_stock",
+            "target_surface": ["portfolio", "risk"],
+        },
+        "evidence": {
+            "support_count": 1,
+            "failure_count": 0,
+            "artifact_paths": [
+                "projects/quant_research_system/phase4_search_loop/remote_sample_eval_is_os_forward_repair_review_20260520.md"
+            ],
+        },
+        "created_at": "2026-05-21T00:00:00+00:00",
     },
 ]
 

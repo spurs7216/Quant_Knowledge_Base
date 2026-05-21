@@ -2,7 +2,7 @@
 title: Attempt017 Mechanism Design 2026-05-13
 type: project
 status: active
-updated: 2026-05-13
+updated: 2026-05-21
 tags:
   - project
   - phase4
@@ -13,7 +13,9 @@ sources:
   - "daily_stock_contract_v1.md"
   - "dataset_context.md"
   - "controller_attempt017_search_control_rerun_review_20260513.md"
+  - "remote_sample_eval_is_os_forward_repair_review_20260520.md"
   - "../../artifacts/remote_sample_eval_controller_batch_001.zip"
+  - "../../artifacts/remote_sample_eval_(1).zip"
   - "../../artifacts/controller_batch_001_diversity_topup.zip"
 ---
 # Attempt017 Mechanism Design 2026-05-13
@@ -25,6 +27,25 @@ This note turns the attempt017 evidence into concrete daily-stock-only mechanism
 The goal is not to sample more shallow dampeners. The goal is to give the controller prompt sampler mechanisms that can plausibly affect final weights and parent-relative economics while staying inside the frozen daily-stock contract.
 
 ## Evidence Boundary
+
+2026-05-21 update: the old 2018-2020 attempt017 evidence below is now historical. The repaired 2011-2025 IS/OS rerun in [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md) shows that the missing-held problem was mostly an evaluator forward-return-source artifact.
+
+Current repaired evidence:
+
+```yaml
+program_id: PROG-20260430-CHILD-0017-ISOSREPAIR
+decision: sample_pass
+is_sharpe: 0.1589
+os_sharpe: 0.5061
+search_sample_sharpe: 0.2244
+search_sample_turnover: 0.5602
+turnover_aware_score: 0.0322
+max_missing_held_weight: 0.0104
+max_weight: 0.0104
+promotion: false
+```
+
+This keeps attempt017 as the active parent lead, but it changes the branch objective. The next generation target is not missing-held repair. It is to preserve attempt017's OS strength while improving IS robustness, turnover, and cost sensitivity.
 
 Attempt017 is the causal EWM smoothing child:
 
@@ -215,12 +236,13 @@ The most important next remote candidates are not all equal:
 ```yaml
 priority:
   first:
-    - portfolio/liquidity_weighted_sides
     - portfolio/persistence_trade_gate
-  second:
-    - ranking/industry_neutral_rank
+    - portfolio/no_trade_band_or_sparsity
+    - portfolio/liquidity_weighted_sides
   cautious:
     - risk/liquidity_scaled_cap
+  de_emphasized:
+    - ranking/industry_neutral_rank
   avoid:
     - signal/bounded_tanh_dampening
     - signal/clipped_magnitude_dampening
@@ -239,4 +261,4 @@ required:
 
 ## Next Step
 
-Run a small remote controller-only mechanism batch after GitHub sync. Do not sample-evaluate automatically; use the sample-eval eligibility summary first. If no child is target-matched and changes final weights, return only the controller artifact. Known bad dampening families are prompt/review warnings, not hard sample-eval filters for the next novelty smoke.
+Run the targeted controller-only cost-robustness batch in [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md) after GitHub sync. Do not sample-evaluate automatically; use the sample-eval eligibility summary first. If no child is target-matched, novel, broad-book, and final-weight-effective, return only the controller artifact.
