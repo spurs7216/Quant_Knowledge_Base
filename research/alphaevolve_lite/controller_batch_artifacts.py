@@ -216,6 +216,9 @@ def write_summary_markdown(path: Path, summary: dict[str, Any]) -> None:
         lines.extend(
             [
                 f"- surface_schedule: `{summary.get('surface_schedule')}`",
+                f"- parent_root_id: `{summary.get('parent_root_id')}`",
+                f"- parent_strategy_id: `{summary.get('parent_strategy_id')}`",
+                f"- incumbent_program_id: `{summary.get('incumbent_program_id')}`",
                 f"- target_cell_schedule_enabled: `{summary.get('target_cell_schedule_enabled', False)}`",
                 f"- target_cell_schedule: `{summary.get('target_cell_schedule', [])}`",
                 f"- git_commit: `{summary.get('git_commit')}`",

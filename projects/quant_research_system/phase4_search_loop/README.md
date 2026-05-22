@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-21
+updated: 2026-05-22
 tags:
   - project
   - phase4
@@ -149,6 +149,8 @@ New implementation-policy files:
 - [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md): current controller-only remote handoff for exact-cell attempt017 cost-robustness generation.
 - [seed_zoo_parent_discovery_20260521.md](seed_zoo_parent_discovery_20260521.md): deterministic parent-discovery implementation for 10 daily-stock seed candidates before more LLM evolution.
 - [seed_zoo_remote_instructions_20260521.md](seed_zoo_remote_instructions_20260521.md): current remote handoff for seed-zoo IS/OS sample evaluation.
+- [seed_zoo_is_os_review_20260522.md](seed_zoo_is_os_review_20260522.md): reviewed seed-zoo result; no seed is promoted, but five-day and volatility-normalized reversal become active roots for a small cost-aware parent-zoo controller batch.
+- [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md): current remote handoff for a controller-only parent-zoo batch with attempt017 plus deterministic seed roots.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.

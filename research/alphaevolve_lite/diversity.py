@@ -66,6 +66,14 @@ DIVERSITY_TARGETS: dict[str, tuple[DiversityTarget, ...]] = {
                 "confidence without using forward-return fields."
             ),
         ),
+        DiversityTarget(
+            "signal:regime_aware_reversal",
+            "regime_aware_reversal",
+            (
+                "Use only causal past market, volatility, or cross-sectional state proxies to change "
+                "reversal confidence or horizon without fitting on future dates."
+            ),
+        ),
     ),
     "ranking": (
         DiversityTarget(
@@ -277,6 +285,14 @@ def classify_patch_intent(diff_text: str, target_surface: str) -> str:
     if target_surface == "signal":
         if "signal=-" in compact or "signal=-signal" in compact:
             return "direction_flip"
+        if (
+            "regime" in lower
+            or "hidden_state" in lower
+            or "hmm" in lower
+            or "state_prob" in lower
+            or "market_state" in lower
+        ):
+            return "regime_aware_reversal"
         if (
             "liquidity" in lower
             or "dollar_volume" in lower

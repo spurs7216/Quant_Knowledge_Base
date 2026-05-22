@@ -30,6 +30,26 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Program id recorded as the parent when --program-path is not the generation-zero seed.",
     )
+    parser.add_argument(
+        "--parent-root-id",
+        default="",
+        help="Logical parent-zoo root id used to group multi-parent controller batches.",
+    )
+    parser.add_argument(
+        "--parent-strategy-id",
+        default="",
+        help="Human-readable parent strategy id used in summaries and prompt context.",
+    )
+    parser.add_argument(
+        "--incumbent-program-id",
+        default="",
+        help="Optional incumbent benchmark program id for parent-zoo runs.",
+    )
+    parser.add_argument(
+        "--incumbent-summary",
+        default="",
+        help="Optional incumbent evaluator_summary.json used only as prompt/search context.",
+    )
     parser.add_argument("--evaluator-summary", default="")
     parser.add_argument("--out-dir", default="artifacts/phase4_alphaevolve/controller_batch_001")
     parser.add_argument("--db-path", default="")
@@ -184,6 +204,7 @@ def main() -> int:
     from research.alphaevolve_lite.model_router import chat_completion
     from research.alphaevolve_lite.program_database import init_db, insert_program_record
     from research.alphaevolve_lite.prompt_builder import (
+        DEFAULT_MUTATION_INSTRUCTION,
         build_child_generation_prompt,
         choose_target_surface,
         extract_evolve_block_bodies,
@@ -262,6 +283,16 @@ def main() -> int:
     if args.db_path:
         init_db(args.db_path)
     parent_program_id = args.parent_program_id or DEFAULT_PARENT_PROGRAM_ID
+    parent_root_id = args.parent_root_id or parent_program_id
+    parent_strategy_id = args.parent_strategy_id or parent_root_id
+    incumbent_summary = load_json_if_exists(args.incumbent_summary)
+    mutation_instruction = _parent_zoo_mutation_instruction(
+        base_instruction=DEFAULT_MUTATION_INSTRUCTION,
+        parent_root_id=parent_root_id,
+        parent_strategy_id=parent_strategy_id,
+        incumbent_program_id=args.incumbent_program_id,
+        incumbent_summary=incumbent_summary,
+    )
     memory_path = None if args.disable_reasoning_memory else Path(args.memory_path)
     reasoning_memory_items: list[dict[str, Any]] = []
     retrieved_memory_ids_seen: set[str] = set()
@@ -466,6 +497,7 @@ def main() -> int:
             diagnostic_text=prompt_context.diagnostic_text,
             skill_text=prompt_context.skill_text,
             mechanism_card_text=mechanism_card_text,
+            mutation_instruction=mutation_instruction,
         )
         write_prompt_artifact(attempt_dir, messages)
 
@@ -687,6 +719,7 @@ def main() -> int:
                         diagnostic_text=retry_prompt_context.diagnostic_text,
                         skill_text=retry_prompt_context.skill_text,
                         mechanism_card_text=retry_mechanism_card_text,
+                        mutation_instruction=mutation_instruction,
                     )
                     write_messages(
                         attempt_dir / f"duplicate_retry_{retry_index}_prompt",
@@ -933,6 +966,9 @@ def main() -> int:
                             "model_role": args.model_role,
                             "temperature": temperature,
                             "parent_id": parent_id,
+                            "parent_root_id": parent_root_id,
+                            "parent_strategy_id": parent_strategy_id,
+                            "incumbent_program_id": args.incumbent_program_id,
                             "target_surface": target_surface,
                             "target_intent": target_intent,
                             "target_intent_match": target_intent_match,
@@ -995,6 +1031,9 @@ def main() -> int:
                 "attempt": attempt,
                 "program_id": program_id,
                 "parent_id": parent_id,
+                "parent_root_id": parent_root_id,
+                "parent_strategy_id": parent_strategy_id,
+                "incumbent_program_id": args.incumbent_program_id,
                 "population_policy_version": POPULATION_POLICY_VERSION if population_policy_enabled else "v1",
                 "prompt_fitness_policy_version": PROMPT_FITNESS_POLICY_VERSION,
                 "lazy_penalty_score": lazy_penalty_score,
@@ -1072,6 +1111,10 @@ def main() -> int:
         {
             "program_path": str(program_path),
             "parent_program_id": parent_program_id,
+            "parent_root_id": parent_root_id,
+            "parent_strategy_id": parent_strategy_id,
+            "incumbent_program_id": args.incumbent_program_id,
+            "incumbent_summary": args.incumbent_summary,
             "parent_program_snapshot_path": parent_program_snapshot["program_snapshot_path"],
             "parent_program_sha256": parent_program_snapshot["program_sha256"],
             **git_status,
@@ -1171,6 +1214,42 @@ def main() -> int:
     write_summary_markdown(out_dir / "summary.md", summary)
     print(json.dumps({"status": "ok", "out_dir": str(out_dir), "summary": summary}, sort_keys=True))
     return 0
+
+
+def _parent_zoo_mutation_instruction(
+    *,
+    base_instruction: str,
+    parent_root_id: str,
+    parent_strategy_id: str,
+    incumbent_program_id: str,
+    incumbent_summary: dict[str, Any],
+) -> str:
+    """Build parent-zoo-specific search guidance without changing prompt contracts."""
+
+    if not incumbent_program_id and not incumbent_summary:
+        return base_instruction
+    incumbent_metrics = (incumbent_summary.get("metrics", {}) or {}).get("search_sample", {})
+    incumbent_context = {
+        "program_id": incumbent_program_id or incumbent_summary.get("program_id"),
+        "search_sample_sharpe": incumbent_metrics.get("sharpe"),
+        "search_sample_turnover": incumbent_metrics.get("turnover"),
+        "search_sample_turnover_aware_score": incumbent_metrics.get("turnover_aware_score"),
+    }
+    return (
+        f"{base_instruction}\n\n"
+        "Parent-zoo cost-aware objective:\n"
+        f"- parent_root_id: {parent_root_id}\n"
+        f"- parent_strategy_id: {parent_strategy_id}\n"
+        f"- incumbent_context: {json.dumps(incumbent_context, sort_keys=True)}\n"
+        "- This run exists because seed-zoo evidence showed gross reversal signal before costs, "
+        "but daily turnover consumes most of the edge.\n"
+        "- Prefer changes that preserve reversal ordering while reducing turnover, improving "
+        "holding stability, or making causal regime/liquidity conditioning observable in ranks or final weights.\n"
+        "- A child is not useful if it improves only zero-cost gross Sharpe, only one diagnostic, or only "
+        "the 2023-2025 OS window while hurting IS robustness.\n"
+        "- For HMM-like or regime-aware ideas, implement a causal lightweight state proxy inside the target "
+        "EVOLVE block; do not add unrestricted model fitting, new imports, global state, or full-sample training.\n"
+    )
 
 
 if __name__ == "__main__":

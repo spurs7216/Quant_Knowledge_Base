@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-21
+updated: 2026-05-22
 tags:
   - project
   - phase4
@@ -65,6 +65,8 @@ sources:
   - "controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md"
   - "seed_zoo_parent_discovery_20260521.md"
   - "seed_zoo_remote_instructions_20260521.md"
+  - "seed_zoo_is_os_review_20260522.md"
+  - "parent_zoo_cost_aware_remote_instructions_20260522.md"
 ---
 # Phase 4 Current State
 
@@ -87,13 +89,13 @@ controller_gate: controller_static before any data-backed child evaluation
 test_set_use: forbidden until branch freeze
 ```
 
-The controller-static population gate is satisfied, and the first curated data-backed sample evaluation has been reviewed. The latest reviewed data-backed artifact is:
+The controller-static population gate is satisfied, and the seed-zoo parent-discovery sample evaluation has been reviewed. The latest reviewed data-backed artifact is:
 
 ```text
-artifacts/remote_sample_eval_(1).zip
+artifacts/seed_zoo_is_os_20260521.zip
 ```
 
-The similarly named `artifacts/remote_sample_eval_.zip` is a zero-byte corrupt placeholder and should be ignored.
+The similarly named older `artifacts/remote_sample_eval_.zip` is a zero-byte corrupt placeholder and should be ignored.
 
 `controller_batch_001` produced 35/50 unique controller-static pass children but missed the uniqueness gate because 15 attempts were duplicate rejects, mostly in `ranking/direction_flip`. The follow-up `controller_batch_001_diversity_topup` used prior-summary duplicate seeding and added 13/20 unique controller-static pass children, bringing the aggregate unique controller-static population to 48. The top-up met the aggregate controller population gate and reduced duplicate concentration, but exposed localized signal/portfolio repair lessons and a MAP-intent accounting bug now patched locally.
 
@@ -234,6 +236,8 @@ Important caveat: schema evidence froze field names, not the full cross-sectiona
 | `controller_execution_effect_hardening_20260517` | Local patch added `controller_execution_effect_v1`, `execution_effect_failed`, repairable execution-effect failures, summary `execution_effect_pass_rate`, prompt repairs for failed cells, and skill/reasoning-memory filtering so execution-neutral passes are guardrails, not success strategies. Tests and artifact-derived replay passed. | After GitHub sync, run one controller-only execution-effect forced-cell smoke. Still no sample eval or 27B until a child is target-matched, novel, and final-book-effective. |
 | `remote_sample_eval_is_os_forward_repair_20260519` | Seed, attempt017, and four attempt017-family children were rerun under the repaired forward-return source and fixed 2011-2025 IS/OS split. All runs were clean from `origin/main`. Attempt017 passed sample gates and remains the active parent lead; missing-held weight fell to about 0.0104. | Do not promote. Stop optimizing missing-held weight for this branch. Run a targeted controller-only cost-robustness batch from attempt017 and sample-evaluate only after local review of target match, execution effect, novelty, broad book, and sibling equivalence. |
 | `seed_zoo_parent_discovery_20260521` | Local implementation added 10 deterministic daily-stock parent candidates, a renderer that writes concrete EVOLVE-block strategy programs, a remote runner that evaluates each through repaired `remote_sample_eval.py`, seed-candidate recording via `--program-kind seed`, aggregate ranking artifacts, and synthetic-data tests. | Run seed-zoo sample evaluation before more LLM child generation. Use the result to choose better parent branches rather than continuing to over-repair attempt017 by default. |
+| `seed_zoo_is_os_20260521` | All 10 deterministic seed-zoo programs completed `remote_sample_eval` with clean `HEAD == origin/main` and high portfolio coverage. None beat repaired attempt017 at 2.5 bps cost. The best seed was `five_day_excess_reversal` with search Sharpe `0.0463` and turnover-aware score `-0.2511`; most seeds had positive zero-cost gross Sharpe but lost the edge after costs. `kalman_ewm_reversal` had high OS Sharpe but negative IS Sharpe and high turnover. | Do not promote any seed. Use the result as parent-zoo evidence: keep attempt017 as incumbent benchmark/root, add five-day reversal and volatility-normalized five-day reversal as active deterministic roots, and run a small cost-aware controller batch focused on preserving reversal signal while reducing turnover. |
+| `parent_zoo_cost_aware_patch_20260522` | Local patch added `signal/regime_aware_reversal`, parent-root metadata in controller summaries, hand-authored parent-zoo mechanism cards, and `run_parent_zoo_batch.py` to render seed roots and run one controller batch per root. The 27B/35B role is mechanism-card review only; Qwen9B remains the strict SEARCH/REPLACE patch implementer. | Push before the next remote run. Remote should run controller-only parent-zoo search and return artifacts before any sample evaluation. |
 
 ## Failure Memory
 
@@ -281,6 +285,9 @@ Keep these lessons in future prompt and controller design:
 - For `signal/liquidity_adjusted_reversal`, avoid inverse raw dollar volume clipped into a uniform scale. Use bounded relative liquidity, log liquidity, market-cap percentile, or rolling confidence logic that can affect ranks or selected weights.
 - For `risk/liquidity_scaled_cap`, cap values must stay no larger than `max_weight`; clip, side-renormalize, and clip again to preserve max-weight and balanced long/short exposure.
 - `sample_pass` is not promotion. The repaired attempt017 parent lead passed hard sample gates, but remains a development candidate whose main weakness is cost sensitivity and IS robustness.
+- The seed zoo confirms that simple daily-stock reversal has gross structure before costs, but daily churn consumes it. Future mutations should target holding stability, no-trade bands, causal smoothing, regime-aware state conditioning, and liquidity-aware execution rather than generic signal dampening or entirely new reversal definitions.
+- `five_day_excess_reversal` is the best deterministic seed root under the 2.5 bps search score, but it is not promoted because it trails attempt017 and has weak OS behavior. Treat it as a root for controlled evolution only.
+- `kalman_ewm_reversal` is not a lead despite high OS Sharpe; its negative IS Sharpe and high turnover make it a diagnostic/regime branch, not an optimization target.
 - `PROG-20260514-A017-MECHFIX-0009` and `PROG-20260514-A017-27BCARD-0011` produced identical repaired-sample metrics despite different program hashes. Future sample evaluations must pass all relevant prior sibling summaries through `--prior-sample-summary`, not only the seed or current parent.
 - Missing-held repair is retired as the main attempt017 objective after the forward-return source fix. The next child generation target is turnover/cost robustness without sparse few-day books or one-sided exposure.
 
@@ -299,29 +306,37 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is remote seed-zoo parent discovery. The attempt017 cost-robustness batch remains prepared, but it should wait until we know whether a simpler deterministic parent is stronger under the repaired 2011-2025 IS/OS evaluator.
+The next step is a remote controller-only parent-zoo batch after GitHub sync. The local implementation patch is complete; the remote should first return controller artifacts, not sample-eval artifacts.
 
 ```yaml
 next_remote_task:
-  type: seed_zoo_parent_discovery
-  instruction_file: seed_zoo_remote_instructions_20260521.md
-  program_count: 10
-  required_behavior:
-    - no Qwen
-    - no vLLM
-    - no controller generation
-    - render concrete seed-zoo programs under artifact root
-    - evaluate each seed through repaired remote_sample_eval
-    - record every seed as program-kind seed, not child
-    - no controller-triggered child sample evaluation outside the seed-zoo runner
-    - no full validation
-    - no test-set use
-    - aggregate seed_zoo_results.csv and seed_zoo_report.md
+  type: parent_zoo_cost_aware_controller_batch
+  instruction_file: parent_zoo_cost_aware_remote_instructions_20260522.md
+  parent_roots:
+    incumbent: repaired_attempt017
+    active_seed_roots:
+      - five_day_excess_reversal
+      - vol_norm_five_day_reversal
+    optional_diagnostic_root:
+      - momentum_reversal_blend
+    diagnostic_only:
+      - kalman_ewm_reversal
+  required_local_work_before_remote:
+    - completed: add parent_root_id and parent_strategy_id metadata to controller summaries
+    - completed: add signal/regime_aware_reversal target cell for bounded causal state ideas
+    - completed: add parent-zoo mechanism cards and run_parent_zoo_batch.py
+    - completed: write remote instructions for a small controller-only parent-zoo batch
+  mutation_objective:
+    - preserve reversal ranking signal
+    - reduce turnover and cost sensitivity
+    - avoid sparse few-day books
+    - preserve balanced long and short exposure
+    - reject gross-only improvements that fail 2.5 bps turnover-aware criteria
   review_questions:
-    - do any simple deterministic parents beat repaired attempt017 on turnover-aware score?
-    - do any parents beat attempt017 on OS Sharpe without bad IS behavior?
-    - do neutralized, size-bucket, or liquidity-aware parents show a better search branch?
-    - which 2-3 parents should become active AlphaEvolve roots?
+    - can any child preserve five-day reversal gross structure while materially reducing turnover?
+    - can volatility-normalized reversal become cost-robust without losing rank information?
+    - does attempt017 still dominate once children are compared across parent roots?
+    - is any child non-equivalent, broad-coverage, and parent-relative positive after costs?
   test_set_used: false
 ```
 
@@ -332,6 +347,6 @@ next_remote_task:
 - Memory and skills: [reasoning_memory_layer_design.md](reasoning_memory_layer_design.md), [dr_rtl_method_transfer_20260504.md](dr_rtl_method_transfer_20260504.md), [diagnostic_analyzer_and_skill_library_20260504.md](diagnostic_analyzer_and_skill_library_20260504.md), [alphaevolve_extension_methods_20260509.md](alphaevolve_extension_methods_20260509.md), [Reasoning Memory for AlphaEvolve Search](../../../wiki/methods/Reasoning%20Memory%20for%20AlphaEvolve%20Search.md), [Group-Relative Skill Learning for Alpha Search](../../../wiki/methods/Group-Relative%20Skill%20Learning%20for%20Alpha%20Search.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
-- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md), [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md), [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md)
-- Remote handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md), [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md), [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md), [seed_zoo_is_os_review_20260522.md](seed_zoo_is_os_review_20260522.md)
+- Remote handoff: [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md), [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-tokens",
         type=int,
-        default=4096,
+        default=8192,
         help=(
             "Completion-token budget for JSON mechanism cards. "
             "vLLM max-model-len must cover prompt tokens plus this value."
@@ -159,6 +159,8 @@ def build_prompt(args: argparse.Namespace) -> dict[str, str]:
         "- Do not promote attempt009; it improved turnover and missing-held behavior but weakened parent-relative Sharpe/return.\n"
         "- Prefer mechanisms that can improve parent-relative economics while preserving the missing-held and turnover gains.\n"
         "- Avoid no-op portfolio/risk edits and generic signal dampening.\n"
+        "- Parent-zoo update: seed-zoo evidence shows gross reversal structure before costs, but daily turnover consumes it. Prefer cost-aware preservation over completely new raw reversal definitions.\n"
+        "- Include regime-aware or HMM-style ideas only as causal lightweight state mechanisms that can fit inside one EVOLVE block; do not ask the 9B patcher to add unrestricted full-sample HMM fitting.\n"
         "- Return at most "
         f"{args.card_limit} cards.\n\n"
         "Mechanism-card contract context:\n"

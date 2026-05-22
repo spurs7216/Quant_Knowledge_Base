@@ -19,6 +19,11 @@ from research.alphaevolve_lite.controller_sample_eval_policy import (
     sample_eval_eligibility,
 )
 from research.alphaevolve_lite.mechanism_cards import normalize_mechanism_cards
+from research.alphaevolve_lite.parent_zoo import (
+    PARENT_ZOO_SCHEMA_VERSION,
+    default_parent_zoo_mechanism_cards,
+    write_parent_zoo_plan,
+)
 from research.alphaevolve_lite.sample_eval_metrics import (
     build_forward_returns_from_source,
     compare_search_sample_to_references,
@@ -133,6 +138,15 @@ class TargetCellScheduleTests(unittest.TestCase):
                 "portfolio/industry_neutral_rank",
                 available_surfaces={"signal", "ranking", "portfolio", "risk"},
             )
+
+    def test_regime_aware_reversal_is_valid_for_parent_zoo_cards(self) -> None:
+        schedule = parse_target_cell_schedule(
+            "signal/regime_aware_reversal",
+            available_surfaces={"signal", "ranking", "portfolio", "risk"},
+        )
+
+        self.assertEqual(schedule[0].surface, "signal")
+        self.assertEqual(schedule[0].intent, "regime_aware_reversal")
 
 
 class SampleEvalEligibilityTests(unittest.TestCase):
@@ -349,6 +363,37 @@ class MechanismCardValidationTests(unittest.TestCase):
         result = normalize_mechanism_cards(payload)
 
         self.assertEqual(result["cards"][0]["intent"], "industry_neutral_rank")
+
+
+class ParentZooTests(unittest.TestCase):
+    def test_default_parent_zoo_mechanism_cards_include_regime_card(self) -> None:
+        payload = default_parent_zoo_mechanism_cards()
+
+        card_ids = [card["card_id"] for card in payload["cards"]]
+        intents = [card["intent"] for card in payload["cards"]]
+        self.assertIn("pzoo_regime_aware_reversal", card_ids)
+        self.assertIn("regime_aware_reversal", intents)
+
+    def test_parent_zoo_plan_writes_seed_roots_and_controller_commands(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            plan = write_parent_zoo_plan(
+                Path(tmp) / "parent_zoo",
+                root_ids=["five_day_excess_reversal"],
+                db_path="program_database.sqlite",
+                controller_script="research/alphaevolve_lite/scripts/run_child_batch.py",
+                program_id_prefix="PROG-TEST-PZOO",
+                attempts_per_root=2,
+                incumbent_summary_path="attempt017/evaluator_summary.json",
+            )
+
+            manifest = plan["manifest"]
+            command = plan["commands"][0]
+            self.assertEqual(manifest["schema_version"], PARENT_ZOO_SCHEMA_VERSION)
+            self.assertEqual(manifest["root_count"], 1)
+            self.assertTrue(Path(manifest["roots"][0]["program_path"]).exists())
+            self.assertIn("--parent-root-id", command["argv"])
+            self.assertIn("five_day_excess_reversal", command["argv"])
+            self.assertIn("--incumbent-summary", command["argv"])
 
 
 if __name__ == "__main__":
