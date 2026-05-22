@@ -151,6 +151,8 @@ New implementation-policy files:
 - [seed_zoo_remote_instructions_20260521.md](seed_zoo_remote_instructions_20260521.md): current remote handoff for seed-zoo IS/OS sample evaluation.
 - [seed_zoo_is_os_review_20260522.md](seed_zoo_is_os_review_20260522.md): reviewed seed-zoo result; no seed is promoted, but five-day and volatility-normalized reversal become active roots for a small cost-aware parent-zoo controller batch.
 - [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md): current remote handoff for a controller-only parent-zoo batch with attempt017 plus deterministic seed roots.
+- [parent_zoo_cost_aware_review_20260522.md](parent_zoo_cost_aware_review_20260522.md): reviewed parent-zoo controller result; select three high-information children for sample eval and reject thin-book, broken-persistence, and no-final-weight candidates as first priorities.
+- [parent_zoo_curated_sample_eval_remote_instructions_20260522.md](parent_zoo_curated_sample_eval_remote_instructions_20260522.md): evaluator-only remote handoff for the three selected parent-zoo children.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.

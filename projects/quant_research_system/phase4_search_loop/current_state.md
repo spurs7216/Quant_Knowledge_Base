@@ -67,6 +67,8 @@ sources:
   - "seed_zoo_remote_instructions_20260521.md"
   - "seed_zoo_is_os_review_20260522.md"
   - "parent_zoo_cost_aware_remote_instructions_20260522.md"
+  - "parent_zoo_cost_aware_review_20260522.md"
+  - "parent_zoo_curated_sample_eval_remote_instructions_20260522.md"
 ---
 # Phase 4 Current State
 
@@ -89,10 +91,10 @@ controller_gate: controller_static before any data-backed child evaluation
 test_set_use: forbidden until branch freeze
 ```
 
-The controller-static population gate is satisfied, and the seed-zoo parent-discovery sample evaluation has been reviewed. The latest reviewed data-backed artifact is:
+The controller-static population gate is satisfied, the seed-zoo parent-discovery sample evaluation has been reviewed, and the first controller-only parent-zoo cost-aware run has been reviewed. The latest reviewed artifact is:
 
 ```text
-artifacts/seed_zoo_is_os_20260521.zip
+artifacts/parent_zoo_cost_aware_20260522.zip
 ```
 
 The similarly named older `artifacts/remote_sample_eval_.zip` is a zero-byte corrupt placeholder and should be ignored.
@@ -139,6 +141,8 @@ The repaired IS/OS rerun is reviewed in [remote_sample_eval_is_os_forward_repair
 
 Before running the next attempt017 controller batch, Phase 4 will run deterministic parent discovery through the seed zoo implemented in [seed_zoo_parent_discovery_20260521.md](seed_zoo_parent_discovery_20260521.md). This creates 10 concrete daily-stock parent programs and evaluates them through the repaired IS/OS sample evaluator. The goal is to avoid overfitting the search process to one modest local parent and to identify whether a simpler, neutralized, liquidity-aware, or blended deterministic parent should become the next AlphaEvolve branch root.
 
+The parent-zoo cost-aware controller run is reviewed in [parent_zoo_cost_aware_review_20260522.md](parent_zoo_cost_aware_review_20260522.md). It produced controller-safe children from attempt017, five-day reversal, and volatility-normalized reversal roots, but no market evidence yet. The seed roots generated more execution-effective candidates than the already-optimized attempt017 branch. The next stage is a narrow evaluator-only run for three high-information children: `PROG-20260522-PZOO-00-0005`, `PROG-20260522-PZOO-01-0002`, and `PROG-20260522-PZOO-01-0004`. Do not sample-evaluate the thin-book no-trade-band children, the semantically broken persistence child, or small liquidity-cap variants before stronger evidence appears.
+
 Current evolution status:
 
 ```yaml
@@ -147,7 +151,7 @@ controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
 child_market_evaluation_done: first_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: seed_zoo_parent_discovery_remote_eval
+next_stage: parent_zoo_curated_sample_eval
 ```
 
 ## AlphaEvolve Modules In This Project
