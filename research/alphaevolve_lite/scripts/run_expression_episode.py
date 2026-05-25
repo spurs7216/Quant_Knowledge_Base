@@ -77,6 +77,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--near-duplicate-threshold", type=float, default=0.98)
     parser.add_argument("--pass-margin", type=float, default=0.0)
     parser.add_argument(
+        "--parent-sampling-mode",
+        choices=["fixed_seed", "population_best", "population_mixed"],
+        default="population_mixed",
+        help="How later turns choose expression parents within each root branch.",
+    )
+    parser.add_argument("--branch-stop-loss-min-children", type=int, default=4)
+    parser.add_argument("--branch-stop-loss-margin", type=float, default=0.0)
+    parser.add_argument(
         "--mock-response-json",
         default="",
         help="Local-test only: use this JSON response for every model call instead of Qwen.",
@@ -117,6 +125,11 @@ def main() -> int:
         expression_interface_markdown,
         expression_seed_library_rows,
         score_expression_trajectory,
+    )
+    from research.alphaevolve_lite.expression_population import (
+        branch_stop_loss_diagnostics,
+        build_population_record,
+        select_expression_parent,
     )
     from research.alphaevolve_lite.reproducibility import capture_git_reproducibility
     from research.alphaevolve_lite.sample_eval_metrics import (
@@ -209,8 +222,14 @@ def main() -> int:
         )
 
         parent_results: dict[str, dict[str, Any]] = {}
+        result_by_id: dict[str, dict[str, Any]] = {}
+        specs_by_id = dict(seed_by_id)
+        root_scores: dict[str, float | None] = {}
         all_results: list[dict[str, Any]] = []
         child_results: list[dict[str, Any]] = []
+        population_records: list[dict[str, Any]] = []
+        parent_selection_records: list[dict[str, Any]] = []
+        branch_child_counts = {parent.expression_id: 0 for parent in parents}
         cost_rows: list[dict[str, Any]] = []
         model_call_records: list[dict[str, Any]] = []
 
@@ -225,8 +244,24 @@ def main() -> int:
                 args=args,
                 config=config,
                 record_type="parent_baseline",
+                root_expression_id=parent.expression_id,
             )
             parent_results[parent.expression_id] = parent_result
+            result_by_id[parent.expression_id] = parent_result
+            root_score = finite_or_none(
+                parent_result.get("metrics", {}).get("search_sample", {}).get("turnover_aware_score")
+            )
+            root_scores[parent.expression_id] = root_score
+            population_records.append(
+                build_population_record(
+                    parent_result,
+                    root_expression_id=parent.expression_id,
+                    generation=0,
+                    split_id=IS_OS_SPLIT_ID,
+                    root_score=root_score,
+                    branch_child_index=0,
+                )
+            )
             all_results.append(parent_result)
             cost_rows.extend(parent_cost_rows)
 
@@ -236,28 +271,49 @@ def main() -> int:
             else None
         )
 
-        for parent_index, parent in enumerate(parents):
+        for parent_index, root_parent in enumerate(parents):
             prior_expressions: list[str] = []
             feedback_rows: list[dict[str, Any]] = []
-            parent_ranking = ranking_row(parent_results[parent.expression_id])
             for turn in range(1, args.turns + 1):
+                parent_choice = select_expression_parent(
+                    root=root_parent,
+                    turn=turn,
+                    specs_by_id=specs_by_id,
+                    population_records=population_records,
+                    parent_sampling_mode=args.parent_sampling_mode,
+                )
+                parent_selection_records.append(parent_choice.to_record())
+                parent = specs_by_id[parent_choice.selected_expression_id]
+                parent_result = result_by_id.get(parent.expression_id, parent_results[root_parent.expression_id])
+                parent_ranking = ranking_row(parent_result)
+                population_context = _population_context_for_root(
+                    root_expression_id=root_parent.expression_id,
+                    parent_choice=parent_choice.to_record(),
+                    population_records=population_records,
+                )
                 temperature = temperatures[(turn + parent_index - 1) % len(temperatures)]
                 system_prompt, user_prompt = build_expression_episode_prompt(
                     parent=parent,
+                    root_parent=root_parent,
                     parent_ranking=parent_ranking,
+                    population_context=population_context,
                     prior_feedback=feedback_rows,
                     turn=turn,
                     offspring_per_turn=args.offspring_per_turn,
                     interface_markdown=interface_markdown,
                 )
-                call_dir = out_dir / "model_calls" / f"{parent.expression_id}_turn_{turn:02d}"
+                call_dir = out_dir / "model_calls" / (
+                    f"{root_parent.expression_id}_turn_{turn:02d}_parent_{parent.expression_id}"
+                )
                 call_dir.mkdir(parents=True, exist_ok=True)
                 (call_dir / "system_prompt.txt").write_text(system_prompt, encoding="utf-8")
                 (call_dir / "user_prompt.md").write_text(user_prompt, encoding="utf-8")
 
                 model_record: dict[str, Any] = {
+                    "root_expression_id": root_parent.expression_id,
                     "parent_expression_id": parent.expression_id,
                     "turn": turn,
+                    "parent_selection": parent_choice.to_record(),
                     "temperature": temperature,
                     "model_role": args.model_role,
                     "max_tokens": args.max_tokens,
@@ -295,14 +351,26 @@ def main() -> int:
                     model_record["status"] = "model_parse_error"
                     model_record["failure_reason"] = str(exc)
                     rejected = _rejected_child_result(
-                        expression_id=f"{parent.expression_id}_t{turn:02d}_parse_error",
+                        expression_id=f"{root_parent.expression_id}_t{turn:02d}_parse_error",
                         parent=parent,
+                        root_expression_id=root_parent.expression_id,
                         turn=turn,
                         status="model_parse_error",
                         failure_reason=str(exc),
                     )
                     child_results.append(rejected)
                     all_results.append(rejected)
+                    branch_child_counts[root_parent.expression_id] += 1
+                    population_records.append(
+                        build_population_record(
+                            rejected,
+                            root_expression_id=root_parent.expression_id,
+                            generation=turn,
+                            split_id=IS_OS_SPLIT_ID,
+                            root_score=root_scores[root_parent.expression_id],
+                            branch_child_index=branch_child_counts[root_parent.expression_id],
+                        )
+                    )
                     feedback_rows.append(_feedback_row(rejected))
                     model_call_records.append(model_record)
                     continue
@@ -310,7 +378,7 @@ def main() -> int:
                 model_record["proposal_count"] = len(proposals)
                 model_call_records.append(model_record)
                 for child_index, proposal in enumerate(proposals):
-                    child_id = f"{parent.expression_id}_ep_t{turn:02d}_c{child_index:02d}"
+                    child_id = f"{root_parent.expression_id}_ep_t{turn:02d}_c{child_index:02d}"
                     novelty = expression_novelty_diagnostics(
                         expression=proposal.expression,
                         parent_expression=parent.expression,
@@ -321,6 +389,7 @@ def main() -> int:
                         result = _rejected_child_result(
                             expression_id=child_id,
                             parent=parent,
+                            root_expression_id=root_parent.expression_id,
                             turn=turn,
                             status="expression_duplicate",
                             failure_reason="exact duplicate of parent or prior child expression",
@@ -329,6 +398,7 @@ def main() -> int:
                         )
                     else:
                         spec = proposal.to_spec(child_id, parent, turn)
+                        specs_by_id[child_id] = spec
                         result, result_cost_rows = _evaluate_expression_spec(
                             spec,
                             eval_panel=eval_panel,
@@ -339,14 +409,27 @@ def main() -> int:
                             args=args,
                             config=config,
                             record_type="child",
+                            root_expression_id=root_parent.expression_id,
                             parent_expression_id=parent.expression_id,
                             turn=turn,
                             proposal=proposal.as_record(),
                             novelty=novelty,
                         )
                         cost_rows.extend(result_cost_rows)
+                    result_by_id[child_id] = result
                     child_results.append(result)
                     all_results.append(result)
+                    branch_child_counts[root_parent.expression_id] += 1
+                    population_records.append(
+                        build_population_record(
+                            result,
+                            root_expression_id=root_parent.expression_id,
+                            generation=turn,
+                            split_id=IS_OS_SPLIT_ID,
+                            root_score=root_scores[root_parent.expression_id],
+                            branch_child_index=branch_child_counts[root_parent.expression_id],
+                        )
+                    )
                     feedback_rows.append(_feedback_row(result))
                     prior_expressions.append(proposal.expression)
 
@@ -359,7 +442,7 @@ def main() -> int:
                 .get("turnover_aware_score")
             )
             parent_child_results = [
-                result for result in child_results if result.get("parent_expression_id") == parent.expression_id
+                result for result in child_results if result.get("root_expression_id") == parent.expression_id
             ]
             trajectory_summaries[parent.expression_id] = score_expression_trajectory(
                 [attempt_record_from_result(result) for result in parent_child_results],
@@ -367,6 +450,17 @@ def main() -> int:
                 parent_score=parent_score or 0.0,
                 pass_margin=args.pass_margin,
             )
+
+        branch_diagnostics = {
+            parent.expression_id: branch_stop_loss_diagnostics(
+                root_expression_id=parent.expression_id,
+                root_score=root_scores[parent.expression_id],
+                population_records=population_records,
+                min_child_count=args.branch_stop_loss_min_children,
+                improvement_margin=args.branch_stop_loss_margin,
+            )
+            for parent in parents
+        }
 
         rankings = [ranking_row(result) for result in all_results]
         rankings_df = pd.DataFrame(rankings)
@@ -389,7 +483,23 @@ def main() -> int:
         pd.DataFrame(scorecard_rows(all_results)).to_csv(out_dir / "expression_episode_scorecard.csv", index=False)
         pd.DataFrame(cost_rows).to_csv(out_dir / "expression_episode_cost_sensitivity.csv", index=False)
         _write_jsonl(out_dir / "expression_episode_candidates.jsonl", child_results)
+        _write_jsonl(out_dir / "expression_population_ledger.jsonl", population_records)
+        _write_jsonl(out_dir / "expression_parent_selection.jsonl", parent_selection_records)
+        pd.json_normalize(population_records, sep=".").to_csv(
+            out_dir / "expression_population_ledger.csv",
+            index=False,
+        )
         write_json(out_dir / "expression_episode_model_calls.json", model_call_records)
+        write_json(out_dir / "expression_population_summary.json", {
+            "schema_version": "expression_population_v1",
+            "parent_sampling_mode": args.parent_sampling_mode,
+            "population_record_count": len(population_records),
+            "parent_selection_count": len(parent_selection_records),
+            "parent_sampling_eligible_count": sum(
+                bool(record.get("parent_sampling_eligible")) for record in population_records
+            ),
+            "branch_diagnostics": branch_diagnostics,
+        })
 
         summary = {
             "run_id": run_id,
@@ -408,12 +518,19 @@ def main() -> int:
                 "expression_episode_scorecard": str(out_dir / "expression_episode_scorecard.csv"),
                 "expression_episode_cost_sensitivity": str(out_dir / "expression_episode_cost_sensitivity.csv"),
                 "expression_episode_candidates": str(out_dir / "expression_episode_candidates.jsonl"),
+                "expression_population_ledger_jsonl": str(out_dir / "expression_population_ledger.jsonl"),
+                "expression_population_ledger_csv": str(out_dir / "expression_population_ledger.csv"),
+                "expression_parent_selection": str(out_dir / "expression_parent_selection.jsonl"),
+                "expression_population_summary": str(out_dir / "expression_population_summary.json"),
                 "expression_episode_model_calls": str(out_dir / "expression_episode_model_calls.json"),
                 "expression_episode_summary": str(out_dir / "expression_episode_summary.json"),
             },
             "result_counts": _result_counts(child_results),
             "parent_results": parent_results,
             "trajectory_summaries": trajectory_summaries,
+            "branch_diagnostics": branch_diagnostics,
+            "parent_selection_records": parent_selection_records,
+            "population_records": population_records,
             "children": child_results,
         }
         write_json(out_dir / "expression_episode_summary.json", summary)
@@ -461,6 +578,8 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--min-portfolio-day-coverage must be in (0, 1]")
     if not 0.0 <= args.near_duplicate_threshold <= 1.0:
         raise ValueError("--near-duplicate-threshold must be in [0, 1]")
+    if args.branch_stop_loss_min_children < 1:
+        raise ValueError("--branch-stop-loss-min-children must be positive")
 
 
 def _evaluate_expression_spec(
@@ -474,6 +593,7 @@ def _evaluate_expression_spec(
     args: argparse.Namespace,
     config: Any,
     record_type: str,
+    root_expression_id: str | None = None,
     parent_expression_id: str | None = None,
     turn: int | None = None,
     proposal: dict[str, Any] | None = None,
@@ -499,6 +619,7 @@ def _evaluate_expression_spec(
     result: dict[str, Any] = {
         "expression_id": spec.expression_id,
         "record_type": record_type,
+        "root_expression_id": root_expression_id,
         "parent_expression_id": parent_expression_id,
         "turn": turn,
         "title": spec.title,
@@ -603,6 +724,7 @@ def _rejected_child_result(
     *,
     expression_id: str,
     parent: Any,
+    root_expression_id: str,
     turn: int,
     status: str,
     failure_reason: str,
@@ -612,6 +734,7 @@ def _rejected_child_result(
     result = {
         "expression_id": expression_id,
         "record_type": "child",
+        "root_expression_id": root_expression_id,
         "parent_expression_id": parent.expression_id,
         "turn": turn,
         "title": f"{parent.title} episode turn {turn}",
@@ -647,6 +770,57 @@ def _feedback_row(result: dict[str, Any]) -> dict[str, Any]:
         "near_duplicate": result.get("near_duplicate"),
         "similarity_to_parent": result.get("similarity_to_parent"),
     }
+
+
+def _population_context_for_root(
+    *,
+    root_expression_id: str,
+    parent_choice: dict[str, Any],
+    population_records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    root_records = [
+        record for record in population_records if record.get("root_expression_id") == root_expression_id
+    ]
+    eligible = [
+        record for record in root_records if record.get("parent_sampling_eligible") is True
+    ]
+    top_records = sorted(
+        eligible,
+        key=lambda item: _safe_sort_score(item.get("selection_score")),
+        reverse=True,
+    )[:5]
+    map_cells = sorted({str(record.get("map_cell_key")) for record in root_records if record.get("map_cell_key")})
+    return {
+        "schema_version": "expression_population_prompt_context_v1",
+        "root_expression_id": root_expression_id,
+        "parent_choice": parent_choice,
+        "population_record_count": len(root_records),
+        "eligible_parent_count": len(eligible),
+        "occupied_map_cell_count": len(map_cells),
+        "occupied_map_cells": map_cells[:12],
+        "top_eligible_records": [
+            {
+                "expression_id": record.get("expression_id"),
+                "selection_score": record.get("selection_score"),
+                "map_cell_key": record.get("map_cell_key"),
+                "status": record.get("status"),
+                "root_turnover_aware_delta": record.get("root_turnover_aware_delta"),
+            }
+            for record in top_records
+        ],
+        "policy_instruction": (
+            "This is population search. Later turns should improve or diversify from eligible "
+            "child survivors, not repeatedly rewrite only the original seed."
+        ),
+    }
+
+
+def _safe_sort_score(value: Any) -> float:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return float("-inf")
+    return number if number == number and abs(number) != float("inf") else float("-inf")
 
 
 def _result_counts(results: list[dict[str, Any]]) -> dict[str, int]:

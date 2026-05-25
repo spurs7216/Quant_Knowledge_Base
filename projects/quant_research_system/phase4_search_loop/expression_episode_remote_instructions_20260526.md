@@ -20,7 +20,7 @@ sources:
 
 ## Purpose
 
-Run the first Qwen-backed daily-stock expression-evolution episode after the deterministic seed-zoo baseline.
+Run the first population-aware Qwen-backed daily-stock expression-evolution episode after the deterministic seed-zoo baseline.
 
 This is a search/evidence run, not promotion. The goal is to test whether Qwen can propose safe expression-level mechanisms that improve cost conversion or IS/OS stability under the fixed daily-stock evaluator contract.
 
@@ -31,7 +31,8 @@ The run should use expression objects, not Python patches:
 - repaired rolling top-500 universe and forward-return source;
 - fixed 2011-2025 IS/OS split;
 - 2.5 bps default total cost plus cost grid;
-- trajectory diagnostics with valid ratio, pass@T, consistency, exploration, and best child.
+- trajectory diagnostics with valid ratio, pass@T, consistency, exploration, and best child;
+- parent-selection records, MAP-style population descriptors, and branch stop-loss diagnostics so this is not another fixed-parent repair loop.
 
 ## Required Qwen Server Preflight
 
@@ -118,12 +119,14 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
   --parent-seed-id expr_mom_060_ind \
   --turns 2 \
   --offspring-per-turn 2 \
+  --parent-sampling-mode population_mixed \
+  --branch-stop-loss-min-children 4 \
   --model-role fast_generator \
   --temperature-grid 0.2,0.4,0.6 \
   --max-tokens 8192
 ```
 
-This first run should produce 3 parent baselines and up to 12 child expressions. If runtime is much lower than expected and all mechanics are clean, a later run can increase to 3 turns and 3 offspring per turn.
+This first run should produce 3 parent baselines and up to 12 child expressions. Turn 1 mutates each root seed; later turns should sample eligible child survivors when available. If runtime is much lower than expected and all mechanics are clean, a later run can increase to 3 turns and 3 offspring per turn.
 
 ## Required Artifacts
 
@@ -136,6 +139,10 @@ Required files:
 - `expression_episode_scorecard.csv`
 - `expression_episode_cost_sensitivity.csv`
 - `expression_episode_candidates.jsonl`
+- `expression_population_ledger.jsonl`
+- `expression_population_ledger.csv`
+- `expression_parent_selection.jsonl`
+- `expression_population_summary.json`
 - `expression_episode_model_calls.json`
 - `expression_interface.md`
 - `expression_seed_library.json`
@@ -159,6 +166,8 @@ The local reviewer should answer:
 - Did any child preserve broad coverage, balanced exposure, low max weight, and missing-held tolerance?
 - Did any child improve both IS and OS evidence, or is it another regime/split artifact?
 - Which parent produced the best trajectory diagnostics?
+- Did turn 2 sample eligible child survivors, or did it correctly fall back to the seed because no child was eligible?
+- Which MAP-style cells were occupied, and did any branch trigger a population-review pause?
 
 ## Stop Conditions
 

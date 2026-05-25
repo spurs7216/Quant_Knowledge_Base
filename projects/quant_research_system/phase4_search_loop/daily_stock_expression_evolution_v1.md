@@ -27,6 +27,7 @@ The current controller can generate executable children, but the child space has
 - `research/alphaevolve_lite/expression_evolution.py`
 - `research/alphaevolve_lite/expression_episode.py`
 - `research/alphaevolve_lite/expression_eval_records.py`
+- `research/alphaevolve_lite/expression_population.py`
 - `research/alphaevolve_lite/scripts/export_expression_interface.py`
 - `research/alphaevolve_lite/scripts/run_expression_seed_zoo.py`
 - `research/alphaevolve_lite/scripts/run_expression_episode.py`
@@ -151,6 +152,8 @@ It:
 - parses malformed or empty model content into explicit `model_parse_error` records;
 - rejects exact duplicate expressions before data-backed evaluation;
 - records structural similarity to the parent and prior siblings;
+- samples later-turn parents from eligible child survivors by default, rather than repeatedly mutating only the original seed;
+- writes a population ledger with MAP-style descriptors, parent-selection records, selection scores, and branch stop-loss diagnostics;
 - evaluates valid expressions through the same rolling top-500, forward-return, IS/OS, cost, max-weight, net-exposure, coverage, and missing-held contracts as the seed-zoo evaluator;
 - writes per-parent trajectory summaries using valid ratio, pass@T, consistency, exploration, best score, and best turn.
 
@@ -188,8 +191,10 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
   --parent-seed-id expr_mom_060_ind \
   --turns 2 \
   --offspring-per-turn 2 \
+  --parent-sampling-mode population_mixed \
+  --branch-stop-loss-min-children 4 \
   --model-role fast_generator \
   --max-tokens 8192
 ```
 
-Do not run full validation or promotion from this layer until expression winners have been converted into reviewed executable strategy programs.
+This is still a population-aware pilot, not the final Phase 4 production loop. Do not run full validation or promotion from this layer until expression winners have been converted into reviewed executable strategy programs.

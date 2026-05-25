@@ -88,7 +88,9 @@ def parent_objective(parent_expression_id: str) -> str:
 def build_expression_episode_prompt(
     *,
     parent: ExpressionSpec,
+    root_parent: ExpressionSpec | None = None,
     parent_ranking: Mapping[str, Any],
+    population_context: Mapping[str, Any] | None = None,
     prior_feedback: Sequence[Mapping[str, Any]],
     turn: int,
     offspring_per_turn: int,
@@ -114,19 +116,27 @@ def build_expression_episode_prompt(
         ]
     }
     compact_feedback = list(prior_feedback)[-12:]
+    root = root_parent or parent
+    population_payload = dict(population_context or {})
     user_prompt = (
         "# Task\n"
         f"Generate {offspring_per_turn} child expressions for turn {turn}. The goal is not a "
         "grid search over constants; propose small but meaningful expression-level mechanisms.\n\n"
+        "# Root Seed\n"
+        f"- root_expression_id: {root.expression_id}\n"
+        f"- root_expression: `{root.expression}`\n"
+        f"- root_mechanism: {root.mechanism}\n\n"
         "# Parent\n"
         f"- parent_expression_id: {parent.expression_id}\n"
         f"- parent_expression: `{parent.expression}`\n"
         f"- parent_mechanism: {parent.mechanism}\n"
         f"- parent_expected_effect: {parent.expected_effect}\n\n"
         "# Objective\n"
-        f"{parent_objective(parent.expression_id)}\n\n"
+        f"{parent_objective(root.expression_id)}\n\n"
         "# Parent Metrics\n"
         f"{json.dumps(parent_ranking, indent=2, sort_keys=True)}\n\n"
+        "# Population Context\n"
+        f"{json.dumps(population_payload, indent=2, sort_keys=True)}\n\n"
         "# Prior Episode Feedback\n"
         f"{json.dumps(compact_feedback, indent=2, sort_keys=True)}\n\n"
         "# Hard Rules\n"

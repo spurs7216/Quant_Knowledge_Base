@@ -14,7 +14,12 @@ from research.alphaevolve_lite.expression_episode import (
     expression_novelty_diagnostics,
     parse_expression_proposals,
 )
-from research.alphaevolve_lite.expression_evolution import DEFAULT_EXPRESSION_SEEDS
+from research.alphaevolve_lite.expression_evolution import DEFAULT_EXPRESSION_SEEDS, ExpressionSpec
+from research.alphaevolve_lite.expression_population import (
+    branch_stop_loss_diagnostics,
+    build_population_record,
+    select_expression_parent,
+)
 
 
 def _synthetic_daily_stock_csv(path: Path, names: int = 35, days: int = 130) -> None:
@@ -91,6 +96,81 @@ class ExpressionEpisodeTest(unittest.TestCase):
         )
         self.assertTrue(novelty["exact_duplicate"])
 
+    def test_population_parent_selection_uses_child_survivor(self) -> None:
+        root = ExpressionSpec(
+            expression_id="root",
+            title="root",
+            thesis="root",
+            expression="rank(-excess_ret)",
+            mechanism="reversal",
+            expected_effect="baseline",
+        )
+        child = ExpressionSpec(
+            expression_id="child",
+            title="child",
+            thesis="child",
+            expression="rank(-rolling_sum(excess_ret, 5))",
+            mechanism="smoothing",
+            expected_effect="lower turnover",
+        )
+        choice = select_expression_parent(
+            root=root,
+            turn=2,
+            specs_by_id={"root": root, "child": child},
+            population_records=[
+                {
+                    "root_expression_id": "root",
+                    "expression_id": "child",
+                    "record_type": "child",
+                    "parent_sampling_eligible": True,
+                    "selection_score": 0.25,
+                }
+            ],
+            parent_sampling_mode="population_mixed",
+        )
+        self.assertEqual(choice.selected_expression_id, "child")
+        self.assertEqual(choice.selection_reason, "best_scored_eligible_child_survivor")
+
+    def test_branch_stop_loss_flags_unproductive_branch(self) -> None:
+        diagnostics = branch_stop_loss_diagnostics(
+            root_expression_id="root",
+            root_score=0.10,
+            population_records=[
+                {
+                    "root_expression_id": "root",
+                    "record_type": "child",
+                    "selection_score": 0.05,
+                    "parent_sampling_eligible": True,
+                },
+                {
+                    "root_expression_id": "root",
+                    "record_type": "child",
+                    "selection_score": 0.08,
+                    "parent_sampling_eligible": True,
+                },
+            ],
+            min_child_count=2,
+            improvement_margin=0.0,
+        )
+        self.assertTrue(diagnostics["pause_branch_for_population_review"])
+
+    def test_population_record_does_not_sample_parent_baseline(self) -> None:
+        record = build_population_record(
+            {
+                "expression_id": "root",
+                "record_type": "parent_baseline",
+                "status": "expression_sample_pass",
+                "metrics": {"search_sample": {"turnover_aware_score": 0.12}},
+                "portfolio_coverage": {"portfolio_day_coverage": 1.0},
+            },
+            root_expression_id="root",
+            generation=0,
+            split_id="test_split",
+            root_score=0.12,
+            branch_child_index=0,
+        )
+        self.assertFalse(record["parent_sampling_eligible"])
+
     def test_mock_episode_runner_smoke(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -141,7 +221,7 @@ class ExpressionEpisodeTest(unittest.TestCase):
                 "--parent-seed-id",
                 "expr_smoothed_rev",
                 "--turns",
-                "1",
+                "2",
                 "--offspring-per-turn",
                 "1",
                 "--mock-response-json",
@@ -157,8 +237,16 @@ class ExpressionEpisodeTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, completed.stderr)
             summary = json.loads((out_dir / "expression_episode_summary.json").read_text(encoding="utf-8"))
             self.assertEqual(summary["status"], "ok")
-            self.assertEqual(summary["result_counts"]["child_count"], 1)
+            self.assertEqual(summary["result_counts"]["child_count"], 2)
+            self.assertEqual(summary["trajectory_summaries"]["expr_smoothed_rev"]["attempt_count"], 2)
+            self.assertEqual(len(summary["parent_selection_records"]), 2)
+            self.assertIn("branch_diagnostics", summary)
             self.assertTrue((out_dir / "expression_episode_rankings.csv").exists())
+            self.assertTrue((out_dir / "expression_population_ledger.csv").exists())
+            population_summary = json.loads(
+                (out_dir / "expression_population_summary.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(population_summary["population_record_count"], 3)
 
 
 if __name__ == "__main__":

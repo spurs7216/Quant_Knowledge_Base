@@ -12,6 +12,7 @@ tags:
 ## 2026-05-26 | implementation | expression episode runner
 
 - Added `research/alphaevolve_lite/scripts/run_expression_episode.py` for the first Qwen-backed daily-stock expression episode. The runner uses JSON-only expression proposals, remote `model_router.py`, exact-duplicate rejection, structural-similarity diagnostics, fixed rolling top-500 IS/OS evaluation, and per-parent trajectory summaries.
+- Repaired the episode design before remote execution so it is population-aware rather than fixed-parent only. Added `expression_population.py`, child-survivor parent sampling, MAP-style descriptors, parent-selection records, population-ledger artifacts, branch stop-loss diagnostics, and tests that a two-turn mock episode is counted as a two-child trajectory.
 - Added local mock-response tests in `research/alphaevolve_lite/tests/test_expression_episode.py` so the Windows machine can verify the real CSV/evaluator path without launching Qwen.
 - Added `projects/quant_research_system/phase4_search_loop/expression_episode_remote_instructions_20260526.md` as the next remote handoff. The remote agent must start and verify the Qwen3.5-9B vLLM server in a dedicated terminal before running the episode.
 

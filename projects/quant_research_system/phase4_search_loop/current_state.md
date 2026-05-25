@@ -327,7 +327,7 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is the first remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion.
+The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence.
 
 ```yaml
 next_remote_task:
@@ -345,11 +345,14 @@ next_remote_task:
     - completed: evaluate children through fixed daily-stock seed-zoo contracts
     - completed: record exact duplicate and structural-similarity diagnostics
     - completed: write trajectory summaries with valid ratio, pass@T, consistency, exploration, and best child
+    - completed: write expression population ledger, parent-selection records, MAP-style descriptors, and branch stop-loss diagnostics
     - completed: write remote instructions with explicit Qwen server preflight
   episode_shape:
     turns: 2
     offspring_per_turn: 2
     expected_child_count: 12
+    parent_sampling_mode: population_mixed
+    branch_stop_loss_min_children: 4
     completion_tokens: 8192
   mutation_objective:
     - improve turnover-aware score after 2.5 bps
@@ -359,6 +362,8 @@ next_remote_task:
   review_questions:
     - did Qwen return valid JSON content, or did null/malformed output recur?
     - which parent produced the best trajectory diagnostics?
+    - did turn 2 mutate eligible child survivors rather than only rewriting the root seed?
+    - which population cells were occupied, and did any branch warrant pause before another run?
     - did any child beat its parent after cost while keeping hard gates clean?
     - are improvements real IS/OS evidence or another turnover/regime artifact?
   test_set_used: false
