@@ -248,6 +248,109 @@ class ExpressionEpisodeTest(unittest.TestCase):
             )
             self.assertEqual(population_summary["population_record_count"], 3)
 
+    def test_mock_episode_runner_can_sample_prior_population_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            csv_path = root / "daily_stock.csv"
+            out_dir = root / "episode_out"
+            mock_path = root / "mock_response.json"
+            prior_path = root / "prior_population.jsonl"
+            _synthetic_daily_stock_csv(csv_path)
+            prior_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "expression_population_v1",
+                        "run_id": "prior_run",
+                        "expression_id": "hist_child",
+                        "record_type": "child",
+                        "root_expression_id": "expr_smoothed_rev",
+                        "parent_expression_id": "expr_smoothed_rev",
+                        "turn": 1,
+                        "title": "Historical child",
+                        "thesis": "Historical survivor",
+                        "expression": "rank(-rolling_sum(excess_ret, 10))",
+                        "mechanism": "historical smoothing",
+                        "expected_effect": "lower turnover",
+                        "tags": ["episode_child"],
+                        "status": "expression_sample_pass",
+                        "selection_score": 3.0,
+                        "parent_sampling_eligible": True,
+                        "metrics": {"search_sample": {"turnover_aware_score": 0.5}},
+                        "portfolio_coverage": {"portfolio_day_coverage": 1.0},
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            mock_path.write_text(
+                json.dumps(
+                    {
+                        "children": [
+                            {
+                                "expression_id": "child_a",
+                                "expression": "rank(-rolling_sum(excess_ret, 3))",
+                                "thesis": "try a shorter reversal horizon",
+                                "mechanism": "horizon shift",
+                                "expected_effect": "test cost conversion",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            command = [
+                sys.executable,
+                "research/alphaevolve_lite/scripts/run_expression_episode.py",
+                "--csv-path",
+                str(csv_path),
+                "--out-dir",
+                str(out_dir),
+                "--start-date",
+                "2020-01-01",
+                "--end-date",
+                "2020-06-30",
+                "--out-sample-start",
+                "2020-04-01",
+                "--top-n",
+                "20",
+                "--cost-grid-bps",
+                "0,2.5",
+                "--min-names-per-side",
+                "2",
+                "--min-portfolio-days",
+                "5",
+                "--min-portfolio-day-coverage",
+                "0.2",
+                "--parent-seed-id",
+                "expr_smoothed_rev",
+                "--turns",
+                "2",
+                "--offspring-per-turn",
+                "1",
+                "--run-id",
+                "unit_prior_run",
+                "--prior-population-ledger",
+                str(prior_path),
+                "--mock-response-json",
+                str(mock_path),
+            ]
+            completed = subprocess.run(
+                command,
+                cwd=Path(__file__).resolve().parents[3],
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            summary = json.loads((out_dir / "expression_episode_summary.json").read_text(encoding="utf-8"))
+            self.assertEqual(summary["prior_population"]["loaded_record_count"], 1)
+            self.assertEqual(summary["parent_selection_records"][1]["selected_expression_id"], "hist_child")
+            population_summary = json.loads(
+                (out_dir / "expression_population_summary.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(population_summary["historical_population_record_count"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

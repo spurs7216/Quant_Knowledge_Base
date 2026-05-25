@@ -33,6 +33,7 @@ The run should use expression objects, not Python patches:
 - 2.5 bps default total cost plus cost grid;
 - trajectory diagnostics with valid ratio, pass@T, consistency, exploration, and best child;
 - parent-selection records, MAP-style population descriptors, and branch stop-loss diagnostics so this is not another fixed-parent repair loop.
+- run-scoped child ids and a reloadable population ledger so later expression episodes can continue from prior survivors instead of restarting from memoryless seeds.
 
 ## Required Qwen Server Preflight
 
@@ -128,6 +129,8 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
 
 This first run should produce 3 parent baselines and up to 12 child expressions. Turn 1 mutates each root seed; later turns should sample eligible child survivors when available. If runtime is much lower than expected and all mechanics are clean, a later run can increase to 3 turns and 3 offspring per turn.
 
+Do not pass `--prior-population-ledger` for this first expression episode. In later expression episodes, pass the previous run's `expression_population_ledger.jsonl` to seed duplicate checks and historical parent sampling.
+
 ## Required Artifacts
 
 Zip the output directory and return it for local review.
@@ -168,6 +171,7 @@ The local reviewer should answer:
 - Which parent produced the best trajectory diagnostics?
 - Did turn 2 sample eligible child survivors, or did it correctly fall back to the seed because no child was eligible?
 - Which MAP-style cells were occupied, and did any branch trigger a population-review pause?
+- Are child expression ids run-scoped, and is the population ledger complete enough to seed a later episode?
 
 ## Stop Conditions
 

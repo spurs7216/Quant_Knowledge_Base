@@ -154,6 +154,8 @@ It:
 - records structural similarity to the parent and prior siblings;
 - samples later-turn parents from eligible child survivors by default, rather than repeatedly mutating only the original seed;
 - writes a population ledger with MAP-style descriptors, parent-selection records, selection scores, and branch stop-loss diagnostics;
+- uses run-scoped child expression ids so different remote episodes cannot silently reuse the same child ids;
+- accepts `--prior-population-ledger` so future episodes can seed duplicate checks and parent sampling from prior expression-population artifacts;
 - evaluates valid expressions through the same rolling top-500, forward-return, IS/OS, cost, max-weight, net-exposure, coverage, and missing-held contracts as the seed-zoo evaluator;
 - writes per-parent trajectory summaries using valid ratio, pass@T, consistency, exploration, best score, and best turn.
 
@@ -198,3 +200,5 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
 ```
 
 This is still a population-aware pilot, not the final Phase 4 production loop. Do not run full validation or promotion from this layer until expression winners have been converted into reviewed executable strategy programs.
+
+For the first remote episode, do not pass a prior ledger. For later episodes, pass the previous run's `expression_population_ledger.jsonl` with `--prior-population-ledger` so the system can avoid known repeats and continue from eligible historical survivors.

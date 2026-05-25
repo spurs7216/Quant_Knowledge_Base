@@ -48,6 +48,9 @@ def build_population_record(
     split_id: str,
     root_score: float | None,
     branch_child_index: int,
+    run_id: str | None = None,
+    historical: bool = False,
+    source_path: str | None = None,
 ) -> dict[str, Any]:
     """Build the search-facing ledger row for an expression result."""
 
@@ -64,15 +67,28 @@ def build_population_record(
     root_delta = None if search_score is None or root_score is None else search_score - root_score
     return {
         "schema_version": EXPRESSION_POPULATION_SCHEMA_VERSION,
+        "run_id": run_id,
+        "historical": bool(historical),
+        "source_path": source_path,
         "expression_id": result.get("expression_id"),
         "record_type": result.get("record_type"),
         "root_expression_id": root_expression_id,
         "parent_expression_id": result.get("parent_expression_id"),
         "generation": int(generation),
         "turn": result.get("turn"),
+        "title": result.get("title"),
+        "thesis": result.get("thesis"),
         "status": status,
         "failure_reason": result.get("failure_reason"),
         "expression": result.get("expression"),
+        "mechanism": result.get("mechanism"),
+        "expected_effect": result.get("expected_effect"),
+        "tags": list(result.get("tags") or []),
+        "metrics": result.get("metrics") or {},
+        "portfolio_coverage": result.get("portfolio_coverage") or {},
+        "hard_gates": result.get("hard_gates") or {},
+        "signal_non_null_ratio": result.get("signal_non_null_ratio"),
+        "position_rows": result.get("position_rows"),
         "selection_score": score,
         "root_score": root_score,
         "root_turnover_aware_delta": root_delta,

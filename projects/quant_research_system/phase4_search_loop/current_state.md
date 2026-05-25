@@ -327,7 +327,7 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence.
+The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence. The runner now also uses run-scoped child ids and can reload prior population ledgers for later episodes, so expression search has a durable database-like memory instead of a one-run-only ledger.
 
 ```yaml
 next_remote_task:
@@ -346,6 +346,7 @@ next_remote_task:
     - completed: record exact duplicate and structural-similarity diagnostics
     - completed: write trajectory summaries with valid ratio, pass@T, consistency, exploration, and best child
     - completed: write expression population ledger, parent-selection records, MAP-style descriptors, and branch stop-loss diagnostics
+    - completed: run-scoped child ids plus reloadable prior-population ledger support
     - completed: write remote instructions with explicit Qwen server preflight
   episode_shape:
     turns: 2
