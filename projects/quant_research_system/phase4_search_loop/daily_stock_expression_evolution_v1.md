@@ -2,7 +2,7 @@
 title: Daily Stock Expression Evolution V1
 type: implementation_note
 status: active
-updated: 2026-05-25
+updated: 2026-05-26
 tags:
   - project
   - phase4
@@ -25,9 +25,13 @@ The current controller can generate executable children, but the child space has
 ## Implemented Files
 
 - `research/alphaevolve_lite/expression_evolution.py`
+- `research/alphaevolve_lite/expression_episode.py`
+- `research/alphaevolve_lite/expression_eval_records.py`
 - `research/alphaevolve_lite/scripts/export_expression_interface.py`
 - `research/alphaevolve_lite/scripts/run_expression_seed_zoo.py`
+- `research/alphaevolve_lite/scripts/run_expression_episode.py`
 - `research/alphaevolve_lite/tests/test_expression_evolution.py`
+- `research/alphaevolve_lite/tests/test_expression_episode.py`
 
 ## Expression Contract
 
@@ -135,6 +139,23 @@ This script intentionally does not call Qwen. It gives us seed-expression baseli
 
 `expression_sample_pass` is an expression seed-zoo status, not promotion. It now requires portfolio coverage, max-weight compliance, near-zero net exposure, finite turnover-aware score, and max missing-held weight within the same 0.05 sample tolerance used by the main evaluator.
 
+## Remote Expression Episode
+
+The Qwen-backed remote episode runner is `research/alphaevolve_lite/scripts/run_expression_episode.py`.
+
+It:
+
+- calls remote Qwen through `model_router.py`;
+- requires JSON-only expression proposals, not Python patches;
+- writes every system prompt, user prompt, and model response under `model_calls/`;
+- parses malformed or empty model content into explicit `model_parse_error` records;
+- rejects exact duplicate expressions before data-backed evaluation;
+- records structural similarity to the parent and prior siblings;
+- evaluates valid expressions through the same rolling top-500, forward-return, IS/OS, cost, max-weight, net-exposure, coverage, and missing-held contracts as the seed-zoo evaluator;
+- writes per-parent trajectory summaries using valid ratio, pass@T, consistency, exploration, best score, and best turn.
+
+The local Windows machine still must not run Qwen. Local verification uses `--mock-response-json`, which exercises the real loader/evaluator path with a saved JSON response.
+
 ## Why This Part Matters
 
 The AlphaAgentEvo supplemental implementation is incomplete as a direct transplant: the local source includes interface and data assets, but the referenced reward implementation is not fully present and there are port/count inconsistencies. The transferable idea is therefore the objective decomposition, not the exact code.
@@ -147,32 +168,28 @@ For our project, the goal of this part is:
 4. preserve existing evaluator hardening;
 5. create trajectory records that could later support RL or prompt-policy learning.
 
-## Next Implementation Step
+## Next Remote Step
 
-Run `remote_expression_seed_zoo_eval_v1`, then build `remote_expression_episode_runner_v1`.
+Run `remote_expression_episode_run_v1` from [expression_episode_remote_instructions_20260526.md](expression_episode_remote_instructions_20260526.md).
 
-Seed-zoo command shape:
+Episode command shape:
 
 ```bash
-python research/alphaevolve_lite/scripts/run_expression_seed_zoo.py \
+python research/alphaevolve_lite/scripts/run_expression_episode.py \
   --csv-path /path/to/daily_stock.csv \
-  --out-dir artifacts/phase4_alphaevolve/expression_seed_zoo_YYYYMMDD \
+  --out-dir artifacts/phase4_alphaevolve/expression_episode_YYYYMMDD \
   --start-date 2011-01-01 \
   --end-date 2025-12-31 \
   --out-sample-start 2023-01-01 \
   --top-n 500 \
-  --total-cost-bps 2.5
+  --total-cost-bps 2.5 \
+  --parent-seed-id expr_smoothed_rev \
+  --parent-seed-id expr_size_ind_rev \
+  --parent-seed-id expr_mom_060_ind \
+  --turns 2 \
+  --offspring-per-turn 2 \
+  --model-role fast_generator \
+  --max-tokens 8192
 ```
-
-After seed baselines are reviewed, build `remote_expression_episode_runner_v1`.
-
-Minimum requirements:
-
-- export expression interface and seed JSON into a remote artifact directory;
-- call Qwen for 2-4 offspring per turn under the expression-only JSON contract;
-- parse and safety-check offspring expressions;
-- evaluate each expression to signal and weights on the active daily-stock panel;
-- record valid ratio, duplicate/similarity bands, pass@T, trajectory score, and frontier candidates;
-- sample-evaluate only selected frontier expressions after controller-style hard gates.
 
 Do not run full validation or promotion from this layer until expression winners have been converted into reviewed executable strategy programs.

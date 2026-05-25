@@ -36,6 +36,8 @@ Controller batch refactor notes:
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `mechanism_cards.py` owns mechanism-card parsing and exact contract validation for surface, intent, and `CONTRACT.*` daily-stock field handles.
 - `expression_evolution.py` owns the AlphaAgentEvo-style daily-stock expression layer: safe field/operator DSL, causal signal evaluation, constrained dollar-neutral portfolio construction, seed-expression catalog, expression similarity, and multi-turn trajectory scoring. It does not own data loading, sample-evaluation accounting, cost sensitivity, or promotion gates.
+- `expression_eval_records.py` owns shared expression sample-pass gates and artifact row rendering so seed-zoo and episode outputs use the same status semantics.
+- `expression_episode.py` owns the Qwen expression-episode prompt, JSON parser, duplicate/similarity diagnostics, and trajectory-record conversion.
 - `daily_stock_eda.py` owns the chunked daily-stock empirical map used to convert the frozen field contract into prompt-facing data guidance. It writes data-understanding artifacts only; it is not an alpha evaluator.
 - `daily_stock_forward_coverage.py` owns the chunked rolling top-N coverage and evaluator-style forward-return availability diagnostic. It answers data-coverage and missing-held-cause questions only; it must not become an alpha evaluator. Its default forward-availability window now matches the active 2011-2025 IS/OS evaluator window.
 - `splits.py` owns the active Phase 4 split contract: fixed IS/OS with 2011-2022 in-sample and 2023-2025 out-of-sample. The old 70/15/15 builder is retained only for legacy diagnostics.
@@ -44,6 +46,7 @@ Controller batch refactor notes:
 - `scripts/profile_daily_stock_forward_coverage.py` is the remote CLI for whole-timeline rolling top-500 coverage plus active-window forward-return availability diagnostics. It should run on the remote data machine and does not require Qwen or vLLM.
 - `scripts/export_expression_interface.py` writes prompt-facing expression-interface markdown and seed-library JSON for remote expression-generation runs. It does not evaluate alphas.
 - `scripts/run_expression_seed_zoo.py` is the remote CLI for deterministic daily-stock expression seed evaluation under the repaired rolling top-500, forward-return, IS/OS, cost, max-weight, and coverage contracts. It does not call Qwen.
+- `scripts/run_expression_episode.py` is the remote CLI for Qwen-backed JSON expression episodes. It calls remote vLLM through `model_router.py`, validates generated DSL expressions, evaluates them under the same seed-zoo contracts, records duplicate/similarity diagnostics, and writes per-parent trajectory summaries. It supports `--mock-response-json` for local tests without running Qwen.
 
 Remote sample-evaluator refactor notes:
 

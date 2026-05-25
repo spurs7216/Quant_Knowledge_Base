@@ -2,12 +2,24 @@
 title: Wiki Log
 type: log
 status: active
-updated: 2026-05-09
+updated: 2026-05-26
 tags:
   - log
   - wiki
 ---
 # Wiki Log
+
+## 2026-05-26 | implementation | expression episode runner
+
+- Added `research/alphaevolve_lite/scripts/run_expression_episode.py` for the first Qwen-backed daily-stock expression episode. The runner uses JSON-only expression proposals, remote `model_router.py`, exact-duplicate rejection, structural-similarity diagnostics, fixed rolling top-500 IS/OS evaluation, and per-parent trajectory summaries.
+- Added local mock-response tests in `research/alphaevolve_lite/tests/test_expression_episode.py` so the Windows machine can verify the real CSV/evaluator path without launching Qwen.
+- Added `projects/quant_research_system/phase4_search_loop/expression_episode_remote_instructions_20260526.md` as the next remote handoff. The remote agent must start and verify the Qwen3.5-9B vLLM server in a dedicated terminal before running the episode.
+
+## 2026-05-25 | evidence review | expression seed zoo baseline
+
+- Reviewed `artifacts/expression_seed_zoo_20260525.zip` in [[Expression Seed Zoo Review 20260525]].
+- The run was mechanically clean at commit `981b1d31e2104820dc8c2fa381b4a03dd21a7da4`: 24 seeds evaluated, 23 expression sample passes, 1 review, no expression errors, fixed IS/OS split, rolling top-500, and repaired forward-return source.
+- No expression seed is promotable. Only `expr_smoothed_rev` has positive full-window turnover-aware score after 2.5 bps, and it has negative OS behavior. The next objective is a Qwen expression episode runner focused on cost conversion and regime stability, not seed promotion.
 
 ## 2026-05-09 | implementation | prompt fitness and lazy score policy
 

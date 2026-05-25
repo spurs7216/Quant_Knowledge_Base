@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-25
+updated: 2026-05-26
 tags:
   - project
   - phase4
@@ -157,6 +157,8 @@ New implementation-policy files:
 - [alphaagentevo_transfer_20260525.md](alphaagentevo_transfer_20260525.md): AlphaAgentEvo transfer note; next milestone should be daily-stock expression evolution with multi-turn trajectory scoring, not another broad Python-patch batch.
 - [daily_stock_expression_evolution_v1.md](daily_stock_expression_evolution_v1.md): implemented expression-evolution scaffold, safe daily-stock DSL, seed expression catalog, trajectory-score contract, and deterministic remote expression seed-zoo evaluator.
 - [expression_seed_zoo_remote_instructions_20260525.md](expression_seed_zoo_remote_instructions_20260525.md): remote handoff for deterministic expression seed-zoo baseline evaluation. This run does not call Qwen.
+- [expression_seed_zoo_review_20260525.md](expression_seed_zoo_review_20260525.md): reviewed expression seed-zoo baseline; evaluator worked, but no seed is promotable, and the next objective is expression-level cost conversion plus regime stability.
+- [expression_episode_remote_instructions_20260526.md](expression_episode_remote_instructions_20260526.md): current remote handoff for the first Qwen-backed JSON-expression episode using the reviewed seed-zoo parents and fixed daily-stock evaluator contracts.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
