@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-22
+updated: 2026-05-25
 tags:
   - project
   - phase4
@@ -69,6 +69,10 @@ sources:
   - "parent_zoo_cost_aware_remote_instructions_20260522.md"
   - "parent_zoo_cost_aware_review_20260522.md"
   - "parent_zoo_curated_sample_eval_remote_instructions_20260522.md"
+  - "remote_sample_eval_pzoo_0_review_20260525.md"
+  - "alphaagentevo_transfer_20260525.md"
+  - "daily_stock_expression_evolution_v1.md"
+  - "expression_seed_zoo_remote_instructions_20260525.md"
 ---
 # Phase 4 Current State
 
@@ -91,10 +95,10 @@ controller_gate: controller_static before any data-backed child evaluation
 test_set_use: forbidden until branch freeze
 ```
 
-The controller-static population gate is satisfied, the seed-zoo parent-discovery sample evaluation has been reviewed, and the first controller-only parent-zoo cost-aware run has been reviewed. The latest reviewed artifact is:
+The controller-static population gate is satisfied, the seed-zoo parent-discovery sample evaluation has been reviewed, the first controller-only parent-zoo cost-aware run has been reviewed, and its curated sample-eval follow-up has been reviewed. The latest reviewed artifact is:
 
 ```text
-artifacts/parent_zoo_cost_aware_20260522.zip
+artifacts/remote_sample_eval_pzoo_0.zip
 ```
 
 The similarly named older `artifacts/remote_sample_eval_.zip` is a zero-byte corrupt placeholder and should be ignored.
@@ -143,15 +147,21 @@ Before running the next attempt017 controller batch, Phase 4 will run determinis
 
 The parent-zoo cost-aware controller run is reviewed in [parent_zoo_cost_aware_review_20260522.md](parent_zoo_cost_aware_review_20260522.md). It produced controller-safe children from attempt017, five-day reversal, and volatility-normalized reversal roots, but no market evidence yet. The seed roots generated more execution-effective candidates than the already-optimized attempt017 branch. The next stage is a narrow evaluator-only run for three high-information children: `PROG-20260522-PZOO-00-0005`, `PROG-20260522-PZOO-01-0002`, and `PROG-20260522-PZOO-01-0004`. Do not sample-evaluate the thin-book no-trade-band children, the semantically broken persistence child, or small liquidity-cap variants before stronger evidence appears.
 
+The curated parent-zoo sample eval is reviewed in [remote_sample_eval_pzoo_0_review_20260525.md](remote_sample_eval_pzoo_0_review_20260525.md). All three runs were mechanically clean and `sample_pass`, but no child is promotable. `PROG-20260522-PZOO-00-0005` improved attempt017's turnover-aware score by cutting turnover, but its OS Sharpe was negative. `PROG-20260522-PZOO-01-0002` and `PROG-20260522-PZOO-01-0004` showed positive gross signal but high turnover and negative net turnover-aware scores at 2.5 bps. The conclusion is that the bottleneck is now semantic alpha construction and cost conversion, not controller infrastructure.
+
+AlphaAgentEvo has now been ingested as a directly relevant source. The durable source note is [AlphaAgentEvo - Evolution-Oriented Alpha Mining via Self-Evolving Agentic Reinforcement Learning](../../../wiki/sources/papers/AlphaAgentEvo%20-%20Evolution-Oriented%20Alpha%20Mining%20via%20Self-Evolving%20Agentic%20Reinforcement%20Learning.md), and the Phase 4 transfer note is [alphaagentevo_transfer_20260525.md](alphaagentevo_transfer_20260525.md). The accepted design implication is to use a daily-stock expression-evolution layer with multi-turn trajectory scoring before another broad Python-patch controller batch. The first local slice is implemented in `research/alphaevolve_lite/expression_evolution.py`: safe expression grammar, admitted daily-stock fields/operators, constrained dollar-neutral portfolio bridge, 24 starter seeds, expression similarity, and trajectory scoring with valid ratio, pass@T, consistency, exploration, performance, and streak diagnostics. `scripts/run_expression_seed_zoo.py` now provides a deterministic remote evaluation path for those expression seeds under the repaired IS/OS evaluator contract. RL fine-tuning remains deferred until we have enough clean trajectories.
+
 Current evolution status:
 
 ```yaml
 child_generation_done: controller_population_ready
 controller_static_small_batch_passed: true
 controller_static_50_batch_passed: true_after_diversity_topup
-child_market_evaluation_done: first_curated_sample_eval_reviewed
+child_market_evaluation_done: parent_zoo_curated_sample_eval_reviewed
 iterative_evolution_round_done: false
-next_stage: parent_zoo_curated_sample_eval
+expression_evolution_v1_local_scaffold: implemented
+next_stage: remote_expression_seed_zoo_eval_v1
+remote_handoff: expression_seed_zoo_remote_instructions_20260525.md
 ```
 
 ## AlphaEvolve Modules In This Project

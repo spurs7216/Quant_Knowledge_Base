@@ -600,3 +600,17 @@ tags:
 - Standardized `overview_source` notes with `read_scope: full_source` to one fixed top-level section order: Citation / metadata, Why this book matters, Reading logic from the source, Stage map, Chapter shelf, Core objects and modeling vocabulary, Main themes, Promoted durable notes, Next promotion targets, Caveats, Related notes, Sources.
 - Rewrote [[All of Statistics]] and tightened [[Linear Algebra for Data Science, Machine Learning, and Signal Processing]] so the three fully ingested math/statistics book overviews now share the same shelf-level structure.
 - Updated `agent/operations.md`, `agent/notes.md`, `wiki/README.md`, and `wiki/_templates/source_note.md` so future long-source ingests follow the same rule by default.
+
+## 2026-05-25 | source ingest | AlphaAgentEvo and Phase 4 transfer
+
+- Added [[AlphaAgentEvo - Evolution-Oriented Alpha Mining via Self-Evolving Agentic Reinforcement Learning]] as a full-paper source note with section-level coverage and supplementary-code caveats.
+- Added [[AlphaAgentEvo-Style Alpha Evolution for Quant Search]] as the durable method transfer: multi-turn trajectory scoring, valid ratio, pass@T, structural consistency, exploration, performance, and streak rewards.
+- Reviewed `artifacts/remote_sample_eval_pzoo_0.zip` in the Phase 4 project layer; no parent-zoo child is promotable, and the next milestone shifts toward daily-stock expression evolution rather than another broad Python-patch batch.
+
+## 2026-05-25 | implementation | daily-stock expression evolution v1
+
+- Implemented `research/alphaevolve_lite/expression_evolution.py` as the first AlphaAgentEvo-style expression layer: safe daily-stock field/operator DSL, causal signal evaluation, dollar-neutral portfolio bridge, starter seed catalog, expression similarity, and trajectory scoring.
+- Added `research/alphaevolve_lite/scripts/export_expression_interface.py` so remote agents can consume the exact expression interface and seed library without reading code internals.
+- Added `research/alphaevolve_lite/scripts/run_expression_seed_zoo.py` so the remote machine can baseline all expression seeds under the repaired rolling top-500, forward-return, IS/OS, cost, max-weight, and coverage contracts before Qwen evolves them.
+- Added focused unit tests for expression safety, no-lookahead windows, constrained portfolio weights, seed evaluability, and trajectory-score diagnostics.
+- Hardened the expression layer after inspector review: tied/constant signals now skip ambiguous portfolio days, raw `SICCD` is internal to `industry_neutralize` rather than tradable as `industry`, generated expressions have length/AST/depth/call caps, expression seed-zoo status gates missing-held weight, and seed expressions are tested for uniqueness.

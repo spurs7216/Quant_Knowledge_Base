@@ -11,6 +11,7 @@ It is not a full AlphaEvolve implementation. It gives the project the pieces tha
 - store and retrieve compact reasoning-memory cards for prompt construction
 - build deterministic diagnostic cards from evaluator/controller artifacts
 - store and retrieve explicit skill-library cards with confidence and status
+- evaluate safe daily-stock expression seeds before promoting them into full seed programs
 
 Phase 4 v2 supersedes the initial JSONL-only database design. `program_database.py` remains a small smoke-test primitive; production search should implement the SQLite schema and JSONL audit log described in `projects/quant_research_system/phase4_search_loop/program_database_schema.md`.
 
@@ -34,12 +35,15 @@ Controller batch refactor notes:
 - `diversity.py` owns MAP descriptors, including patch intent, portfolio-shape buckets, and behavior-delta buckets.
 - `controller_prompt_context.py` owns prompt-side retrieval and rendering of reasoning-memory cards, diagnostic cards, and skill cards.
 - `mechanism_cards.py` owns mechanism-card parsing and exact contract validation for surface, intent, and `CONTRACT.*` daily-stock field handles.
+- `expression_evolution.py` owns the AlphaAgentEvo-style daily-stock expression layer: safe field/operator DSL, causal signal evaluation, constrained dollar-neutral portfolio construction, seed-expression catalog, expression similarity, and multi-turn trajectory scoring. It does not own data loading, sample-evaluation accounting, cost sensitivity, or promotion gates.
 - `daily_stock_eda.py` owns the chunked daily-stock empirical map used to convert the frozen field contract into prompt-facing data guidance. It writes data-understanding artifacts only; it is not an alpha evaluator.
 - `daily_stock_forward_coverage.py` owns the chunked rolling top-N coverage and evaluator-style forward-return availability diagnostic. It answers data-coverage and missing-held-cause questions only; it must not become an alpha evaluator. Its default forward-availability window now matches the active 2011-2025 IS/OS evaluator window.
 - `splits.py` owns the active Phase 4 split contract: fixed IS/OS with 2011-2022 in-sample and 2023-2025 out-of-sample. The old 70/15/15 builder is retained only for legacy diagnostics.
 - `scripts/run_child_batch.py` should remain the orchestration entry point; avoid adding new artifact, repair, mock-patch, or prompt-context policy directly into the script when a module can own it.
 - `scripts/profile_daily_stock_data.py` is the remote CLI for the daily-stock EDA milestone. It should run on the remote data machine, not local Windows, for full-file profiling.
 - `scripts/profile_daily_stock_forward_coverage.py` is the remote CLI for whole-timeline rolling top-500 coverage plus active-window forward-return availability diagnostics. It should run on the remote data machine and does not require Qwen or vLLM.
+- `scripts/export_expression_interface.py` writes prompt-facing expression-interface markdown and seed-library JSON for remote expression-generation runs. It does not evaluate alphas.
+- `scripts/run_expression_seed_zoo.py` is the remote CLI for deterministic daily-stock expression seed evaluation under the repaired rolling top-500, forward-return, IS/OS, cost, max-weight, and coverage contracts. It does not call Qwen.
 
 Remote sample-evaluator refactor notes:
 

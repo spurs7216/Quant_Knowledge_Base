@@ -2,7 +2,7 @@
 title: AlphaEvolve Lite Quant Search Workflow
 type: method
 status: active
-updated: 2026-05-17
+updated: 2026-05-25
 tags:
   - method
   - alphaevolve
@@ -14,6 +14,8 @@ sources:
   - "../sources/papers/CodeEvolve - An Open-Source Evolutionary Framework for Algorithmic Discovery and Optimization.md"
   - "../sources/papers/ShinkaEvolve - Towards Open-Ended and Sample-Efficient Program Evolution.md"
   - "../sources/papers/ThetaEvolve - Test-time Learning on Open Problems.md"
+  - "../sources/papers/AlphaAgentEvo - Evolution-Oriented Alpha Mining via Self-Evolving Agentic Reinforcement Learning.md"
+  - "AlphaAgentEvo-Style Alpha Evolution for Quant Search.md"
   - "AlphaEvolve Extension Methods for Quant Search.md"
   - "../../projects/quant_research_system/phase4_search_loop/current_state.md"
   - "../../projects/quant_research_system/phase4_search_loop/task_001_search_design.md"
@@ -90,6 +92,8 @@ Practical additions:
 For the current quant loop, these ideas should first strengthen duplicate and novelty control. They should not be used to launch RL, full-program rewrites, or automatic dataset expansion before the controller and sample evaluator are stable.
 
 The active controller translation is `controller_population_policy_v2` plus `prompt_fitness_and_lazy_score_v1`: deterministic parent offspring counts, surface/intent saturation counters, prompt-card duplicate counters, prompt-card fitness, lazy invalid-output penalties, and edit-signature near-duplicate checks. This is still controller-local; it does not use embeddings, LLM novelty judges, market reward shaping, or model fine-tuning.
+
+AlphaAgentEvo adds a complementary lesson from alpha mining itself: after controller mechanics are stable, the search unit should become a multi-turn alpha-evolution trajectory, not only a one-shot child patch. Its transferable score decomposition is tool validity, seed consistency, exploration, performance improvement, and improvement streak. In Phase 4 this should first be implemented as deterministic trajectory scoring and expression-level alpha search, not immediate RL fine-tuning.
 
 ## Module Translation
 
@@ -188,7 +192,9 @@ Minimum setup before search:
 - [CodeEvolve source note](../sources/papers/CodeEvolve%20-%20An%20Open-Source%20Evolutionary%20Framework%20for%20Algorithmic%20Discovery%20and%20Optimization.md)
 - [ShinkaEvolve source note](../sources/papers/ShinkaEvolve%20-%20Towards%20Open-Ended%20and%20Sample-Efficient%20Program%20Evolution.md)
 - [ThetaEvolve source note](../sources/papers/ThetaEvolve%20-%20Test-time%20Learning%20on%20Open%20Problems.md)
+- [AlphaAgentEvo source note](../sources/papers/AlphaAgentEvo%20-%20Evolution-Oriented%20Alpha%20Mining%20via%20Self-Evolving%20Agentic%20Reinforcement%20Learning.md)
 - [AlphaEvolve Extension Methods for Quant Search](AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)
+- [AlphaAgentEvo-Style Alpha Evolution for Quant Search](AlphaAgentEvo-Style%20Alpha%20Evolution%20for%20Quant%20Search.md)
 - [Reasoning Memory for AlphaEvolve Search](Reasoning%20Memory%20for%20AlphaEvolve%20Search.md)
 - [Phase 4 Current State](../../projects/quant_research_system/phase4_search_loop/current_state.md)
 - [Backtest Overfitting](../concepts/Backtest%20Overfitting.md)

@@ -2,7 +2,7 @@
 title: Phase 4 Search Loop
 type: project
 status: active
-updated: 2026-05-22
+updated: 2026-05-25
 tags:
   - project
   - phase4
@@ -61,7 +61,7 @@ phase4_first_loop:
   out_sample: 2023-01-01_to_latest_2025_date
   universe_policy: rolling_top500_market_cap
   universe_recompute: monthly_from_prior_month_end
-  candidate_unit: executable_seed_strategy_module
+  candidate_unit: executable_seed_strategy_module_and_safe_daily_stock_expression
   mutation_format: SEARCH_REPLACE_diffs_inside_evolve_blocks
   model_stack: qwen_only
   test_set_use: forbidden_until_branch_freeze
@@ -153,6 +153,10 @@ New implementation-policy files:
 - [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md): current remote handoff for a controller-only parent-zoo batch with attempt017 plus deterministic seed roots.
 - [parent_zoo_cost_aware_review_20260522.md](parent_zoo_cost_aware_review_20260522.md): reviewed parent-zoo controller result; select three high-information children for sample eval and reject thin-book, broken-persistence, and no-final-weight candidates as first priorities.
 - [parent_zoo_curated_sample_eval_remote_instructions_20260522.md](parent_zoo_curated_sample_eval_remote_instructions_20260522.md): evaluator-only remote handoff for the three selected parent-zoo children.
+- [remote_sample_eval_pzoo_0_review_20260525.md](remote_sample_eval_pzoo_0_review_20260525.md): reviewed the curated parent-zoo sample eval; all hard gates passed, but no child is promotable after cost and OS checks.
+- [alphaagentevo_transfer_20260525.md](alphaagentevo_transfer_20260525.md): AlphaAgentEvo transfer note; next milestone should be daily-stock expression evolution with multi-turn trajectory scoring, not another broad Python-patch batch.
+- [daily_stock_expression_evolution_v1.md](daily_stock_expression_evolution_v1.md): implemented expression-evolution scaffold, safe daily-stock DSL, seed expression catalog, trajectory-score contract, and deterministic remote expression seed-zoo evaluator.
+- [expression_seed_zoo_remote_instructions_20260525.md](expression_seed_zoo_remote_instructions_20260525.md): remote handoff for deterministic expression seed-zoo baseline evaluation. This run does not call Qwen.
 - [codex_implementation_tasks.md](codex_implementation_tasks.md): concrete Codex implementation sequence.
 - [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml): 50-attempt controller-only remote run preset.
 - [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md): diversity top-up handoff after the 50-attempt duplicate bottleneck.
