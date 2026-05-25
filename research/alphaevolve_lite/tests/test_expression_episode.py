@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -140,12 +141,14 @@ class ExpressionEpisodeTest(unittest.TestCase):
                     "root_expression_id": "root",
                     "record_type": "child",
                     "selection_score": 0.05,
+                    "root_turnover_aware_delta": -0.05,
                     "parent_sampling_eligible": True,
                 },
                 {
                     "root_expression_id": "root",
                     "record_type": "child",
                     "selection_score": 0.08,
+                    "root_turnover_aware_delta": -0.02,
                     "parent_sampling_eligible": True,
                 },
             ],
@@ -243,10 +246,19 @@ class ExpressionEpisodeTest(unittest.TestCase):
             self.assertIn("branch_diagnostics", summary)
             self.assertTrue((out_dir / "expression_episode_rankings.csv").exists())
             self.assertTrue((out_dir / "expression_population_ledger.csv").exists())
+            self.assertTrue((out_dir / "expression_success_flags.csv").exists())
+            self.assertTrue((out_dir / "expression_bridge_variants.csv").exists())
+            self.assertTrue((out_dir / "expression_population.sqlite").exists())
             population_summary = json.loads(
                 (out_dir / "expression_population_summary.json").read_text(encoding="utf-8")
             )
             self.assertEqual(population_summary["population_record_count"], 3)
+            conn = sqlite3.connect(out_dir / "expression_population.sqlite")
+            try:
+                record_count = conn.execute("SELECT COUNT(*) FROM expression_population_records").fetchone()[0]
+            finally:
+                conn.close()
+            self.assertEqual(record_count, 3)
 
     def test_mock_episode_runner_can_sample_prior_population_parent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

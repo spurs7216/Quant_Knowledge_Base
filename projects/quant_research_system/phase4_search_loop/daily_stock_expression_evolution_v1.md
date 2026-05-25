@@ -28,6 +28,8 @@ The current controller can generate executable children, but the child space has
 - `research/alphaevolve_lite/expression_episode.py`
 - `research/alphaevolve_lite/expression_eval_records.py`
 - `research/alphaevolve_lite/expression_population.py`
+- `research/alphaevolve_lite/expression_population_store.py`
+- `research/alphaevolve_lite/expression_bridge_variants.py`
 - `research/alphaevolve_lite/scripts/export_expression_interface.py`
 - `research/alphaevolve_lite/scripts/run_expression_seed_zoo.py`
 - `research/alphaevolve_lite/scripts/run_expression_episode.py`
@@ -156,6 +158,9 @@ It:
 - writes a population ledger with MAP-style descriptors, parent-selection records, selection scores, and branch stop-loss diagnostics;
 - uses run-scoped child expression ids so different remote episodes cannot silently reuse the same child ids;
 - accepts `--prior-population-ledger` so future episodes can seed duplicate checks and parent sampling from prior expression-population artifacts;
+- writes `expression_population.sqlite` as a compact persistent store for expression-population and parent-selection records;
+- writes `expression_success_flags.csv` so pass@T separates parent/root improvement, positive after-cost behavior, positive IS/OS behavior, broad coverage, sparsity, and near-duplicate checks;
+- writes `expression_bridge_variants.csv` so the cost problem can be inspected under fixed evaluator-side bridge variants without letting the model change the evaluator;
 - evaluates valid expressions through the same rolling top-500, forward-return, IS/OS, cost, max-weight, net-exposure, coverage, and missing-held contracts as the seed-zoo evaluator;
 - writes per-parent trajectory summaries using valid ratio, pass@T, consistency, exploration, best score, and best turn.
 
@@ -195,6 +200,7 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
   --offspring-per-turn 2 \
   --parent-sampling-mode population_mixed \
   --branch-stop-loss-min-children 4 \
+  --bridge-variant-grid daily,rebalance_5,signal_decay_5,no_trade_band_0.25 \
   --model-role fast_generator \
   --max-tokens 8192
 ```

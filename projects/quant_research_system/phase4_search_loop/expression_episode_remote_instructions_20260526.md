@@ -34,6 +34,7 @@ The run should use expression objects, not Python patches:
 - trajectory diagnostics with valid ratio, pass@T, consistency, exploration, and best child;
 - parent-selection records, MAP-style population descriptors, and branch stop-loss diagnostics so this is not another fixed-parent repair loop.
 - run-scoped child ids and a reloadable population ledger so later expression episodes can continue from prior survivors instead of restarting from memoryless seeds.
+- explicit success flags and bridge-variant diagnostics so pass@T and turnover/cost caveats are not hidden inside one scalar score.
 
 ## Required Qwen Server Preflight
 
@@ -122,6 +123,7 @@ python research/alphaevolve_lite/scripts/run_expression_episode.py \
   --offspring-per-turn 2 \
   --parent-sampling-mode population_mixed \
   --branch-stop-loss-min-children 4 \
+  --bridge-variant-grid daily,rebalance_5,signal_decay_5,no_trade_band_0.25 \
   --model-role fast_generator \
   --temperature-grid 0.2,0.4,0.6 \
   --max-tokens 8192
@@ -146,6 +148,10 @@ Required files:
 - `expression_population_ledger.csv`
 - `expression_parent_selection.jsonl`
 - `expression_population_summary.json`
+- `expression_population.sqlite`
+- `expression_success_flags.csv`
+- `expression_bridge_variants.csv`
+- `expression_population_summary.json` must include `validation_exposure_summary`
 - `expression_episode_model_calls.json`
 - `expression_interface.md`
 - `expression_seed_library.json`
@@ -172,6 +178,9 @@ The local reviewer should answer:
 - Did turn 2 sample eligible child survivors, or did it correctly fall back to the seed because no child was eligible?
 - Which MAP-style cells were occupied, and did any branch trigger a population-review pause?
 - Are child expression ids run-scoped, and is the population ledger complete enough to seed a later episode?
+- Do success flags distinguish parent/root beat, positive after-cost behavior, positive IS/OS behavior, coverage, sparsity, and duplicate risk?
+- Do bridge variants show that lower-turnover execution could rescue an otherwise cost-fragile expression?
+- Does validation exposure stay marked as development OS feedback only, with no final-test use?
 
 ## Stop Conditions
 

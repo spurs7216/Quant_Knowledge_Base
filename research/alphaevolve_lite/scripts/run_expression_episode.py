@@ -51,6 +51,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--top-n", type=int, default=500)
     parser.add_argument("--total-cost-bps", type=float, default=2.5)
     parser.add_argument("--cost-grid-bps", default="0,1,2.5,5,10")
+    parser.add_argument(
+        "--bridge-variant-grid",
+        default="daily,rebalance_5,signal_decay_5,no_trade_band_0.25",
+        help=(
+            "Comma-separated evaluator-side portfolio bridge diagnostics. "
+            "Does not change the primary expression status."
+        ),
+    )
     parser.add_argument("--turnover-penalty", type=float, default=0.25)
     parser.add_argument("--missing-weight-penalty", type=float, default=5.0)
     parser.add_argument("--long-quantile", type=float, default=0.9)
@@ -86,6 +94,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--branch-stop-loss-min-children", type=int, default=4)
     parser.add_argument("--branch-stop-loss-margin", type=float, default=0.0)
+    parser.add_argument(
+        "--ignore-branch-stop-loss",
+        action="store_true",
+        help="Continue a branch even if prior/current children trigger the branch stop-loss diagnostic.",
+    )
     parser.add_argument(
         "--prior-population-ledger",
         action="append",
@@ -131,10 +144,15 @@ def main() -> int:
         expression_novelty_diagnostics,
         parse_expression_proposals,
     )
+    from research.alphaevolve_lite.expression_bridge_variants import (
+        bridge_variant_names,
+        parse_bridge_variant_grid,
+    )
     from research.alphaevolve_lite.expression_eval_records import (
         finite_or_none,
         ranking_row,
         scorecard_rows,
+        success_flag_rows,
     )
     from research.alphaevolve_lite.expression_evolution import (
         DEFAULT_EXPRESSION_SEEDS,
@@ -149,6 +167,7 @@ def main() -> int:
         build_population_record,
         select_expression_parent,
     )
+    from research.alphaevolve_lite.expression_population_store import write_expression_population_sqlite
     from research.alphaevolve_lite.reproducibility import capture_git_reproducibility
     from research.alphaevolve_lite.sample_eval_metrics import (
         build_forward_returns_from_source,
@@ -172,6 +191,7 @@ def main() -> int:
     run_id = args.run_id or f"expression_episode-{utc_now_iso().replace(':', '').replace('-', '')}-{uuid.uuid4().hex[:8]}"
     costs = _parse_float_list(args.cost_grid_bps, "--cost-grid-bps")
     temperatures = _parse_float_list(args.temperature_grid, "--temperature-grid")
+    bridge_variants = parse_bridge_variant_grid(args.bridge_variant_grid)
     _validate_args(args)
 
     seed_by_id = {seed.expression_id: seed for seed in DEFAULT_EXPRESSION_SEEDS}
@@ -253,6 +273,7 @@ def main() -> int:
         _seed_historical_results(historical_population_records, result_by_id)
         population_records: list[dict[str, Any]] = list(historical_population_records)
         parent_selection_records: list[dict[str, Any]] = []
+        branch_skip_records: list[dict[str, Any]] = []
         branch_child_counts = {
             parent.expression_id: _historical_child_count(parent.expression_id, population_records)
             for parent in parents
@@ -274,6 +295,7 @@ def main() -> int:
                 costs=costs,
                 args=args,
                 config=config,
+                bridge_variants=bridge_variants,
                 record_type="parent_baseline",
                 root_expression_id=parent.expression_id,
             )
@@ -306,6 +328,26 @@ def main() -> int:
         for parent_index, root_parent in enumerate(parents):
             feedback_rows: list[dict[str, Any]] = []
             for turn in range(1, args.turns + 1):
+                pre_turn_branch_diagnostic = branch_stop_loss_diagnostics(
+                    root_expression_id=root_parent.expression_id,
+                    root_score=root_scores.get(root_parent.expression_id),
+                    population_records=population_records,
+                    min_child_count=args.branch_stop_loss_min_children,
+                    improvement_margin=args.branch_stop_loss_margin,
+                )
+                if (
+                    not args.ignore_branch_stop_loss
+                    and pre_turn_branch_diagnostic["pause_branch_for_population_review"]
+                ):
+                    branch_skip_records.append(
+                        {
+                            "root_expression_id": root_parent.expression_id,
+                            "turn": turn,
+                            "reason": "branch_stop_loss",
+                            "diagnostic": pre_turn_branch_diagnostic,
+                        }
+                    )
+                    break
                 parent_choice = select_expression_parent(
                     root=root_parent,
                     turn=turn,
@@ -449,6 +491,7 @@ def main() -> int:
                             costs=costs,
                             args=args,
                             config=config,
+                            bridge_variants=bridge_variants,
                             record_type="child",
                             root_expression_id=root_parent.expression_id,
                             parent_expression_id=parent.expression_id,
@@ -474,6 +517,8 @@ def main() -> int:
                     )
                     feedback_rows.append(_feedback_row(result))
                     global_prior_expressions.append(proposal.expression)
+
+        _attach_success_flags(all_results, result_by_id, parent_results, pass_margin=args.pass_margin)
 
         trajectory_summaries: dict[str, dict[str, Any]] = {}
         for parent in parents:
@@ -503,6 +548,7 @@ def main() -> int:
             )
             for parent in parents
         }
+        validation_exposure_summary = _validation_exposure_summary(population_records)
 
         rankings = [ranking_row(result) for result in all_results]
         rankings_df = pd.DataFrame(rankings)
@@ -523,6 +569,14 @@ def main() -> int:
             ).drop(columns=["_status_rank"])
         rankings_df.to_csv(out_dir / "expression_episode_rankings.csv", index=False)
         pd.DataFrame(scorecard_rows(all_results)).to_csv(out_dir / "expression_episode_scorecard.csv", index=False)
+        pd.DataFrame(success_flag_rows(all_results)).to_csv(
+            out_dir / "expression_success_flags.csv",
+            index=False,
+        )
+        pd.DataFrame(_bridge_variant_rows(all_results)).to_csv(
+            out_dir / "expression_bridge_variants.csv",
+            index=False,
+        )
         pd.DataFrame(cost_rows).to_csv(out_dir / "expression_episode_cost_sensitivity.csv", index=False)
         _write_jsonl(out_dir / "expression_episode_candidates.jsonl", child_results)
         _write_jsonl(out_dir / "expression_population_ledger.jsonl", population_records)
@@ -538,12 +592,16 @@ def main() -> int:
             "population_record_count": len(population_records),
             "historical_population_record_count": len(historical_population_records),
             "parent_selection_count": len(parent_selection_records),
+            "branch_skip_count": len(branch_skip_records),
             "parent_sampling_eligible_count": sum(
                 bool(record.get("parent_sampling_eligible")) for record in population_records
             ),
             "branch_diagnostics": branch_diagnostics,
+            "branch_skip_records": branch_skip_records,
+            "validation_exposure_summary": validation_exposure_summary,
         })
 
+        population_db_path = out_dir / "expression_population.sqlite"
         summary = {
             "run_id": run_id,
             "status": "ok",
@@ -552,7 +610,10 @@ def main() -> int:
             "split_id": IS_OS_SPLIT_ID,
             "eligibility_query": eligibility_query_description(CONTRACT),
             "config": vars(args),
-            "expression_config": vars(config),
+            "expression_config": {
+                **vars(config),
+                "bridge_variants": bridge_variant_names(bridge_variants),
+            },
             "git_status": git_status,
             "diagnostics": diagnostics,
             "prior_population": {
@@ -567,12 +628,15 @@ def main() -> int:
                 **artifact_paths,
                 "expression_episode_rankings": str(out_dir / "expression_episode_rankings.csv"),
                 "expression_episode_scorecard": str(out_dir / "expression_episode_scorecard.csv"),
+                "expression_success_flags": str(out_dir / "expression_success_flags.csv"),
+                "expression_bridge_variants": str(out_dir / "expression_bridge_variants.csv"),
                 "expression_episode_cost_sensitivity": str(out_dir / "expression_episode_cost_sensitivity.csv"),
                 "expression_episode_candidates": str(out_dir / "expression_episode_candidates.jsonl"),
                 "expression_population_ledger_jsonl": str(out_dir / "expression_population_ledger.jsonl"),
                 "expression_population_ledger_csv": str(out_dir / "expression_population_ledger.csv"),
                 "expression_parent_selection": str(out_dir / "expression_parent_selection.jsonl"),
                 "expression_population_summary": str(out_dir / "expression_population_summary.json"),
+                "expression_population_sqlite": str(population_db_path),
                 "expression_episode_model_calls": str(out_dir / "expression_episode_model_calls.json"),
                 "expression_episode_summary": str(out_dir / "expression_episode_summary.json"),
             },
@@ -580,10 +644,18 @@ def main() -> int:
             "parent_results": parent_results,
             "trajectory_summaries": trajectory_summaries,
             "branch_diagnostics": branch_diagnostics,
+            "branch_skip_records": branch_skip_records,
+            "validation_exposure_summary": validation_exposure_summary,
             "parent_selection_records": parent_selection_records,
             "population_records": population_records,
             "children": child_results,
         }
+        write_expression_population_sqlite(
+            population_db_path,
+            population_records=population_records,
+            parent_selection_records=parent_selection_records,
+            run_summary=summary,
+        )
         write_json(out_dir / "expression_episode_summary.json", summary)
         print(
             write_json(
@@ -645,6 +717,7 @@ def _evaluate_expression_spec(
     costs: list[float],
     args: argparse.Namespace,
     config: Any,
+    bridge_variants: Any,
     record_type: str,
     root_expression_id: str | None = None,
     parent_expression_id: str | None = None,
@@ -657,6 +730,7 @@ def _evaluate_expression_spec(
         construct_expression_portfolio,
         evaluate_expression_signal,
     )
+    from research.alphaevolve_lite.expression_bridge_variants import apply_bridge_variant
     from research.alphaevolve_lite.expression_eval_records import (
         expression_sample_hard_gates,
         status_from_metrics,
@@ -737,6 +811,18 @@ def _evaluate_expression_spec(
         )
         result["metrics"] = metrics
         result["portfolio_coverage"] = portfolio_coverage
+        result["bridge_variant_metrics"] = _evaluate_bridge_variants(
+            target_weights=weights,
+            eval_panel=eval_panel,
+            universe_panel=universe_panel,
+            splits=splits,
+            analysis_end=analysis_end,
+            args=args,
+            config=config,
+            variants=bridge_variants,
+            apply_bridge_variant=apply_bridge_variant,
+            contract=CONTRACT,
+        )
         result["position_rows"] = int(len(positions))
         result["signal_non_null_ratio"] = float(signal.notna().mean())
         result["status"] = status_from_metrics(
@@ -771,6 +857,93 @@ def _evaluate_expression_spec(
     except Exception as exc:
         result["failure_reason"] = str(exc)
     return result, child_cost_rows
+
+
+def _evaluate_bridge_variants(
+    *,
+    target_weights: Any,
+    eval_panel: Any,
+    universe_panel: Any,
+    splits: Any,
+    analysis_end: Any,
+    args: argparse.Namespace,
+    config: Any,
+    variants: Any,
+    apply_bridge_variant: Any,
+    contract: Any,
+) -> dict[str, Any]:
+    from research.alphaevolve_lite.expression_eval_records import expression_sample_hard_gates
+    from research.alphaevolve_lite.sample_eval_metrics import (
+        portfolio_day_coverage_diagnostics,
+        portfolio_from_weights,
+        split_metrics,
+    )
+
+    results: dict[str, Any] = {}
+    for variant in variants:
+        variant_weights = apply_bridge_variant(
+            target_weights,
+            eval_panel,
+            variant=variant,
+            config=config,
+            contract=contract,
+        )
+        full_portfolio, _ = portfolio_from_weights(
+            eval_panel,
+            variant_weights,
+            args.total_cost_bps,
+            contract,
+        )
+        portfolio = full_portfolio.loc[full_portfolio["DlyCalDt"] <= analysis_end].copy()
+        if portfolio.empty:
+            results[variant.name] = {
+                "status": "empty_portfolio",
+                "metrics": {},
+                "portfolio_coverage": {},
+                "hard_gates": {},
+            }
+            continue
+        coverage = portfolio_day_coverage_diagnostics(
+            portfolio,
+            universe_panel,
+            contract,
+            analysis_end=analysis_end,
+            min_portfolio_days=args.min_portfolio_days,
+            min_portfolio_day_coverage=args.min_portfolio_day_coverage,
+        )
+        metrics = {
+            split.name: split_metrics(
+                portfolio,
+                split.name,
+                split.start,
+                split.end,
+                turnover_penalty=args.turnover_penalty,
+                missing_weight_penalty=args.missing_weight_penalty,
+            )
+            for split in splits
+        }
+        metrics["search_sample"] = split_metrics(
+            portfolio,
+            "search_sample",
+            portfolio["DlyCalDt"].min(),
+            portfolio["DlyCalDt"].max(),
+            turnover_penalty=args.turnover_penalty,
+            missing_weight_penalty=args.missing_weight_penalty,
+        )
+        hard_gates = expression_sample_hard_gates(
+            metrics,
+            coverage,
+            max_weight=args.max_weight,
+            max_abs_net_exposure=args.max_abs_net_exposure,
+            max_missing_held_weight=args.max_missing_held_weight,
+        )
+        results[variant.name] = {
+            "status": "diagnostic",
+            "metrics": metrics,
+            "portfolio_coverage": coverage,
+            "hard_gates": hard_gates,
+        }
+    return results
 
 
 def _rejected_child_result(
@@ -823,6 +996,84 @@ def _feedback_row(result: dict[str, Any]) -> dict[str, Any]:
         "near_duplicate": result.get("near_duplicate"),
         "similarity_to_parent": result.get("similarity_to_parent"),
     }
+
+
+def _attach_success_flags(
+    results: list[dict[str, Any]],
+    result_by_id: dict[str, dict[str, Any]],
+    parent_results: dict[str, dict[str, Any]],
+    *,
+    pass_margin: float,
+) -> None:
+    from research.alphaevolve_lite.expression_eval_records import expression_success_flags
+
+    for result in results:
+        parent_result = result_by_id.get(str(result.get("parent_expression_id") or ""))
+        root_result = parent_results.get(str(result.get("root_expression_id") or ""))
+        result["success_flags"] = expression_success_flags(
+            result,
+            parent_result=parent_result,
+            root_result=root_result,
+            pass_margin=pass_margin,
+        )
+
+
+def _bridge_variant_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for result in results:
+        for variant, diagnostics in (result.get("bridge_variant_metrics") or {}).items():
+            coverage = diagnostics.get("portfolio_coverage") or {}
+            for split, metrics in (diagnostics.get("metrics") or {}).items():
+                if not isinstance(metrics, dict):
+                    continue
+                row = {
+                    "expression_id": result.get("expression_id"),
+                    "record_type": result.get("record_type"),
+                    "root_expression_id": result.get("root_expression_id"),
+                    "parent_expression_id": result.get("parent_expression_id"),
+                    "turn": result.get("turn"),
+                    "status": result.get("status"),
+                    "bridge_variant": variant,
+                    "split": split,
+                    "portfolio_day_coverage": coverage.get("portfolio_day_coverage"),
+                    "portfolio_coverage_pass": coverage.get("portfolio_coverage_pass"),
+                }
+                row.update(metrics)
+                rows.append(row)
+    return rows
+
+
+def _validation_exposure_summary(population_records: list[dict[str, Any]]) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "record_count": len(population_records),
+        "development_os_feedback_record_count": 0,
+        "final_test_used_record_count": 0,
+        "by_root_expression_id": {},
+    }
+    by_root: dict[str, dict[str, int]] = {}
+    for record in population_records:
+        exposure = record.get("validation_exposure") or {}
+        root_id = str(record.get("root_expression_id") or "")
+        root = by_root.setdefault(
+            root_id,
+            {
+                "record_count": 0,
+                "child_record_count": 0,
+                "development_os_feedback_record_count": 0,
+                "final_test_used_record_count": 0,
+            },
+        )
+        root["record_count"] += 1
+        if record.get("record_type") == "child":
+            root["child_record_count"] += 1
+        if exposure.get("development_os_used_for_feedback"):
+            summary["development_os_feedback_record_count"] += 1
+            root["development_os_feedback_record_count"] += 1
+        if exposure.get("final_test_used"):
+            summary["final_test_used_record_count"] += 1
+            root["final_test_used_record_count"] += 1
+    summary["by_root_expression_id"] = by_root
+    return summary
 
 
 def _population_context_for_root(

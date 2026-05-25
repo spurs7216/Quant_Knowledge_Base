@@ -17,6 +17,10 @@ from research.alphaevolve_lite.expression_evolution import (
     expression_similarity,
     score_expression_trajectory,
 )
+from research.alphaevolve_lite.expression_bridge_variants import (
+    apply_bridge_variant,
+    parse_bridge_variant,
+)
 from research.alphaevolve_lite.scripts.run_expression_seed_zoo import _status_from_metrics
 
 
@@ -116,6 +120,27 @@ class ExpressionEvolutionTest(unittest.TestCase):
         )
         self.assertGreater(weights.abs().sum(), 0.0)
         self.assertLessEqual(weights.abs().max(), self.config.max_weight + 1.0e-12)
+
+    def test_bridge_variants_preserve_basic_exposure_constraints(self) -> None:
+        target = evaluate_expression_to_weights(
+            "rank(-rolling_sum(excess_ret, 5))",
+            self.panel,
+            config=self.config,
+        )
+        variant = parse_bridge_variant("signal_decay_5")
+        weights = apply_bridge_variant(
+            target,
+            self.panel,
+            variant=variant,
+            config=self.config,
+        )
+        self.assertEqual(len(weights), len(target))
+        self.assertLessEqual(weights.abs().max(), self.config.max_weight + 1.0e-12)
+        daily_net = weights.groupby(self.panel[CONTRACT.date]).sum()
+        daily_gross = weights.abs().groupby(self.panel[CONTRACT.date]).sum()
+        active_days = daily_gross[daily_gross > 0].index
+        self.assertGreater(len(active_days), 20)
+        self.assertLessEqual(daily_net.loc[active_days].abs().max(), 1.0e-12)
 
     def test_rejects_unsafe_python_and_lookahead(self) -> None:
         bad_expressions = [

@@ -287,16 +287,18 @@ def branch_stop_loss_diagnostics(
         for score in (finite_or_none(record.get("selection_score")) for record in child_records)
         if score is not None
     ]
+    root_deltas = [
+        delta
+        for delta in (finite_or_none(record.get("root_turnover_aware_delta")) for record in child_records)
+        if delta is not None
+    ]
     best_score = max(scores) if scores else None
-    improvement = (
-        None if best_score is None or root_score is None else float(best_score - root_score)
-    )
+    best_delta = max(root_deltas) if root_deltas else None
     should_pause = bool(
         len(child_records) >= min_child_count
         and (
-            best_score is None
-            or root_score is None
-            or best_score <= root_score + improvement_margin
+            best_delta is None
+            or best_delta <= improvement_margin
         )
     )
     return {
@@ -308,7 +310,7 @@ def branch_stop_loss_diagnostics(
         ),
         "root_score": root_score,
         "best_child_selection_score": best_score,
-        "best_child_minus_root_score": improvement,
+        "best_child_turnover_aware_delta": best_delta,
         "min_child_count": int(min_child_count),
         "improvement_margin": float(improvement_margin),
         "pause_branch_for_population_review": should_pause,

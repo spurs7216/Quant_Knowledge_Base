@@ -72,6 +72,7 @@ sources:
   - "remote_sample_eval_pzoo_0_review_20260525.md"
   - "alphaagentevo_transfer_20260525.md"
   - "daily_stock_expression_evolution_v1.md"
+  - "phase4_caveat_repair_ledger.md"
   - "expression_seed_zoo_remote_instructions_20260525.md"
   - "expression_seed_zoo_review_20260525.md"
   - "expression_episode_remote_instructions_20260526.md"
@@ -327,7 +328,7 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence. The runner now also uses run-scoped child ids and can reload prior population ledgers for later episodes, so expression search has a durable database-like memory instead of a one-run-only ledger.
+The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence. The runner now also uses run-scoped child ids, can reload prior population ledgers for later episodes, writes a SQLite expression-population mirror, records explicit success flags, and evaluates fixed bridge variants for turnover/cost diagnostics. Plan-level caveats and their repair status are tracked in [phase4_caveat_repair_ledger.md](phase4_caveat_repair_ledger.md).
 
 ```yaml
 next_remote_task:
@@ -347,6 +348,7 @@ next_remote_task:
     - completed: write trajectory summaries with valid ratio, pass@T, consistency, exploration, and best child
     - completed: write expression population ledger, parent-selection records, MAP-style descriptors, and branch stop-loss diagnostics
     - completed: run-scoped child ids plus reloadable prior-population ledger support
+    - completed: SQLite expression-population mirror, success-flag artifact, and bridge-variant diagnostics
     - completed: write remote instructions with explicit Qwen server preflight
   episode_shape:
     turns: 2
@@ -354,6 +356,7 @@ next_remote_task:
     expected_child_count: 12
     parent_sampling_mode: population_mixed
     branch_stop_loss_min_children: 4
+    bridge_variant_grid: daily,rebalance_5,signal_decay_5,no_trade_band_0.25
     completion_tokens: 8192
   mutation_objective:
     - improve turnover-aware score after 2.5 bps
@@ -365,6 +368,8 @@ next_remote_task:
     - which parent produced the best trajectory diagnostics?
     - did turn 2 mutate eligible child survivors rather than only rewriting the root seed?
     - which population cells were occupied, and did any branch warrant pause before another run?
+    - do success flags separate parent beat, root beat, positive after-cost behavior, positive IS/OS behavior, coverage, sparsity, and duplicate risk?
+    - do fixed bridge variants show a cost-conversion path worth converting into a reviewed strategy program?
     - did any child beat its parent after cost while keeping hard gates clean?
     - are improvements real IS/OS evidence or another turnover/regime artifact?
   test_set_used: false
