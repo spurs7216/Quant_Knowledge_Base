@@ -77,6 +77,7 @@ sources:
   - "expression_seed_zoo_review_20260525.md"
   - "expression_episode_remote_instructions_20260526.md"
   - "expression_episode_20260526_review.md"
+  - "expression_bridge_followup_review_20260526.md"
 ---
 # Phase 4 Current State
 
@@ -329,37 +330,61 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The population-aware expression episode is reviewed in [expression_episode_20260526_review.md](expression_episode_20260526_review.md). The run was mechanically healthy at commit `b44ae3aef4b1efe061bc88b4837273855e902b82`: no null or malformed Qwen outputs, 12 child proposals, 7 mechanical sample passes, all required population and bridge artifacts present, and no final-test use. No child is promotable under the primary daily bridge. The important evidence is that `expr_smoothed_rev_000_82524e85_ep_t02_c01` becomes plausible only under slower bridge diagnostics: 5-day rebalance gives positive IS and OS turnover-aware scores, and signal-decay-5 gives stronger OS but slightly negative IS score.
+The bridge follow-up is reviewed in [expression_bridge_followup_review_20260526.md](expression_bridge_followup_review_20260526.md). The run was clean at commit `c7966ed7765d73e17a9dbea1480dd0e57953779f`: no Qwen, no dirty Git state, 6/6 bridge records reached `expression_sample_pass`, and no final-test evidence was used.
+
+The important result is narrow. The liquidity-gated smoothed-reversal child is worse than the parent under the daily bridge. It passes the follow-up rule only under `rebalance_5`, where search turnover-aware score improves from 0.0151 to 0.0410 and OS score improves from -0.2968 to 0.1570. But IS turnover-aware score falls from 0.0978 to 0.0093, and the child becomes negative at 5 bps total cost. `signal_decay_5` has strong OS behavior but negative IS turnover-aware score.
+
+This is bridge-policy evidence, not promotion evidence.
 
 ```yaml
 next_task:
-  type: bridge_policy_followup
+  type: bridge_policy_robustness
+  basis: expression_bridge_followup_20260526
+  candidate_expression_id: expr_smoothed_rev_liq_bridge_20260526
+  expression: rank(-rolling_mean(rolling_sum(excess_ret, 5), 3)) * rank(log1p_abs(dollar_volume))
+  candidate_bridge:
+    - rebalance_5
+  reason:
+    - rebalance_5 is the only bridge-followup pass
+    - daily bridge is negative
+    - signal_decay_5 is OS-heavy and IS-negative
+    - rebalance_5 is anchored to the first analysis date and may be phase-sensitive
+    - 5 bps total cost turns the candidate negative
+  required_local_work_before_remote:
+    - completed: add rebalance phase/offset variants
+    - completed: add bridge-family robustness summary artifact
+    - completed: compare parent and child under rebalance_5 offsets 0 through 4
+    - completed: compare neighboring periods such as rebalance_3 and rebalance_10
+    - completed: keep Qwen disabled
+  implemented_files:
+    - research/alphaevolve_lite/expression_bridge_variants.py
+    - research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
+    - research/alphaevolve_lite/tests/test_expression_evolution.py
+    - research/alphaevolve_lite/tests/test_expression_bridge_followup.py
+  remote_instruction: expression_bridge_robustness_remote_instructions_20260526.md
+  next_remote_action:
+    - run deterministic bridge robustness only
+    - return offset/period comparison, scorecard, cost sensitivity, split, universe, and Git hygiene artifacts
+  possible_later_action_if_robust:
+    - convert the child into a first-class bridge-aware expression strategy parent
+    - only then use it as a parent for a new expression-population episode
+  forbidden:
+    - no promotion
+    - no full validation
+    - no broad Qwen expression episode before bridge robustness
+  test_set_used: false
+```
+
+Previous expression-episode finding retained for context:
+
+```yaml
+prior_expression_episode:
   basis: expression_episode_20260526
   candidate_expression_id: expr_smoothed_rev_000_82524e85_ep_t02_c01
-  expression: rank(-rolling_mean(rolling_sum(excess_ret, 5), 3)) * rank(log1p_abs(dollar_volume))
   candidate_bridges:
     - rebalance_5
     - signal_decay_5
-  reason:
-    - primary daily bridge is not promotable
-    - bridge diagnostics show plausible cost conversion
-    - child is not a near duplicate
-    - 5-day rebalance has positive IS and OS turnover-aware scores
-  required_local_work_before_remote: completed
-  implemented_files:
-    - research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
-    - research/alphaevolve_lite/tests/test_expression_bridge_followup.py
-  remote_instruction: expression_bridge_followup_remote_instructions_20260526.md
-  next_remote_action:
-    - run deterministic parent-vs-child bridge-policy follow-up
-    - compare daily, rebalance_5, and signal_decay_5 under the same evaluator contracts
-    - return bridge comparison, scorecard, cost sensitivity, universe, split, and git hygiene artifacts
-  forbidden:
-    - no Qwen call for this follow-up
-    - no full validation
-    - no promotion
-    - no broad new expression episode before bridge-policy evidence is reviewed
-  test_set_used: false
+  bridge_followup_completed: true
 ```
 
 ## Main Links

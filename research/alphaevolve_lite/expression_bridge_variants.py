@@ -19,6 +19,7 @@ class BridgeVariantSpec:
     name: str
     kind: str
     parameter: float | int | None = None
+    phase_offset: int = 0
 
 
 def parse_bridge_variant_grid(value: str) -> list[BridgeVariantSpec]:
@@ -35,12 +36,20 @@ def parse_bridge_variant(value: str) -> BridgeVariantSpec:
 
     if value == "daily":
         return BridgeVariantSpec(name=value, kind="daily")
-    match = re.fullmatch(r"rebalance_([0-9]+)", value)
+    match = re.fullmatch(r"rebalance_([0-9]+)(?:_(?:offset|o)_?([0-9]+))?", value)
     if match:
         period = int(match.group(1))
         if period < 1:
             raise ValueError("rebalance period must be positive")
-        return BridgeVariantSpec(name=value, kind="rebalance", parameter=period)
+        phase_offset = int(match.group(2) or 0)
+        if phase_offset < 0 or phase_offset >= period:
+            raise ValueError("rebalance phase offset must satisfy 0 <= offset < period")
+        return BridgeVariantSpec(
+            name=value,
+            kind="rebalance",
+            parameter=period,
+            phase_offset=phase_offset,
+        )
     match = re.fullmatch(r"signal_decay_([0-9]+)", value)
     if match:
         period = int(match.group(1))
@@ -55,7 +64,8 @@ def parse_bridge_variant(value: str) -> BridgeVariantSpec:
         return BridgeVariantSpec(name=value, kind="no_trade_band", parameter=band)
     raise ValueError(
         "unsupported bridge variant "
-        f"{value!r}; expected daily, rebalance_N, signal_decay_N, or no_trade_band_X"
+        f"{value!r}; expected daily, rebalance_N, rebalance_N_offset_M, "
+        "signal_decay_N, or no_trade_band_X"
     )
 
 
@@ -82,7 +92,8 @@ def apply_bridge_variant(
         previous = previous_by_security.reindex(target_by_security.index).fillna(0.0)
         if variant.kind == "rebalance":
             period = int(variant.parameter or 1)
-            raw = target_by_security if date_index % period == 0 or previous_by_security.empty else previous
+            should_rebalance = date_index % period == variant.phase_offset
+            raw = target_by_security if should_rebalance else previous
         elif variant.kind == "signal_decay":
             period = int(variant.parameter or 1)
             alpha = 1.0 / period

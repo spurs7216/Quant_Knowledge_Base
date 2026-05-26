@@ -638,3 +638,17 @@ tags:
 - Added `research/alphaevolve_lite/scripts/run_expression_bridge_followup.py` to compare parent and child under identical `daily`, `rebalance_5`, and `signal_decay_5` bridge contracts without calling Qwen.
 - Added `research/alphaevolve_lite/tests/test_expression_bridge_followup.py` and verified the full AlphaEvolve-lite test suite.
 - Added `projects/quant_research_system/phase4_search_loop/expression_bridge_followup_remote_instructions_20260526.md` so the remote run is deterministic, no-Qwen, no-promotion, and no-full-validation.
+
+## 2026-05-26 | evidence review | expression bridge follow-up
+
+- Reviewed `artifacts/expression_bridge_followup_20260526.zip` in [[Expression Bridge Follow-Up Review 20260526]].
+- The run was mechanically clean at commit `c7966ed7765d73e17a9dbea1480dd0e57953779f`; all 6 parent/child bridge records passed hard gates, and no Qwen or final-test evidence was used.
+- `rebalance_5` was the only bridge-followup pass for the liquidity-gated smoothed-reversal child, but the evidence is not promotion-ready because IS score is weak, 5 bps cost turns the candidate negative, and the rebalance policy may depend on date-index phase.
+- The next step is deterministic bridge robustness: test rebalance phase offsets and neighboring periods before converting the child into a first-class bridge-aware strategy parent.
+
+## 2026-05-26 | implementation | expression bridge robustness
+
+- Extended bridge variants with explicit rebalance phase offsets such as `rebalance_5_offset_2`.
+- Updated `run_expression_bridge_followup.py` to emit `expression_bridge_followup_robustness.csv`, grouping variants by bridge family and reporting whether a family is robust across offsets.
+- Added tests for offset parsing/application and the robustness artifact contract.
+- Added `projects/quant_research_system/phase4_search_loop/expression_bridge_robustness_remote_instructions_20260526.md` as the next deterministic no-Qwen remote handoff.

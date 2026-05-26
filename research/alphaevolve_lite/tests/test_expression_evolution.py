@@ -142,6 +142,30 @@ class ExpressionEvolutionTest(unittest.TestCase):
         self.assertGreater(len(active_days), 20)
         self.assertLessEqual(daily_net.loc[active_days].abs().max(), 1.0e-12)
 
+    def test_rebalance_bridge_phase_offset_is_explicit(self) -> None:
+        target = evaluate_expression_to_weights(
+            "rank(-rolling_sum(excess_ret, 5))",
+            self.panel,
+            config=self.config,
+        )
+        offset_variant = parse_bridge_variant("rebalance_5_offset_2")
+        self.assertEqual(offset_variant.phase_offset, 2)
+        weights = apply_bridge_variant(
+            target,
+            self.panel,
+            variant=offset_variant,
+            config=self.config,
+        )
+        daily_gross = weights.abs().groupby(self.panel[CONTRACT.date]).sum()
+        active_dates = daily_gross[daily_gross > 0].index
+        self.assertGreater(len(active_dates), 10)
+        first_active_position = self.panel[CONTRACT.date].drop_duplicates().reset_index(drop=True)
+        first_active_index = int(first_active_position[first_active_position == active_dates[0]].index[0])
+        self.assertEqual(first_active_index, 2)
+
+        with self.assertRaises(ValueError):
+            parse_bridge_variant("rebalance_5_offset_5")
+
     def test_rejects_unsafe_python_and_lookahead(self) -> None:
         bad_expressions = [
             '__import__("os").system("echo unsafe")',

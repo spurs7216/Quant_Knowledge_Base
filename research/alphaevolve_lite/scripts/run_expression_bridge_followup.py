@@ -272,6 +272,7 @@ def main() -> int:
                 result["success_flags"] = {}
 
         comparison_rows = _comparison_rows(results)
+        robustness_rows = _robustness_summary_rows(comparison_rows)
         rankings_df = pd.DataFrame(_ranking_rows(results))
         if not rankings_df.empty:
             rankings_df = rankings_df.sort_values(
@@ -286,6 +287,10 @@ def main() -> int:
             out_dir / "expression_bridge_followup_comparison.csv",
             index=False,
         )
+        pd.DataFrame(robustness_rows).to_csv(
+            out_dir / "expression_bridge_followup_robustness.csv",
+            index=False,
+        )
         pd.DataFrame(cost_rows).to_csv(
             out_dir / "expression_bridge_followup_cost_sensitivity.csv",
             index=False,
@@ -295,6 +300,11 @@ def main() -> int:
             row["bridge_variant"]
             for row in comparison_rows
             if row.get("bridge_contract_followup_pass") is True
+        ]
+        robust_families = [
+            row["bridge_family"]
+            for row in robustness_rows
+            if row.get("robust_bridge_candidate") is True
         ]
         summary = {
             "run_id": run_id,
@@ -324,6 +334,9 @@ def main() -> int:
                 "expression_bridge_followup_comparison": str(
                     out_dir / "expression_bridge_followup_comparison.csv"
                 ),
+                "expression_bridge_followup_robustness": str(
+                    out_dir / "expression_bridge_followup_robustness.csv"
+                ),
                 "expression_bridge_followup_cost_sensitivity": str(
                     out_dir / "expression_bridge_followup_cost_sensitivity.csv"
                 ),
@@ -332,6 +345,7 @@ def main() -> int:
             "parent": _spec_record(parent),
             "child": _spec_record(child),
             "promising_bridge_variants": promising,
+            "robust_bridge_families": robust_families,
             "decision_contract": {
                 "promotion_allowed_from_this_run": False,
                 "full_validation_allowed_from_this_run": False,
@@ -343,6 +357,7 @@ def main() -> int:
                 ),
             },
             "comparison_rows": comparison_rows,
+            "robustness_rows": robustness_rows,
             "results": results,
         }
         write_json(out_dir / "expression_bridge_followup_summary.json", summary)
@@ -356,6 +371,7 @@ def main() -> int:
                     "result_count": len(results),
                     "comparison_count": len(comparison_rows),
                     "promising_bridge_variant_count": len(promising),
+                    "robust_bridge_family_count": len(robust_families),
                 },
             ).read_text(encoding="utf-8"),
         )
@@ -426,6 +442,10 @@ def _evaluate_spec_under_bridges(
             "expected_effect": spec.expected_effect,
             "tags": list(spec.tags),
             "bridge_variant": variant.name,
+            "bridge_kind": variant.kind,
+            "bridge_parameter": variant.parameter,
+            "bridge_phase_offset": variant.phase_offset,
+            "bridge_family": _bridge_family_name(variant),
             "status": "expression_error",
             "failure_reason": None,
             "metrics": {},
@@ -534,6 +554,10 @@ def _comparison_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
         flags = child.get("success_flags") or {}
         row = {
             "bridge_variant": bridge,
+            "bridge_family": child.get("bridge_family"),
+            "bridge_kind": child.get("bridge_kind"),
+            "bridge_parameter": child.get("bridge_parameter"),
+            "bridge_phase_offset": child.get("bridge_phase_offset"),
             "parent_expression_id": parent.get("expression_id"),
             "child_expression_id": child.get("expression_id"),
             "parent_status": parent.get("status"),
@@ -571,6 +595,10 @@ def _ranking_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for result in results:
         row = ranking_row(result)
         row["bridge_variant"] = result.get("bridge_variant")
+        row["bridge_family"] = result.get("bridge_family")
+        row["bridge_kind"] = result.get("bridge_kind")
+        row["bridge_parameter"] = result.get("bridge_parameter")
+        row["bridge_phase_offset"] = result.get("bridge_phase_offset")
         row["root_expression_id"] = result.get("root_expression_id")
         rows.append(row)
     return rows
@@ -589,6 +617,10 @@ def _scorecard_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                         "record_type": result.get("record_type"),
                         "parent_expression_id": result.get("parent_expression_id"),
                         "bridge_variant": result.get("bridge_variant"),
+                        "bridge_family": result.get("bridge_family"),
+                        "bridge_kind": result.get("bridge_kind"),
+                        "bridge_parameter": result.get("bridge_parameter"),
+                        "bridge_phase_offset": result.get("bridge_phase_offset"),
                         "status": result.get("status"),
                         "split": split_name,
                         "metric": metric,
@@ -596,6 +628,131 @@ def _scorecard_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                     }
                 )
     return rows
+
+
+def _robustness_summary_rows(comparison_rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    from research.alphaevolve_lite.expression_eval_records import finite_or_none
+
+    by_family: dict[str, list[dict[str, Any]]] = {}
+    for row in comparison_rows:
+        family = str(row.get("bridge_family") or row.get("bridge_variant") or "")
+        if not family:
+            continue
+        by_family.setdefault(family, []).append(row)
+
+    summaries: list[dict[str, Any]] = []
+    for family, rows in sorted(by_family.items()):
+        child_search_scores = _finite_values(
+            finite_or_none(row.get("child_search_sample_turnover_aware_score"))
+            for row in rows
+        )
+        child_is_scores = _finite_values(
+            finite_or_none(row.get("child_in_sample_turnover_aware_score"))
+            for row in rows
+        )
+        child_os_scores = _finite_values(
+            finite_or_none(row.get("child_out_sample_turnover_aware_score"))
+            for row in rows
+        )
+        child_minus_parent_search = _finite_values(
+            finite_or_none(row.get("child_minus_parent_search_sample_turnover_aware_score"))
+            for row in rows
+        )
+        child_minus_parent_is = _finite_values(
+            finite_or_none(row.get("child_minus_parent_in_sample_turnover_aware_score"))
+            for row in rows
+        )
+        child_minus_parent_os = _finite_values(
+            finite_or_none(row.get("child_minus_parent_out_sample_turnover_aware_score"))
+            for row in rows
+        )
+        variant_count = len(rows)
+        sample_pass_count = sum(str(row.get("child_status")) == "expression_sample_pass" for row in rows)
+        positive_search_count = sum(value > 0.0 for value in child_search_scores)
+        positive_is_count = sum(value > 0.0 for value in child_is_scores)
+        positive_os_count = sum(value > 0.0 for value in child_os_scores)
+        beats_search_count = sum(value > 0.0 for value in child_minus_parent_search)
+        beats_is_count = sum(value > 0.0 for value in child_minus_parent_is)
+        beats_os_count = sum(value > 0.0 for value in child_minus_parent_os)
+        followup_pass_count = sum(
+            str(row.get("bridge_contract_followup_pass")).lower() == "true"
+            or row.get("bridge_contract_followup_pass") is True
+            for row in rows
+        )
+        robust_bridge_candidate = bool(
+            variant_count > 0
+            and sample_pass_count == variant_count
+            and positive_search_count == variant_count
+            and positive_is_count == variant_count
+            and positive_os_count == variant_count
+            and beats_search_count == variant_count
+            and followup_pass_count == variant_count
+        )
+        summaries.append(
+            {
+                "bridge_family": family,
+                "bridge_kind": rows[0].get("bridge_kind"),
+                "bridge_parameter": rows[0].get("bridge_parameter"),
+                "variant_count": variant_count,
+                "phase_offsets": ",".join(
+                    str(row.get("bridge_phase_offset"))
+                    for row in sorted(rows, key=lambda item: str(item.get("bridge_phase_offset")))
+                    if row.get("bridge_phase_offset") not in (None, "")
+                ),
+                "child_sample_pass_count": sample_pass_count,
+                "followup_pass_count": followup_pass_count,
+                "child_positive_search_count": positive_search_count,
+                "child_positive_is_count": positive_is_count,
+                "child_positive_os_count": positive_os_count,
+                "child_beats_parent_search_count": beats_search_count,
+                "child_beats_parent_is_count": beats_is_count,
+                "child_beats_parent_os_count": beats_os_count,
+                "min_child_search_turnover_aware_score": _min_or_none(child_search_scores),
+                "median_child_search_turnover_aware_score": _median_or_none(child_search_scores),
+                "min_child_in_sample_turnover_aware_score": _min_or_none(child_is_scores),
+                "median_child_in_sample_turnover_aware_score": _median_or_none(child_is_scores),
+                "min_child_out_sample_turnover_aware_score": _min_or_none(child_os_scores),
+                "median_child_out_sample_turnover_aware_score": _median_or_none(child_os_scores),
+                "min_child_minus_parent_search_turnover_aware_score": _min_or_none(
+                    child_minus_parent_search
+                ),
+                "median_child_minus_parent_search_turnover_aware_score": _median_or_none(
+                    child_minus_parent_search
+                ),
+                "min_child_minus_parent_in_sample_turnover_aware_score": _min_or_none(
+                    child_minus_parent_is
+                ),
+                "min_child_minus_parent_out_sample_turnover_aware_score": _min_or_none(
+                    child_minus_parent_os
+                ),
+                "robust_bridge_candidate": robust_bridge_candidate,
+            }
+        )
+    return summaries
+
+
+def _bridge_family_name(variant: Any) -> str:
+    if variant.kind in {"rebalance", "signal_decay"}:
+        return f"{variant.kind}_{variant.parameter}"
+    return variant.name
+
+
+def _finite_values(values: Any) -> list[float]:
+    return [float(value) for value in values if value is not None]
+
+
+def _min_or_none(values: list[float]) -> float | None:
+    return min(values) if values else None
+
+
+def _median_or_none(values: list[float]) -> float | None:
+    if not values:
+        return None
+    ordered = sorted(values)
+    middle = len(ordered) // 2
+    if len(ordered) % 2:
+        return float(ordered[middle])
+    return float((ordered[middle - 1] + ordered[middle]) / 2.0)
 
 
 def _candidate_record(parent: Any, child: Any) -> dict[str, Any]:

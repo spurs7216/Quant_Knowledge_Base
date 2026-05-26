@@ -74,7 +74,7 @@ class ExpressionBridgeFollowupTest(unittest.TestCase):
                 "--cost-grid-bps",
                 "0,2.5",
                 "--bridge-variant-grid",
-                "daily,rebalance_5,signal_decay_5",
+                "daily,rebalance_5,rebalance_5_offset_1,signal_decay_5",
                 "--min-names-per-side",
                 "2",
                 "--min-portfolio-days",
@@ -97,17 +97,26 @@ class ExpressionBridgeFollowupTest(unittest.TestCase):
             )
             self.assertEqual(summary["status"], "ok")
             self.assertEqual(summary["run_id"], "unit_bridge_followup")
-            self.assertEqual(summary["result_counts"]["parent_baseline_count"], 3)
-            self.assertEqual(summary["result_counts"]["bridge_child_count"], 3)
-            self.assertEqual(len(summary["comparison_rows"]), 3)
+            self.assertEqual(summary["result_counts"]["parent_baseline_count"], 4)
+            self.assertEqual(summary["result_counts"]["bridge_child_count"], 4)
+            self.assertEqual(len(summary["comparison_rows"]), 4)
+            self.assertIn("robustness_rows", summary)
             self.assertFalse(summary["decision_contract"]["promotion_allowed_from_this_run"])
             self.assertTrue((out_dir / "expression_bridge_followup_rankings.csv").exists())
             self.assertTrue((out_dir / "expression_bridge_followup_comparison.csv").exists())
+            self.assertTrue((out_dir / "expression_bridge_followup_robustness.csv").exists())
             self.assertTrue((out_dir / "expression_bridge_followup_cost_sensitivity.csv").exists())
 
             comparison = pd.read_csv(out_dir / "expression_bridge_followup_comparison.csv")
-            self.assertEqual(set(comparison["bridge_variant"]), {"daily", "rebalance_5", "signal_decay_5"})
+            self.assertEqual(
+                set(comparison["bridge_variant"]),
+                {"daily", "rebalance_5", "rebalance_5_offset_1", "signal_decay_5"},
+            )
+            self.assertIn("bridge_phase_offset", comparison.columns)
             self.assertIn("child_minus_parent_search_sample_turnover_aware_score", comparison.columns)
+            robustness = pd.read_csv(out_dir / "expression_bridge_followup_robustness.csv")
+            self.assertIn("robust_bridge_candidate", robustness.columns)
+            self.assertIn("rebalance_5", set(robustness["bridge_family"]))
 
 
 if __name__ == "__main__":
