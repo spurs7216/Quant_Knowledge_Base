@@ -36,15 +36,22 @@ On the remote machine:
 
 ```bash
 git fetch origin
+git checkout main
+git pull --ff-only origin main
 git status --short
 git rev-parse HEAD
 git rev-parse origin/main
+git merge-base --is-ancestor 55d25a97178ee7740d593dc2ec0f55b12a8408fa HEAD
+test -f research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
+grep -q "expression_bridge_followup_robustness.csv" research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
 ```
 
 Stop and report if:
 
 - the worktree is dirty before the run;
 - `HEAD` does not match `origin/main`;
+- `HEAD` is not a descendant of `55d25a97178ee7740d593dc2ec0f55b12a8408fa`, the commit that added the robustness artifact writer;
+- `run_expression_bridge_followup.py` does not contain the robustness artifact writer;
 - the daily_stock CSV path is unknown.
 
 Do not launch Qwen or vLLM for this run.
@@ -71,7 +78,37 @@ python research/alphaevolve_lite/scripts/run_expression_bridge_followup.py \
 
 ## Required Artifacts
 
-Zip the output directory and return it for local review.
+Before zipping, run:
+
+```bash
+OUT=artifacts/phase4_alphaevolve/expression_bridge_robustness_20260526
+test -f "$OUT/expression_bridge_followup_summary.json"
+test -f "$OUT/expression_bridge_followup_robustness.csv"
+test -f "$OUT/run_result.json"
+python - <<'PY'
+import json
+from pathlib import Path
+out = Path("artifacts/phase4_alphaevolve/expression_bridge_robustness_20260526")
+summary = json.loads((out / "expression_bridge_followup_summary.json").read_text())
+run = json.loads((out / "run_result.json").read_text())
+assert summary["status"] == "ok", summary.get("failure_reason")
+assert summary["git_status"].get("git_head_matches_origin_main") is True, summary["git_status"]
+assert "robustness_rows" in summary, summary.keys()
+assert "robust_bridge_family_count" in run, run
+print("bridge robustness artifact sanity check passed")
+PY
+```
+
+Zip the output directory as:
+
+```bash
+cd artifacts/phase4_alphaevolve
+zip -r ../../expression_bridge_robustness_20260526.zip expression_bridge_robustness_20260526
+```
+
+Return `artifacts/expression_bridge_robustness_20260526.zip` for local review. Do not return the older `expression_bridge_followup_20260526.zip`.
+
+Required files inside the zip:
 
 Required files:
 

@@ -364,6 +364,8 @@ next_task:
   remote_instruction: expression_bridge_robustness_remote_instructions_20260526.md
   next_remote_action:
     - run deterministic bridge robustness only
+    - require commit 55d25a97178ee7740d593dc2ec0f55b12a8408fa or a later descendant with the robustness artifact writer
+    - verify expression_bridge_followup_robustness.csv exists before zipping
     - return offset/period comparison, scorecard, cost sensitivity, split, universe, and Git hygiene artifacts
   possible_later_action_if_robust:
     - convert the child into a first-class bridge-aware expression strategy parent
