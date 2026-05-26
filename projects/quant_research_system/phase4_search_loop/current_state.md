@@ -76,6 +76,7 @@ sources:
   - "expression_seed_zoo_remote_instructions_20260525.md"
   - "expression_seed_zoo_review_20260525.md"
   - "expression_episode_remote_instructions_20260526.md"
+  - "expression_episode_20260526_review.md"
 ---
 # Phase 4 Current State
 
@@ -328,50 +329,36 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The next step is the first population-aware remote Qwen-backed expression episode after GitHub sync. The local runner and mock smoke are complete; the remote should return episode artifacts before any full validation or promotion. This is no longer a fixed-parent repair loop: turn 1 mutates root seeds, later turns sample eligible child survivors when available, and the artifact must expose parent-selection and population-ledger evidence. The runner now also uses run-scoped child ids, can reload prior population ledgers for later episodes, writes a SQLite expression-population mirror, records explicit success flags, and evaluates fixed bridge variants for turnover/cost diagnostics. Plan-level caveats and their repair status are tracked in [phase4_caveat_repair_ledger.md](phase4_caveat_repair_ledger.md).
+The population-aware expression episode is reviewed in [expression_episode_20260526_review.md](expression_episode_20260526_review.md). The run was mechanically healthy at commit `b44ae3aef4b1efe061bc88b4837273855e902b82`: no null or malformed Qwen outputs, 12 child proposals, 7 mechanical sample passes, all required population and bridge artifacts present, and no final-test use. No child is promotable under the primary daily bridge. The important evidence is that `expr_smoothed_rev_000_82524e85_ep_t02_c01` becomes plausible only under slower bridge diagnostics: 5-day rebalance gives positive IS and OS turnover-aware scores, and signal-decay-5 gives stronger OS but slightly negative IS score.
 
 ```yaml
-next_remote_task:
-  type: expression_episode_qwen_run
-  instruction_file: expression_episode_remote_instructions_20260526.md
-  candidate_unit: safe_daily_stock_expression
-  qwen_role: fast_generator
-  model: Qwen3.5-9B
-  parent_expression_seeds:
-    - expr_smoothed_rev
-    - expr_size_ind_rev
-    - expr_mom_060_ind
-  required_local_work_before_remote:
-    - completed: implement JSON-only expression prompt and parser
-    - completed: evaluate children through fixed daily-stock seed-zoo contracts
-    - completed: record exact duplicate and structural-similarity diagnostics
-    - completed: write trajectory summaries with valid ratio, pass@T, consistency, exploration, and best child
-    - completed: write expression population ledger, parent-selection records, MAP-style descriptors, and branch stop-loss diagnostics
-    - completed: run-scoped child ids plus reloadable prior-population ledger support
-    - completed: SQLite expression-population mirror, success-flag artifact, and bridge-variant diagnostics
-    - completed: write remote instructions with explicit Qwen server preflight
-  episode_shape:
-    turns: 2
-    offspring_per_turn: 2
-    expected_child_count: 12
-    parent_sampling_mode: population_mixed
-    branch_stop_loss_min_children: 4
-    bridge_variant_grid: daily,rebalance_5,signal_decay_5,no_trade_band_0.25
-    completion_tokens: 8192
-  mutation_objective:
-    - improve turnover-aware score after 2.5 bps
-    - preserve broad coverage, dollar neutrality, max-weight discipline, and low missing-held weight
-    - improve IS/OS stability rather than only one split
-    - avoid raw industry/SIC trading, sparse event-only books, and grid search over constants
-  review_questions:
-    - did Qwen return valid JSON content, or did null/malformed output recur?
-    - which parent produced the best trajectory diagnostics?
-    - did turn 2 mutate eligible child survivors rather than only rewriting the root seed?
-    - which population cells were occupied, and did any branch warrant pause before another run?
-    - do success flags separate parent beat, root beat, positive after-cost behavior, positive IS/OS behavior, coverage, sparsity, and duplicate risk?
-    - do fixed bridge variants show a cost-conversion path worth converting into a reviewed strategy program?
-    - did any child beat its parent after cost while keeping hard gates clean?
-    - are improvements real IS/OS evidence or another turnover/regime artifact?
+next_task:
+  type: bridge_policy_followup
+  basis: expression_episode_20260526
+  candidate_expression_id: expr_smoothed_rev_000_82524e85_ep_t02_c01
+  expression: rank(-rolling_mean(rolling_sum(excess_ret, 5), 3)) * rank(log1p_abs(dollar_volume))
+  candidate_bridges:
+    - rebalance_5
+    - signal_decay_5
+  reason:
+    - primary daily bridge is not promotable
+    - bridge diagnostics show plausible cost conversion
+    - child is not a near duplicate
+    - 5-day rebalance has positive IS and OS turnover-aware scores
+  required_local_work_before_remote: completed
+  implemented_files:
+    - research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
+    - research/alphaevolve_lite/tests/test_expression_bridge_followup.py
+  remote_instruction: expression_bridge_followup_remote_instructions_20260526.md
+  next_remote_action:
+    - run deterministic parent-vs-child bridge-policy follow-up
+    - compare daily, rebalance_5, and signal_decay_5 under the same evaluator contracts
+    - return bridge comparison, scorecard, cost sensitivity, universe, split, and git hygiene artifacts
+  forbidden:
+    - no Qwen call for this follow-up
+    - no full validation
+    - no promotion
+    - no broad new expression episode before bridge-policy evidence is reviewed
   test_set_used: false
 ```
 
@@ -383,5 +370,5 @@ next_remote_task:
 - Data and costs: [dataset_context.md](dataset_context.md), [dataset_admission_policy.md](dataset_admission_policy.md), [universe_and_split_policy.md](universe_and_split_policy.md), [is_os_evaluation_policy_20260519.md](is_os_evaluation_policy_20260519.md), [cost_model_policy.md](cost_model_policy.md)
 - Remote/runtime: [remote_qwen_vllm_config.md](remote_qwen_vllm_config.md), [remote_csv_execution_policy.md](remote_csv_execution_policy.md), [model_stack_and_vllm_results.md](model_stack_and_vllm_results.md)
 - Dated evidence records: [remote_evidence_review_20260430.md](remote_evidence_review_20260430.md), [controller_batch_001_small_review_20260430.md](controller_batch_001_small_review_20260430.md), [controller_batch_001_small_repair_v1_review_20260430.md](controller_batch_001_small_repair_v1_review_20260430.md), [controller_batch_001_small_semantic_v2_review_20260501.md](controller_batch_001_small_semantic_v2_review_20260501.md), [controller_batch_001_small_semantic_v3_review_20260501.md](controller_batch_001_small_semantic_v3_review_20260501.md), [controller_batch_001_small_semantic_v4_review_20260508.md](controller_batch_001_small_semantic_v4_review_20260508.md), [controller_batch_001_review_20260509.md](controller_batch_001_review_20260509.md), [controller_batch_001_diversity_topup_review_20260509.md](controller_batch_001_diversity_topup_review_20260509.md), [remote_sample_eval_controller_batch_001_review_20260509.md](remote_sample_eval_controller_batch_001_review_20260509.md), [controller_batch_001_attempt017_repair_hardening_20260510.md](controller_batch_001_attempt017_repair_hardening_20260510.md), [controller_evaluator_hardening_smoke_review_20260511.md](controller_evaluator_hardening_smoke_review_20260511.md), [remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md](remote_sample_eval_controller_attempt017_27b_card_batch_review_20260515.md), [sample_eval_novelty_hardening_20260515.md](sample_eval_novelty_hardening_20260515.md), [controller_attempt017_novelty_smoke_review_20260517.md](controller_attempt017_novelty_smoke_review_20260517.md), [controller_attempt017_forced_cell_smoke_review_20260517.md](controller_attempt017_forced_cell_smoke_review_20260517.md), [controller_execution_effect_hardening_20260517.md](controller_execution_effect_hardening_20260517.md), [remote_sample_eval_is_os_forward_repair_review_20260520.md](remote_sample_eval_is_os_forward_repair_review_20260520.md), [seed_zoo_is_os_review_20260522.md](seed_zoo_is_os_review_20260522.md)
-- Remote handoff: [expression_episode_remote_instructions_20260526.md](expression_episode_remote_instructions_20260526.md), [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md), [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
+- Remote handoff: [expression_bridge_followup_remote_instructions_20260526.md](expression_bridge_followup_remote_instructions_20260526.md), [expression_episode_remote_instructions_20260526.md](expression_episode_remote_instructions_20260526.md), [daily_stock_forward_coverage_remote_instructions_20260518.md](daily_stock_forward_coverage_remote_instructions_20260518.md), [controller_batch_001_remote_instructions_20260508.md](controller_batch_001_remote_instructions_20260508.md), [controller_batch_001_diversity_topup_remote_instructions_20260509.md](controller_batch_001_diversity_topup_remote_instructions_20260509.md), [controller_batch_001_curated_sample_eval_remote_instructions_20260509.md](controller_batch_001_curated_sample_eval_remote_instructions_20260509.md), [controller_batch_001_attempt017_repair_remote_instructions_20260509.md](controller_batch_001_attempt017_repair_remote_instructions_20260509.md), [controller_evaluator_hardening_remote_instructions_20260510.md](controller_evaluator_hardening_remote_instructions_20260510.md), [controller_attempt017_search_control_remote_instructions_20260511.md](controller_attempt017_search_control_remote_instructions_20260511.md), [controller_attempt017_mechanism_batch_remote_instructions_20260513.md](controller_attempt017_mechanism_batch_remote_instructions_20260513.md), [controller_attempt017_novelty_smoke_remote_instructions_20260516.md](controller_attempt017_novelty_smoke_remote_instructions_20260516.md), [controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md](controller_attempt017_forced_cell_smoke_remote_instructions_20260517.md), [controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md](controller_attempt017_execution_effect_smoke_remote_instructions_20260517.md), [controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md](controller_attempt017_is_os_cost_robustness_remote_instructions_20260520.md), [parent_zoo_cost_aware_remote_instructions_20260522.md](parent_zoo_cost_aware_remote_instructions_20260522.md), [configs/controller_batch_001_remote_qwen.yaml](configs/controller_batch_001_remote_qwen.yaml)
 - Durable method memory: [AlphaEvolve Lite Quant Search Workflow](../../../wiki/methods/AlphaEvolve%20Lite%20Quant%20Search%20Workflow.md), [AlphaEvolve Extension Methods for Quant Search](../../../wiki/methods/AlphaEvolve%20Extension%20Methods%20for%20Quant%20Search.md)

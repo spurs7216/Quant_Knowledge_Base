@@ -17,6 +17,7 @@ tags:
 - Added `phase4_caveat_repair_ledger.md` and closed the remaining plan caveats for the next expression run: branch stop-loss uses root-relative turnover-aware delta, expression episodes write a SQLite population mirror, pass@T is decomposed into explicit success flags, and fixed bridge-variant diagnostics expose turnover/cost sensitivity without changing the primary evaluator status.
 - Added local mock-response tests in `research/alphaevolve_lite/tests/test_expression_episode.py` so the Windows machine can verify the real CSV/evaluator path without launching Qwen.
 - Added `projects/quant_research_system/phase4_search_loop/expression_episode_remote_instructions_20260526.md` as the next remote handoff. The remote agent must start and verify the Qwen3.5-9B vLLM server in a dedicated terminal before running the episode.
+- Reviewed `artifacts/expression_episode_20260526.zip` in [[Expression Episode 20260526 Review]]. The run was mechanically healthy but produced no primary-bridge promotion candidate; the next step is a bridge-policy follow-up for the non-duplicate smoothed-reversal liquidity child whose 5-day-rebalance diagnostic has positive IS and OS turnover-aware scores.
 
 ## 2026-05-25 | evidence review | expression seed zoo baseline
 
@@ -629,3 +630,11 @@ tags:
 - Added `research/alphaevolve_lite/scripts/run_expression_seed_zoo.py` so the remote machine can baseline all expression seeds under the repaired rolling top-500, forward-return, IS/OS, cost, max-weight, and coverage contracts before Qwen evolves them.
 - Added focused unit tests for expression safety, no-lookahead windows, constrained portfolio weights, seed evaluability, and trajectory-score diagnostics.
 - Hardened the expression layer after inspector review: tied/constant signals now skip ambiguous portfolio days, raw `SICCD` is internal to `industry_neutralize` rather than tradable as `industry`, generated expressions have length/AST/depth/call caps, expression seed-zoo status gates missing-held weight, and seed expressions are tested for uniqueness.
+
+## 2026-05-26 | implementation | expression bridge-policy follow-up
+
+- Reviewed `artifacts/expression_episode_20260526.zip`: the population-aware expression episode was mechanically healthy, but no child was promotable under the primary daily bridge.
+- Identified the liquidity-gated smoothed-reversal child as a bridge-policy clue rather than expression-alpha evidence, because slower bridge diagnostics improved cost/turnover behavior.
+- Added `research/alphaevolve_lite/scripts/run_expression_bridge_followup.py` to compare parent and child under identical `daily`, `rebalance_5`, and `signal_decay_5` bridge contracts without calling Qwen.
+- Added `research/alphaevolve_lite/tests/test_expression_bridge_followup.py` and verified the full AlphaEvolve-lite test suite.
+- Added `projects/quant_research_system/phase4_search_loop/expression_bridge_followup_remote_instructions_20260526.md` so the remote run is deterministic, no-Qwen, no-promotion, and no-full-validation.
