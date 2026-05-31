@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -25,49 +26,50 @@ def write_expression_population_sqlite(
 
     path = Path(db_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as conn:
-        _create_schema(conn)
-        run_id = str(run_summary.get("run_id") or "")
-        conn.execute(
-            """
-            INSERT OR REPLACE INTO expression_population_runs
-            (run_id, schema_version, status, summary_json)
-            VALUES (?, ?, ?, ?)
-            """,
-            (
-                run_id,
-                SCHEMA_VERSION,
-                str(run_summary.get("status") or ""),
-                _json(run_summary),
-            ),
-        )
-        conn.execute("DELETE FROM expression_population_records WHERE run_id = ?", (run_id,))
-        conn.execute("DELETE FROM expression_parent_selection_records WHERE run_id = ?", (run_id,))
-        conn.executemany(
-            """
-            INSERT INTO expression_population_records
-            (
-                run_id, expression_id, root_expression_id, parent_expression_id,
-                record_type, generation, turn, status, selection_score,
-                root_turnover_aware_delta, parent_sampling_eligible,
-                map_cell_key, historical, source_path, record_json
+    with closing(sqlite3.connect(path)) as conn:
+        with conn:
+            _create_schema(conn)
+            run_id = str(run_summary.get("run_id") or "")
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO expression_population_runs
+                (run_id, schema_version, status, summary_json)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    run_id,
+                    SCHEMA_VERSION,
+                    str(run_summary.get("status") or ""),
+                    _json(run_summary),
+                ),
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [_population_row(record, run_id) for record in population_records],
-        )
-        conn.executemany(
-            """
-            INSERT INTO expression_parent_selection_records
-            (
-                run_id, root_expression_id, turn, selected_expression_id,
-                parent_sampling_mode, selection_reason, eligible_parent_count,
-                record_json
+            conn.execute("DELETE FROM expression_population_records WHERE run_id = ?", (run_id,))
+            conn.execute("DELETE FROM expression_parent_selection_records WHERE run_id = ?", (run_id,))
+            conn.executemany(
+                """
+                INSERT INTO expression_population_records
+                (
+                    run_id, expression_id, root_expression_id, parent_expression_id,
+                    record_type, generation, turn, status, selection_score,
+                    root_turnover_aware_delta, parent_sampling_eligible,
+                    map_cell_key, historical, source_path, record_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [_population_row(record, run_id) for record in population_records],
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            [_parent_selection_row(record, run_id) for record in parent_selection_records],
-        )
+            conn.executemany(
+                """
+                INSERT INTO expression_parent_selection_records
+                (
+                    run_id, root_expression_id, turn, selected_expression_id,
+                    parent_sampling_mode, selection_reason, eligible_parent_count,
+                    record_json
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                [_parent_selection_row(record, run_id) for record in parent_selection_records],
+            )
     return path
 
 

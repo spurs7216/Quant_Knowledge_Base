@@ -88,6 +88,24 @@ class ExpressionEpisodeTest(unittest.TestCase):
         self.assertIn('"children"', user_prompt)
         self.assertIn("expr_smoothed_rev", user_prompt)
 
+    def test_prompt_keeps_research_memory_separate_from_episode_feedback(self) -> None:
+        parent = next(seed for seed in DEFAULT_EXPRESSION_SEEDS if seed.expression_id == "expr_smoothed_rev")
+        _, user_prompt = build_expression_episode_prompt(
+            parent=parent,
+            parent_ranking={"search_turnover": 0.5},
+            prior_feedback=[{"status": "expression_duplicate"}],
+            turn=2,
+            offspring_per_turn=2,
+            interface_markdown="## Fields\n- `excess_ret`: return\n## Operators\n- `rank`: rank",
+            research_memory=[
+                "Bridge robustness rejected liquidity-gated smoothed reversal as phase-sensitive."
+            ],
+        )
+        self.assertIn("# Research Memory", user_prompt)
+        self.assertIn("# Prior Episode Feedback", user_prompt)
+        self.assertIn("phase-sensitive", user_prompt)
+        self.assertLess(user_prompt.index("# Research Memory"), user_prompt.index("# Prior Episode Feedback"))
+
     def test_novelty_diagnostics_flags_exact_duplicate(self) -> None:
         novelty = expression_novelty_diagnostics(
             expression=" rank(-rolling_sum(excess_ret, 5)) ",
@@ -180,6 +198,7 @@ class ExpressionEpisodeTest(unittest.TestCase):
             csv_path = root / "daily_stock.csv"
             out_dir = root / "episode_out"
             mock_path = root / "mock_response.json"
+            memory_path = root / "research_memory.md"
             _synthetic_daily_stock_csv(csv_path)
             mock_path.write_text(
                 json.dumps(
@@ -195,6 +214,10 @@ class ExpressionEpisodeTest(unittest.TestCase):
                         ]
                     }
                 ),
+                encoding="utf-8",
+            )
+            memory_path.write_text(
+                "Bridge robustness memory: do not select a child from one strong rebalance phase.",
                 encoding="utf-8",
             )
 
@@ -229,6 +252,8 @@ class ExpressionEpisodeTest(unittest.TestCase):
                 "1",
                 "--mock-response-json",
                 str(mock_path),
+                "--research-memory-file",
+                str(memory_path),
             ]
             completed = subprocess.run(
                 command,
@@ -249,6 +274,15 @@ class ExpressionEpisodeTest(unittest.TestCase):
             self.assertTrue((out_dir / "expression_success_flags.csv").exists())
             self.assertTrue((out_dir / "expression_bridge_variants.csv").exists())
             self.assertTrue((out_dir / "expression_population.sqlite").exists())
+            self.assertEqual(summary["research_memory"]["loaded_record_count"], 1)
+            prompt_paths = sorted((out_dir / "model_calls").glob("*/user_prompt.md"))
+            self.assertGreater(len(prompt_paths), 0)
+            prompt_text = prompt_paths[0].read_text(encoding="utf-8")
+            self.assertIn("Bridge robustness memory", prompt_text)
+            prompt_memory = json.loads(
+                (out_dir / "expression_prompt_memory.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(prompt_memory[0]["path"], str(memory_path))
             population_summary = json.loads(
                 (out_dir / "expression_population_summary.json").read_text(encoding="utf-8")
             )

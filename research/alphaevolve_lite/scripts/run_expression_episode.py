@@ -115,6 +115,15 @@ def parse_args() -> argparse.Namespace:
         help="Maximum prior population records to load across all ledgers.",
     )
     parser.add_argument(
+        "--research-memory-file",
+        action="append",
+        default=[],
+        help=(
+            "Markdown or text file containing reviewed research memory to inject into "
+            "expression-generation prompts. May be repeated."
+        ),
+    )
+    parser.add_argument(
         "--mock-response-json",
         default="",
         help="Local-test only: use this JSON response for every model call instead of Qwen.",
@@ -218,6 +227,10 @@ def main() -> int:
 
     diagnostics: list[dict[str, Any]] = []
     try:
+        research_memory_records = _load_research_memory_files(args.research_memory_file)
+        research_memory_texts = [record["content"] for record in research_memory_records]
+        write_json(out_dir / "expression_prompt_memory.json", research_memory_records)
+
         raw, load_diag = load_daily_stock_window(
             args.csv_path,
             start_date=args.start_date,
@@ -247,6 +260,7 @@ def main() -> int:
         artifact_paths = {
             "expression_interface": str(out_dir / "expression_interface.md"),
             "expression_seed_library": str(out_dir / "expression_seed_library.json"),
+            "expression_prompt_memory": str(out_dir / "expression_prompt_memory.json"),
             "split_manifest": str(out_dir / "split_manifest.yaml"),
         }
         artifact_paths.update(write_universe_artifacts(out_dir, membership, universe_summary))
@@ -374,6 +388,7 @@ def main() -> int:
                     turn=turn,
                     offspring_per_turn=args.offspring_per_turn,
                     interface_markdown=interface_markdown,
+                    research_memory=research_memory_texts,
                 )
                 call_dir = out_dir / "model_calls" / (
                     f"{root_parent.expression_id}_turn_{turn:02d}_parent_{parent.expression_id}"
@@ -624,6 +639,14 @@ def main() -> int:
                     for record in historical_population_records
                 ),
             },
+            "research_memory": {
+                "file_paths": list(args.research_memory_file),
+                "loaded_record_count": len(research_memory_records),
+                "total_content_chars": sum(
+                    int(record.get("content_chars") or 0) for record in research_memory_records
+                ),
+                "artifact_path": str(out_dir / "expression_prompt_memory.json"),
+            },
             "artifact_paths": {
                 **artifact_paths,
                 "expression_episode_rankings": str(out_dir / "expression_episode_rankings.csv"),
@@ -705,6 +728,9 @@ def _validate_args(args: argparse.Namespace) -> None:
         raise ValueError("--branch-stop-loss-min-children must be positive")
     if args.prior_population_limit < 0:
         raise ValueError("--prior-population-limit must be non-negative")
+    for path in args.research_memory_file:
+        if not str(path).strip():
+            raise ValueError("--research-memory-file paths must be non-empty")
 
 
 def _evaluate_expression_spec(
@@ -1147,6 +1173,33 @@ def _load_prior_population_records(paths: list[str], *, limit: int) -> list[dict
             records.append(normalized)
     if limit > 0 and len(records) > limit:
         return records[-limit:]
+    return records
+
+
+def _load_research_memory_files(
+    paths: list[str],
+    *,
+    max_chars_per_file: int = 6000,
+) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for raw_path in paths:
+        path = Path(raw_path)
+        if not path.exists():
+            raise FileNotFoundError(f"research memory file not found: {path}")
+        original = path.read_text(encoding="utf-8").strip()
+        truncated = len(original) > max_chars_per_file
+        content = original[:max_chars_per_file].rstrip() if truncated else original
+        if truncated:
+            content = f"{content}\n...[truncated]"
+        records.append(
+            {
+                "path": str(path),
+                "original_chars": len(original),
+                "content_chars": len(content),
+                "truncated": truncated,
+                "content": content,
+            }
+        )
     return records
 
 

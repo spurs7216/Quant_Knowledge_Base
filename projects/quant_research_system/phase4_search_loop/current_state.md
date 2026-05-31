@@ -2,7 +2,7 @@
 title: Phase 4 Current State
 type: project
 status: active
-updated: 2026-05-26
+updated: 2026-05-31
 tags:
   - project
   - phase4
@@ -78,6 +78,9 @@ sources:
   - "expression_episode_remote_instructions_20260526.md"
   - "expression_episode_20260526_review.md"
   - "expression_bridge_followup_review_20260526.md"
+  - "expression_bridge_robustness_review_20260526.md"
+  - "expression_episode_v2_memory_20260531.md"
+  - "expression_episode_v2_remote_instructions_20260531.md"
 ---
 # Phase 4 Current State
 
@@ -100,10 +103,10 @@ controller_gate: controller_static before any data-backed child evaluation
 test_set_use: forbidden until branch freeze
 ```
 
-The controller-static population gate is satisfied, the seed-zoo parent-discovery sample evaluation has been reviewed, the first controller-only parent-zoo cost-aware run has been reviewed, its curated sample-eval follow-up has been reviewed, and the first expression seed-zoo baseline has been reviewed. The latest reviewed artifact is:
+The controller-static population gate is satisfied, the seed-zoo parent-discovery sample evaluation has been reviewed, the first controller-only parent-zoo cost-aware run has been reviewed, its curated sample-eval follow-up has been reviewed, the first expression seed-zoo baseline has been reviewed, and the first expression bridge robustness run has been reviewed. The latest reviewed artifact is:
 
 ```text
-artifacts/expression_seed_zoo_20260525.zip
+artifacts/expression_bridge_robustness_20260526.zip
 ```
 
 The similarly named older `artifacts/remote_sample_eval_.zip` is a zero-byte corrupt placeholder and should be ignored.
@@ -171,7 +174,12 @@ iterative_evolution_round_done: false
 expression_evolution_v1_local_scaffold: implemented
 expression_seed_zoo_remote_eval_reviewed: true
 remote_expression_episode_runner_v1: implemented_locally
-next_stage: remote_expression_episode_run_v1
+remote_expression_episode_run_v1_reviewed: true
+expression_bridge_followup_reviewed: true
+expression_bridge_robustness_reviewed: true
+expression_episode_v2_research_memory: implemented_locally
+expression_episode_v2_remote_instruction: ready_for_remote
+next_stage: remote_expression_episode_v2
 ```
 
 ## AlphaEvolve Modules In This Project
@@ -330,50 +338,44 @@ The explicit skill library is a third layer. It is narrower than reasoning memor
 
 ## Current Next Step
 
-The bridge follow-up is reviewed in [expression_bridge_followup_review_20260526.md](expression_bridge_followup_review_20260526.md). The run was clean at commit `c7966ed7765d73e17a9dbea1480dd0e57953779f`: no Qwen, no dirty Git state, 6/6 bridge records reached `expression_sample_pass`, and no final-test evidence was used.
+The bridge robustness run is reviewed in [expression_bridge_robustness_review_20260526.md](expression_bridge_robustness_review_20260526.md). The run was clean at commit `55d25a97178ee7740d593dc2ec0f55b12a8408fa`: no Qwen, no dirty Git state, 44/44 parent/child bridge records reached `expression_sample_pass`, and no final-test evidence was used.
 
-The important result is narrow. The liquidity-gated smoothed-reversal child is worse than the parent under the daily bridge. It passes the follow-up rule only under `rebalance_5`, where search turnover-aware score improves from 0.0151 to 0.0410 and OS score improves from -0.2968 to 0.1570. But IS turnover-aware score falls from 0.0978 to 0.0093, and the child becomes negative at 5 bps total cost. `signal_decay_5` has strong OS behavior but negative IS turnover-aware score.
+The important result is negative for parent conversion. The liquidity-gated smoothed-reversal child remains bad under the primary daily bridge, and no bridge family satisfies the robustness rule. `rebalance_5` has only one follow-up pass across five phases, with child positive search/IS/OS counts of 3/5 each. `rebalance_10` has one strong phase, `rebalance_10_offset_5`, but only one follow-up pass across ten phases. Signal-decay variants are OS-positive but IS-negative. At 5 bps, the apparent gains mostly disappear.
 
-This is bridge-policy evidence, not promotion evidence.
+This closes the bridge detour for this child. The result is bridge-policy failure memory, not promotion evidence.
+
+The local prep for this next run is now implemented. `run_expression_episode.py` accepts `--research-memory-file`, writes `expression_prompt_memory.json`, and injects reviewed memory into a dedicated prompt section separated from population context and prior episode feedback.
 
 ```yaml
 next_task:
-  type: bridge_policy_robustness
-  basis: expression_bridge_followup_20260526
-  candidate_expression_id: expr_smoothed_rev_liq_bridge_20260526
-  expression: rank(-rolling_mean(rolling_sum(excess_ret, 5), 3)) * rank(log1p_abs(dollar_volume))
-  candidate_bridge:
-    - rebalance_5
+  type: remote_expression_episode_v2
+  remote_instruction: expression_episode_v2_remote_instructions_20260531.md
+  research_memory: expression_episode_v2_memory_20260531.md
+  basis:
+    - expression_episode_20260526
+    - expression_bridge_followup_20260526
+    - expression_bridge_robustness_20260526
   reason:
-    - rebalance_5 is the only bridge-followup pass
-    - daily bridge is negative
-    - signal_decay_5 is OS-heavy and IS-negative
-    - rebalance_5 is anchored to the first analysis date and may be phase-sensitive
-    - 5 bps total cost turns the candidate negative
-  required_local_work_before_remote:
-    - completed: add rebalance phase/offset variants
-    - completed: add bridge-family robustness summary artifact
-    - completed: compare parent and child under rebalance_5 offsets 0 through 4
-    - completed: compare neighboring periods such as rebalance_3 and rebalance_10
-    - completed: keep Qwen disabled
-  implemented_files:
-    - research/alphaevolve_lite/expression_bridge_variants.py
-    - research/alphaevolve_lite/scripts/run_expression_bridge_followup.py
-    - research/alphaevolve_lite/tests/test_expression_evolution.py
-    - research/alphaevolve_lite/tests/test_expression_bridge_followup.py
-  remote_instruction: expression_bridge_robustness_remote_instructions_20260526.md
-  next_remote_action:
-    - run deterministic bridge robustness only
-    - require commit 55d25a97178ee7740d593dc2ec0f55b12a8408fa or a later descendant with the robustness artifact writer
-    - verify expression_bridge_followup_robustness.csv exists before zipping
-    - return offset/period comparison, scorecard, cost sensitivity, split, universe, and Git hygiene artifacts
-  possible_later_action_if_robust:
-    - convert the child into a first-class bridge-aware expression strategy parent
-    - only then use it as a parent for a new expression-population episode
+    - bridge robustness rejected the liquidity-gated child as phase-sensitive
+    - no bridge-aware parent conversion is justified
+    - expression infrastructure, prior-population ledger, bridge diagnostics, and hard gates are now working
+  local_work_completed:
+    - bridge-robustness failure memory is a first-class prompt input
+    - remote instruction requires the prior expression_population_ledger from expression_episode_20260526
+    - remote instruction keeps multi-root population search rather than focusing on the failed bridge child
+    - remote instruction keeps primary daily bridge improvement as the first objective; bridge variants remain diagnostics
+  recommended_roots:
+    - expr_smoothed_rev
+    - expr_mom_060_ind
+    - expr_size_ind_rev with mechanism-specific pressure only
+  avoid_memory:
+    - do not repeat rank(-rolling_mean(rolling_sum(excess_ret, 5), 3)) * rank(log1p_abs(dollar_volume)) as a parent
+    - do not select a child because one rebalance phase is strong
+    - do not treat OS-only bridge gains as alpha evidence
   forbidden:
     - no promotion
     - no full validation
-    - no broad Qwen expression episode before bridge robustness
+    - no bridge-aware conversion of expr_smoothed_rev_liq_bridge_20260526
   test_set_used: false
 ```
 
@@ -387,6 +389,8 @@ prior_expression_episode:
     - rebalance_5
     - signal_decay_5
   bridge_followup_completed: true
+  bridge_robustness_completed: true
+  bridge_robustness_decision: rejected_phase_sensitive
 ```
 
 ## Main Links

@@ -95,6 +95,7 @@ def build_expression_episode_prompt(
     turn: int,
     offspring_per_turn: int,
     interface_markdown: str,
+    research_memory: Sequence[str] = (),
 ) -> tuple[str, str]:
     """Build the JSON-only prompt for one expression-evolution turn."""
 
@@ -118,6 +119,7 @@ def build_expression_episode_prompt(
     compact_feedback = list(prior_feedback)[-12:]
     root = root_parent or parent
     population_payload = dict(population_context or {})
+    memory_payload = [str(item).strip() for item in research_memory if str(item).strip()][-12:]
     user_prompt = (
         "# Task\n"
         f"Generate {offspring_per_turn} child expressions for turn {turn}. The goal is not a "
@@ -137,6 +139,8 @@ def build_expression_episode_prompt(
         f"{json.dumps(parent_ranking, indent=2, sort_keys=True)}\n\n"
         "# Population Context\n"
         f"{json.dumps(population_payload, indent=2, sort_keys=True)}\n\n"
+        "# Research Memory\n"
+        f"{json.dumps(memory_payload, indent=2, sort_keys=True)}\n\n"
         "# Prior Episode Feedback\n"
         f"{json.dumps(compact_feedback, indent=2, sort_keys=True)}\n\n"
         "# Hard Rules\n"
